@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { X, Upload, Monitor, Palette, Sparkles, Layout } from 'lucide-react'
+import { X, Upload, Monitor, Palette, Sparkles } from 'lucide-react'
 import { BackgroundConfig, IconConfig } from '../App'
 
 interface SettingsModalProps {
