@@ -43,6 +43,27 @@ def write_apps(apps: List[dict]):
 import re
 from urllib.parse import urljoin, urlparse
 
+
+
+async def validate_icon_url(client: httpx.AsyncClient, icon_url: str) -> bool:
+    """Check if the URL returns a valid image content type."""
+    try:
+        head_resp = await client.head(icon_url)
+        if head_resp.status_code == 200:
+            ct = head_resp.headers.get("content-type", "").lower()
+            if ct.startswith("image/"):
+                return True
+        
+        # Fallback to GET if HEAD fails or returns ambiguous content
+        get_resp = await client.get(icon_url)
+        if get_resp.status_code == 200:
+            ct = get_resp.headers.get("content-type", "").lower()
+            if ct.startswith("image/"):
+                return True
+    except Exception:
+        pass
+    return False
+
 async def fetch_best_icon(url: str) -> Optional[str]:
     """
     Attempt to find the best favicon for a given URL.
@@ -63,10 +84,10 @@ async def fetch_best_icon(url: str) -> Optional[str]:
                     matches = re.findall(icon_regex, html, re.IGNORECASE)
                     
                     if matches:
-                        # Use the first match for now (usually the best defined first)
-                        # In the future we could sort by size attributes
                         href = matches[0]
-                        return urljoin(url, href)
+                        candidate = urljoin(url, href)
+                        if await validate_icon_url(client, candidate):
+                            return candidate
             except Exception:
                 pass # Continue to fallback
 
@@ -75,16 +96,8 @@ async def fetch_best_icon(url: str) -> Optional[str]:
             base_url = f"{parsed.scheme}://{parsed.netloc}"
             favicon_url = urljoin(base_url, "/favicon.ico")
             
-            try:
-                head_resp = await client.head(favicon_url)
-                if head_resp.status_code == 200:
-                    return favicon_url
-                # Some servers return 405 on HEAD, try GET
-                get_resp = await client.get(favicon_url)
-                if get_resp.status_code == 200:
-                    return favicon_url
-            except Exception:
-                pass
+            if await validate_icon_url(client, favicon_url):
+                return favicon_url
 
     except Exception as e:
         print(f"Error fetching icon for {url}: {e}")

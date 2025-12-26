@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { AppIcon } from './components/AppIcon'
 import { Search, Settings, Plus, Pencil, Trash2 } from 'lucide-react'
 import { SettingsModal } from './components/SettingsModal'
 
@@ -276,11 +277,11 @@ function App() {
                                 )}
 
                                 <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5">
-                                    {app.icon_url ? (
-                                        <img src={app.icon_url} alt={app.name} className="w-full h-full object-contain" />
-                                    ) : (
-                                        <img src="/logo.svg" alt="Default" className="w-full h-full object-contain opacity-80" />
-                                    )}
+                                    <AppIcon
+                                        src={app.icon_url}
+                                        alt={app.name}
+                                        className="w-full h-full object-contain"
+                                    />
                                 </div>
                                 <span className="font-medium text-gray-200 group-hover:text-white text-center text-sm truncate w-full px-2">{app.name}</span>
                             </a>

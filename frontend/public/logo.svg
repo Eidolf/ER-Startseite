@@ -13,7 +13,7 @@
     </filter>
   </defs>
   
-  <rect width="512" height="512" fill="#0a0a0a" rx="100" />
+
   
   <g filter="url(#glow)" transform="translate(256 256) scale(0.8)">
     <path d="M-150 -150 L150 -150 L150 150 L-150 150 Z" fill="none" stroke="url(#neonGradient)" stroke-width="40" stroke-linecap="round" />
