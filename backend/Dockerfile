@@ -44,6 +44,11 @@ COPY . .
 # Create non-root user
 RUN addgroup --system --gid 1001 appuser && \
     adduser --system --uid 1001 --gid 1001 appuser
+
+# Create uploads directory and set permissions
+WORKDIR /app
+RUN mkdir -p /app/uploads && chown -R appuser:appuser /app/uploads
+
 USER appuser
 
 EXPOSE 8000

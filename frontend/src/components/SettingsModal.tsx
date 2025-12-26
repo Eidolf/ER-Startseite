@@ -45,7 +45,10 @@ export function SettingsModal({
                 body: formData
             })
 
-            if (!res.ok) throw new Error('Upload failed')
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}))
+                throw new Error(errorData.detail || 'Upload failed')
+            }
 
             const data = await res.json()
             // Backend returns relative URL like /uploads/filename.ext

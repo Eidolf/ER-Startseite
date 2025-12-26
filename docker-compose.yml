@@ -8,6 +8,9 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - PROJECT_NAME=ER-Startseite
+      - SECRET_KEY=dev_secret_key_change_in_production
+      - BACKEND_CORS_ORIGINS=["http://localhost:5173", "http://localhost:3000"]
       - POSTGRES_SERVER=db
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
