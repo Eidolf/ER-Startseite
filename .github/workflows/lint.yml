@@ -1,0 +1,51 @@
+name: Lint
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        required: true
+        type: string
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        if: contains(inputs.working-directory, 'backend')
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Setup Node
+        if: contains(inputs.working-directory, 'frontend')
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Backend Linting
+      - name: Install Python Deps
+        if: contains(inputs.working-directory, 'backend')
+        run: pip install ruff black mypy
+
+      - name: Run Ruff
+        if: contains(inputs.working-directory, 'backend')
+        run: ruff check .
+
+      - name: Run Black
+        if: contains(inputs.working-directory, 'backend')
+        run: black --check .
+
+      # Frontend Linting
+      - name: Install Node Deps
+        if: contains(inputs.working-directory, 'frontend')
+        run: npm ci
+
+      - name: Run ESLint
+        if: contains(inputs.working-directory, 'frontend')
+        run: npm run lint

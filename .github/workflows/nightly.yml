@@ -1,0 +1,11 @@
+name: Nightly Check
+
+on:
+  schedule:
+    - cron: '0 0 * * 6' # Weekly on Saturday
+  workflow_dispatch:
+
+jobs:
+  full-check:
+    # Use the orchestrator logic but perhaps with a "Full" mode input if we had defined it
+    uses: ./.github/workflows/ci-orchestrator.yml

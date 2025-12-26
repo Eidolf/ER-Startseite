@@ -1,0 +1,66 @@
+name: PR Assistant
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+
+jobs:
+  auto-fix:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+
+      # Backend Fixes
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Run Ruff Fix
+        continue-on-error: true
+        run: |
+          pip install ruff
+          ruff check --fix ./backend
+
+      # Frontend Fixes
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Run Prettier/Lint Fix
+        continue-on-error: true
+        run: |
+          cd frontend
+          npm ci
+          npm run lint -- --fix
+
+      # Commit Changes
+      - name: Commit changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: auto-fix linting issues"
+
+  error-reporter:
+    runs-on: ubuntu-latest
+    needs: [auto-fix]
+    if: failure()
+    steps:
+      - name: Analyze Failure
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: "### ❌ Pipeline Failure Analysis\n\nIt seems something went wrong. Check the logs for details."
+            })

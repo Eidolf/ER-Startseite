@@ -1,0 +1,70 @@
+name: Test
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        required: true
+        type: string
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    services:
+      # Simple Postres service for backend tests
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: neonnexus_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        if: contains(inputs.working-directory, 'backend')
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python Deps (Poetry)
+        if: contains(inputs.working-directory, 'backend')
+        run: |
+          pip install poetry
+          poetry config virtualenvs.create false
+          poetry install --with dev
+
+      - name: Run Pytest
+        if: contains(inputs.working-directory, 'backend')
+        env:
+          POSTGRES_SERVER: localhost
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: neonnexus_test
+        run: poetry run pytest
+
+      # Frontend Tests
+      - name: Setup Node
+        if: contains(inputs.working-directory, 'frontend')
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Node Deps
+        if: contains(inputs.working-directory, 'frontend')
+        run: npm ci
+
+      - name: Run Vitest
+        if: contains(inputs.working-directory, 'frontend')
+        run: npm run test -- --run

@@ -1,0 +1,50 @@
+name: CI Orchestrator
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Backend
+  lint-backend:
+    uses: ./.github/workflows/lint.yml
+    with:
+      working-directory: ./backend
+
+  test-backend:
+    needs: lint-backend
+    uses: ./.github/workflows/test.yml
+    with:
+      working-directory: ./backend
+
+  build-backend:
+    needs: test-backend
+    uses: ./.github/workflows/build.yml
+    with:
+      image-name: neonnexus-backend
+      context: ./backend
+
+  # Frontend
+  lint-frontend:
+    uses: ./.github/workflows/lint.yml
+    with:
+      working-directory: ./frontend
+
+  test-frontend:
+    needs: lint-frontend
+    uses: ./.github/workflows/test.yml
+    with:
+      working-directory: ./frontend
+
+  build-frontend:
+    needs: test-frontend
+    uses: ./.github/workflows/build.yml
+    with:
+      image-name: neonnexus-frontend
+      context: ./frontend
