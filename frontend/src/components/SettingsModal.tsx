@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { X, Upload, Image as ImageIcon, Video, Monitor } from 'lucide-react'
+import { X, Upload, Monitor } from 'lucide-react'
 import { BackgroundConfig } from '../App'
 
 interface SettingsModalProps {
