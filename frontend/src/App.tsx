@@ -29,7 +29,10 @@ function App() {
                         NeonNexus
                     </h1>
                     <div className="flex gap-4">
-                        <button className="p-2 rounded-full glass-panel hover:bg-white/10 transition">
+                        <button
+                            onClick={() => setBgType(prev => prev === 'image' ? 'video' : 'image')}
+                            className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
+                        >
                             <Settings className="w-6 h-6 text-neon-cyan" />
                         </button>
                     </div>
