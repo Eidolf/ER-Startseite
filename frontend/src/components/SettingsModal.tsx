@@ -54,9 +54,9 @@ export function SettingsModal({
                 type: data.type,
                 value: fullUrl
             })
-        } catch (err) {
-            alert("Upload failed")
+        } catch (err: any) {
             console.error(err)
+            alert(`Upload failed: ${err.message}`)
         } finally {
             setUploading(false)
         }
