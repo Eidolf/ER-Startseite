@@ -1,12 +1,14 @@
-import { X } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { X, Upload, Image as ImageIcon, Video, Monitor } from 'lucide-react'
+import { BackgroundConfig } from '../App'
 
 interface SettingsModalProps {
     isOpen: boolean
     onClose: () => void
     currentTitle: string
     onTitleChange: (newTitle: string) => void
-    onBgToggle: () => void
-    bgType: 'image' | 'video'
+    bgConfig: BackgroundConfig
+    onBgChange: (config: BackgroundConfig) => void
 }
 
 export function SettingsModal({
@@ -14,55 +16,175 @@ export function SettingsModal({
     onClose,
     currentTitle,
     onTitleChange,
-    onBgToggle,
-    bgType
+    bgConfig,
+    onBgChange
 }: SettingsModalProps) {
+    const [activeTab, setActiveTab] = useState<'general' | 'background'>('general')
+    const [uploading, setUploading] = useState(false)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+
     if (!isOpen) return null
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        // Max 10MB
+        if (file.size > 10 * 1024 * 1024) {
+            alert("File too large (max 10MB)")
+            return
+        }
+
+        setUploading(true)
+        const formData = new FormData()
+        formData.append('file', file)
+
+        try {
+            const res = await fetch('http://localhost:8000/api/v1/media/upload', {
+                method: 'POST',
+                body: formData
+            })
+
+            if (!res.ok) throw new Error('Upload failed')
+
+            const data = await res.json()
+            const fullUrl = `http://localhost:8000${data.url}`
+
+            onBgChange({
+                type: data.type,
+                value: fullUrl
+            })
+        } catch (err) {
+            alert("Upload failed")
+            console.error(err)
+        } finally {
+            setUploading(false)
+        }
+    }
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div className="w-full max-w-md glass-panel rounded-2xl p-6 relative animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-full max-w-md glass-panel rounded-2xl flex flex-col max-h-[90vh] relative animate-in fade-in zoom-in-95 duration-200">
+
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+                    className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-10"
                 >
                     <X className="w-5 h-5" />
                 </button>
 
-                <h2 className="text-xl font-bold text-neon-cyan mb-6">Settings</h2>
-
-                <div className="space-y-6">
-                    {/* Title Setting */}
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">Page Title</label>
-                        <input
-                            type="text"
-                            value={currentTitle}
-                            onChange={(e) => onTitleChange(e.target.value)}
-                            className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-neon-cyan/50 focus:border-transparent outline-none transition-all placeholder:text-gray-600"
-                            placeholder="Enter dashboard title..."
-                        />
-                    </div>
-
-                    {/* Background Toggle */}
-                    <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
-                        <span className="text-sm font-medium text-gray-300">Video Background</span>
+                <div className="p-6 pb-2 border-b border-white/10">
+                    <h2 className="text-xl font-bold text-neon-cyan">Settings</h2>
+                    <div className="flex gap-4 mt-6">
                         <button
-                            onClick={onBgToggle}
-                            className={`w-12 h-6 rounded-full transition-colors relative ${bgType === 'video' ? 'bg-neon-cyan' : 'bg-gray-700'}`}
+                            onClick={() => setActiveTab('general')}
+                            className={`pb-2 text-sm font-medium transition-colors ${activeTab === 'general' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
-                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${bgType === 'video' ? 'left-7' : 'left-1'}`} />
+                            General
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('background')}
+                            className={`pb-2 text-sm font-medium transition-colors ${activeTab === 'background' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            Background
                         </button>
                     </div>
                 </div>
 
-                <div className="mt-8 flex justify-end">
-                    <button
-                        onClick={onClose}
-                        className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white font-medium transition-colors"
-                    >
-                        Done
-                    </button>
+                <div className="p-6 overflow-y-auto">
+                    {activeTab === 'general' && (
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-300">Page Title</label>
+                                <input
+                                    type="text"
+                                    value={currentTitle}
+                                    onChange={(e) => onTitleChange(e.target.value)}
+                                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-neon-cyan/50 focus:border-transparent outline-none transition-all placeholder:text-gray-600"
+                                    placeholder="Enter dashboard title..."
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'background' && (
+                        <div className="space-y-6">
+                            {/* Presets */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    onClick={() => onBgChange({ type: 'image', value: 'gradient' })}
+                                    className={`p-3 rounded-xl border flex flex-col items-center gap-2 transition-all ${bgConfig.value === 'gradient' ? 'bg-neon-cyan/10 border-neon-cyan text-neon-cyan' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}
+                                >
+                                    <Monitor className="w-6 h-6" />
+                                    <span className="text-xs font-medium">Default Gradient</span>
+                                </button>
+                            </div>
+
+                            <div className="space-y-4 pt-4 border-t border-white/10">
+                                <h3 className="text-sm font-medium text-gray-300">Custom Media</h3>
+
+                                {/* Type Selector */}
+                                <div className="flex gap-2 p-1 bg-black/40 rounded-lg border border-white/10">
+                                    <button
+                                        onClick={() => onBgChange({ ...bgConfig, type: 'image' })}
+                                        className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-2 ${bgConfig.type === 'image' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+                                    >
+                                        <ImageIcon className="w-3 h-3" /> Image
+                                    </button>
+                                    <button
+                                        onClick={() => onBgChange({ ...bgConfig, type: 'video' })}
+                                        className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-2 ${bgConfig.type === 'video' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-gray-200'}`}
+                                    >
+                                        <Video className="w-3 h-3" /> Video
+                                    </button>
+                                </div>
+
+                                {/* URL Input */}
+                                <div className="space-y-2">
+                                    <label className="text-xs text-gray-400">Media URL</label>
+                                    <input
+                                        type="text"
+                                        value={bgConfig.value.startsWith('http') ? bgConfig.value : ''}
+                                        onChange={(e) => onBgChange({ ...bgConfig, value: e.target.value })}
+                                        placeholder="https://example.com/media..."
+                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-neon-cyan outline-none"
+                                    />
+                                </div>
+
+                                <div className="relative">
+                                    <div className="absolute inset-0 flex items-center">
+                                        <span className="w-full border-t border-white/10"></span>
+                                    </div>
+                                    <div className="relative flex justify-center text-xs uppercase">
+                                        <span className="bg-[#1a1a1a] px-2 text-gray-500">Or upload</span>
+                                    </div>
+                                </div>
+
+                                {/* Upload Button */}
+                                <div className="flex justify-center">
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        className="hidden"
+                                        accept="image/*,video/*"
+                                        onChange={handleFileUpload}
+                                    />
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={uploading}
+                                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 transition-colors border border-white/10 hover:border-white/20 disabled:opacity-50"
+                                    >
+                                        {uploading ? (
+                                            <div className="w-4 h-4 border-2 border-gray-400 border-t-white rounded-full animate-spin" />
+                                        ) : (
+                                            <Upload className="w-4 h-4" />
+                                        )}
+                                        <span className="text-sm">Upload File (Max 10MB)</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

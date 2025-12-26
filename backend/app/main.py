@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import structlog
 from app.core.config import settings
@@ -30,6 +31,9 @@ if settings.BACKEND_CORS_ORIGINS:
     )
 
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# Mount uploads directory
+app.mount("/uploads", StaticFiles(directory="/app/uploads"), name="uploads")
 
 @app.get("/health")
 async def health_check():
