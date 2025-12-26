@@ -31,6 +31,7 @@
   * {
     @apply border-[hsl(var(--border))];
   }
+
   body {
     @apply bg-background text-foreground;
   }
@@ -46,4 +47,57 @@
 
 .neon-text {
   text-shadow: 0 0 5px rgba(255, 255, 255, 0.8), 0 0 10px rgba(0, 243, 255, 0.5);
+}
+
+/* Custom Border Logic */
+.custom-border-solid {
+  border: 1px solid var(--border-color);
+  box-shadow: 0 0 5px var(--shadow-color);
+}
+
+.custom-border-solid:hover {
+  box-shadow: 0 0 15px var(--shadow-color), 0 0 30px var(--shadow-color);
+  border-color: var(--border-color);
+}
+
+/* Gradient Border using Pseudo-element */
+.custom-border-gradient {
+  position: relative;
+  z-index: 0;
+  /* Create stacking context */
+  border: 1px solid transparent;
+  /* Fallback/Spacing */
+  background-clip: padding-box;
+  /* Ensure background doesn't bleed into border area */
+}
+
+.custom-border-gradient::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  /* Border width */
+  border-radius: inherit;
+  padding: 3px;
+  /* Match inset */
+  background: linear-gradient(135deg, var(--border-start), var(--border-end));
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 2;
+  /* On top of content to ensure visibility */
+}
+
+/* Glow effect for gradient */
+.custom-border-gradient:hover {
+  box-shadow: 0 0 20px var(--shadow-color), 0 0 40px var(--border-end);
+}
+
+/* Glass panel adjustments when using custom borders */
+.glass-panel.custom-border-solid,
+.glass-panel.custom-border-gradient {
+  border: 1px solid transparent;
+  /* Override glass border */
 }

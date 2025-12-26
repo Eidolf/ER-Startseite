@@ -55,3 +55,54 @@ async def upload_file(file: UploadFile = File(...)):
         "url": f"/uploads/{file.filename}",
         "type": file_type
     })
+
+@router.get("")
+async def list_media():
+    """List all uploaded media files."""
+    files = []
+    try:
+        if not os.path.exists(UPLOAD_DIR):
+            return []
+            
+        for filename in os.listdir(UPLOAD_DIR):
+            file_path = os.path.join(UPLOAD_DIR, filename)
+            if not os.path.isfile(file_path):
+                continue
+                
+            ext = os.path.splitext(filename)[1].lower()
+            file_type = None
+            if ext in ALLOWED_EXTENSIONS["image"]:
+                file_type = "image"
+            elif ext in ALLOWED_EXTENSIONS["video"]:
+                file_type = "video"
+            
+            if file_type:
+                files.append({
+                    "name": filename,
+                    "url": f"/uploads/{filename}",
+                    "type": file_type
+                })
+        
+        # Sort by name or modification time if needed, for now just name
+        files.sort(key=lambda x: x["name"])
+        return files
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/{filename}")
+async def delete_media(filename: str):
+    """Delete a specific media file."""
+    file_path = os.path.join(UPLOAD_DIR, filename)
+    
+    # Security check: ensure filename doesn't contain path traversal
+    if ".." in filename or "/" in filename:
+         raise HTTPException(status_code=400, detail="Invalid filename")
+
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    try:
+        os.remove(file_path)
+        return {"status": "success", "message": f"Deleted {filename}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

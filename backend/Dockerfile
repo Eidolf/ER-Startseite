@@ -25,7 +25,7 @@ RUN curl -sSL https://install.python-poetry.org | python3 -
 ENV PATH="$POETRY_HOME/bin:$PATH"
 
 # Copy dependencies
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml ./
 
 # Install defaults
 RUN poetry install --no-root --only main
@@ -47,7 +47,7 @@ RUN addgroup --system --gid 1001 appuser && \
 
 # Create uploads directory and set permissions
 WORKDIR /app
-RUN mkdir -p /app/uploads && chown -R appuser:appuser /app/uploads
+RUN mkdir -p /app/uploads /app/data && chown -R appuser:appuser /app/uploads /app/data
 
 USER appuser
 

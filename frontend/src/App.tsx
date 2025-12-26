@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Search, Settings, Grid, Plus } from 'lucide-react'
+import { Search, Settings, Plus, Pencil, Trash2 } from 'lucide-react'
 import { SettingsModal } from './components/SettingsModal'
 
 // Define Background Config Type
@@ -11,6 +11,9 @@ export interface BackgroundConfig {
 // Define Icon Config Type
 export interface IconConfig {
     showBorder: boolean
+    borderStyle: 'default' | 'solid' | 'gradient'
+    borderColor: string
+    borderGradientColors: [string, string]
     backgroundStyle: 'glass' | 'solid' | 'gradient'
     backgroundColor: string
     gradientColors: [string, string]
@@ -23,6 +26,9 @@ const DEFAULT_BG: BackgroundConfig = {
 
 const DEFAULT_ICON_CONFIG: IconConfig = {
     showBorder: true,
+    borderStyle: 'default',
+    borderColor: '#00f3ff', // neon-cyan
+    borderGradientColors: ['#00f3ff', '#9d00ff'], // Cyan -> Purple
     backgroundStyle: 'glass',
     backgroundColor: '#1a1a1a',
     gradientColors: ['#3b82f6', '#9333ea']
@@ -37,12 +43,24 @@ function App() {
 
     const [iconConfig, setIconConfig] = useState<IconConfig>(() => {
         const saved = localStorage.getItem('er_startseite_icon_config')
-        return saved ? JSON.parse(saved) : DEFAULT_ICON_CONFIG
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved)
+                return { ...DEFAULT_ICON_CONFIG, ...parsed }
+            } catch (e) {
+                console.error("Failed to parse icon config", e)
+                return DEFAULT_ICON_CONFIG
+            }
+        }
+        return DEFAULT_ICON_CONFIG
     })
 
     const [searchQuery, setSearchQuery] = useState('')
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
     const [pageTitle, setPageTitle] = useState(() => localStorage.getItem('er_startseite_title') || 'ER-Startseite')
+
+    // New State for Edit Mode
+    const [isEditMode, setIsEditMode] = useState(false)
 
     // Persistence effects
     useEffect(() => {
@@ -59,32 +77,94 @@ function App() {
 
     // Helper to generate icon style
     const getIconStyle = () => {
-        const baseStyle: React.CSSProperties = {}
+        const style: React.CSSProperties & { [key: string]: string } = {}
 
-        if (iconConfig.showBorder) {
-            baseStyle.border = '1px solid #06b6d4' // neon-cyan
-            baseStyle.boxShadow = '0 0 5px rgba(6, 182, 212, 0.3)'
-        } else {
-            baseStyle.border = '1px solid rgba(255,255,255,0.1)'
-        }
-
+        // Background Logic
         if (iconConfig.backgroundStyle === 'solid') {
-            baseStyle.background = iconConfig.backgroundColor
-            baseStyle.backdropFilter = 'none'
+            style.background = iconConfig.backgroundColor
+            style.backdropFilter = 'none'
         } else if (iconConfig.backgroundStyle === 'gradient') {
-            baseStyle.background = `linear-gradient(135deg, ${iconConfig.gradientColors[0]}, ${iconConfig.gradientColors[1]})`
-            baseStyle.backdropFilter = 'none'
-        } else {
-            // Glass (Default)
-            // Handled by class, but we explicitly reset if needed, though class is applied
+            style.background = `linear-gradient(135deg, ${iconConfig.gradientColors[0]}, ${iconConfig.gradientColors[1]})`
+            style.backdropFilter = 'none'
         }
 
-        return baseStyle
+        // Border Variables
+        if (iconConfig.showBorder) {
+            if (iconConfig.borderStyle === 'solid') {
+                style['--border-color'] = iconConfig.borderColor
+                style['--shadow-color'] = iconConfig.borderColor
+            } else if (iconConfig.borderStyle === 'gradient') {
+                style['--border-start'] = iconConfig.borderGradientColors?.[0] || '#00f3ff'
+                style['--border-end'] = iconConfig.borderGradientColors?.[1] || '#9d00ff'
+                style['--shadow-color'] = iconConfig.borderGradientColors?.[0] || '#00f3ff'
+            } else {
+                // Default (Title Gradient)
+                style['--border-start'] = '#00f3ff'
+                style['--border-end'] = '#9d00ff'
+                style['--shadow-color'] = '#00f3ff'
+            }
+        }
+
+        return style as React.CSSProperties
     }
 
-    const tileClass = iconConfig.backgroundStyle === 'glass'
-        ? "glass-panel rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:scale-105 transition-transform cursor-pointer group hover:neon-glow"
-        : "rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:scale-105 transition-transform cursor-pointer group hover:neon-glow shadow-xl"
+    // Determine classes based on config
+    let tileClass = "relative rounded-xl p-6 flex flex-col items-center justify-center gap-4 transition-all duration-300 cursor-pointer group hover:z-10 overflow-visible "
+
+    // Background classes
+    if (iconConfig.backgroundStyle === 'glass') {
+        tileClass += "glass-panel "
+    } else {
+        tileClass += "shadow-xl "
+    }
+
+    // Border/Interactive classes
+    if (iconConfig.showBorder) {
+        tileClass += "hover:scale-105 active:scale-95 "
+        if (iconConfig.borderStyle === 'solid') {
+            tileClass += "custom-border-solid "
+        } else {
+            tileClass += "custom-border-gradient "
+        }
+    } else {
+        tileClass += "hover:scale-105 hover:bg-white/5 border border-white/5 "
+    }
+
+    const [apps, setApps] = useState<any[]>([])
+    const [isAddAppOpen, setIsAddAppOpen] = useState(false)
+
+    // Fetch Apps
+    const fetchApps = async () => {
+        try {
+            const res = await fetch('/api/v1/apps')
+            if (res.ok) {
+                const data = await res.json()
+                setApps(data)
+            }
+        } catch (e) {
+            console.error("Failed to fetch apps", e)
+        }
+    }
+
+    // Delete App
+    const handleDeleteApp = async (e: React.MouseEvent, id: string) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (!confirm("Delete this app?")) return
+
+        try {
+            const res = await fetch(`/api/v1/apps/${id}`, { method: 'DELETE' })
+            if (res.ok) {
+                fetchApps()
+            }
+        } catch (e) {
+            console.error("Failed to delete app", e)
+        }
+    }
+
+    useEffect(() => {
+        fetchApps()
+    }, [])
 
     return (
         <div className="min-h-screen relative overflow-hidden text-white font-sans">
@@ -123,6 +203,12 @@ function App() {
                 onIconConfigChange={setIconConfig}
             />
 
+            <AddAppModal
+                isOpen={isAddAppOpen}
+                onClose={() => setIsAddAppOpen(false)}
+                onAdded={fetchApps}
+            />
+
             {/* Content */}
             <div className="relative z-10 container mx-auto px-4 py-8 flex flex-col h-screen">
 
@@ -133,8 +219,16 @@ function App() {
                     </h1>
                     <div className="flex gap-4">
                         <button
+                            onClick={() => setIsEditMode(!isEditMode)}
+                            className={`p-2 rounded-full glass-panel transition ${isEditMode ? 'bg-neon-cyan/20 text-neon-cyan' : 'hover:bg-white/10 text-gray-400'}`}
+                            title="Edit Mode"
+                        >
+                            <Pencil className="w-6 h-6" />
+                        </button>
+                        <button
                             onClick={() => setIsSettingsOpen(true)}
                             className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
+                            title="Settings"
                         >
                             <Settings className="w-6 h-6 text-neon-cyan" />
                         </button>
@@ -152,25 +246,51 @@ function App() {
                         placeholder="Search the web or your apps..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                window.location.href = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`
+                            }
+                        }}
                     />
                 </div>
 
                 {/* Grid */}
                 <div className="flex-1 overflow-y-auto">
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                        {/* Example App Tile */}
-                        <div
-                            className={tileClass}
-                            style={getIconStyle()}
-                        >
-                            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
-                                <Grid className="w-8 h-8 text-white" />
-                            </div>
-                            <span className="font-medium text-gray-200 group-hover:text-white">Dashboard</span>
-                        </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 p-6">
+                        {/* Dynamic Apps from API */}
+                        {apps.filter(app => app.name.toLowerCase().includes(searchQuery.toLowerCase())).map((app) => (
+                            <a
+                                key={app.id}
+                                href={!isEditMode ? app.url : undefined}
+                                onClick={(e) => isEditMode && e.preventDefault()}
+                                className={`${tileClass} ${isEditMode ? 'animate-pulse cursor-default' : ''}`}
+                                style={getIconStyle()}
+                            >
+                                {isEditMode && (
+                                    <button
+                                        onClick={(e) => handleDeleteApp(e, app.id)}
+                                        className="absolute -top-2 -right-2 z-20 bg-red-500 text-white p-1.5 rounded-full hover:bg-red-600 transition shadow-lg"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                )}
+
+                                <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5">
+                                    {app.icon_url ? (
+                                        <img src={app.icon_url} alt={app.name} className="w-full h-full object-contain" />
+                                    ) : (
+                                        <img src="/logo.svg" alt="Default" className="w-full h-full object-contain opacity-80" />
+                                    )}
+                                </div>
+                                <span className="font-medium text-gray-200 group-hover:text-white text-center text-sm truncate w-full px-2">{app.name}</span>
+                            </a>
+                        ))}
 
                         {/* Add New Tile */}
-                        <div className="glass-panel rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:bg-white/5 transition-colors cursor-pointer border-dashed border-2 border-white/20">
+                        <div
+                            onClick={() => setIsAddAppOpen(true)}
+                            className="glass-panel rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:bg-white/5 transition-colors cursor-pointer border-dashed border-2 border-white/20 min-h-[140px]"
+                        >
                             <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
                                 <Plus className="w-8 h-8 text-gray-400" />
                             </div>
@@ -179,6 +299,89 @@ function App() {
                     </div>
                 </div>
 
+            </div>
+        </div>
+    )
+}
+
+function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: () => void, onAdded: () => void }) {
+    const [name, setName] = useState('')
+    const [url, setUrl] = useState('')
+    const [loading, setLoading] = useState(false)
+
+    if (!isOpen) return null
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setLoading(true)
+
+        // Basic URL validation/fix
+        let finalUrl = url
+        if (!/^https?:\/\//i.test(finalUrl)) {
+            finalUrl = 'https://' + finalUrl
+        }
+
+        try {
+            const res = await fetch('/api/v1/apps', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, url: finalUrl })
+            })
+            if (res.ok) {
+                onAdded()
+                onClose()
+                setName('')
+                setUrl('')
+            }
+        } catch (e) {
+            console.error("Failed to add app", e)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden glass-panel">
+                <div className="flex justify-between items-center px-6 py-4 border-b border-white/10">
+                    <h2 className="text-lg font-semibold text-white">Add New App</h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white transition">
+                        <Plus className="w-5 h-5 rotate-45" />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    <div className="space-y-2">
+                        <label className="text-sm text-gray-400">App Name</label>
+                        <input
+                            type="text"
+                            required
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="e.g. Google"
+                            className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-neon-cyan outline-none transition"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm text-gray-400">URL</label>
+                        <input
+                            type="text"
+                            required
+                            value={url}
+                            onChange={(e) => setUrl(e.target.value)}
+                            placeholder="example.com"
+                            className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-neon-cyan outline-none transition"
+                        />
+                    </div>
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full mt-4 bg-neon-cyan hover:bg-cyan-400 text-black font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                        {loading ? 'Adding...' : 'Add App'}
+                    </button>
+                </form>
             </div>
         </div>
     )
