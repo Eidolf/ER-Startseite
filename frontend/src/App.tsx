@@ -36,45 +36,52 @@ const DEFAULT_ICON_CONFIG: IconConfig = {
 }
 
 function App() {
-    // Load from local storage or default
-    const [bgConfig, setBgConfig] = useState<BackgroundConfig>(() => {
-        const saved = localStorage.getItem('er_startseite_bg')
-        return saved ? JSON.parse(saved) : DEFAULT_BG
-    })
+    // Load defaults initially
+    const [bgConfig, setBgConfig] = useState<BackgroundConfig>(DEFAULT_BG)
+    const [iconConfig, setIconConfig] = useState<IconConfig>(DEFAULT_ICON_CONFIG)
+    const [pageTitle, setPageTitle] = useState('ER-Startseite')
 
-    const [iconConfig, setIconConfig] = useState<IconConfig>(() => {
-        const saved = localStorage.getItem('er_startseite_icon_config')
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved)
-                return { ...DEFAULT_ICON_CONFIG, ...parsed }
-            } catch (e) {
-                console.error("Failed to parse icon config", e)
-                return DEFAULT_ICON_CONFIG
-            }
-        }
-        return DEFAULT_ICON_CONFIG
-    })
+    const [configLoaded, setConfigLoaded] = useState(false)
 
     const [searchQuery, setSearchQuery] = useState('')
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-    const [pageTitle, setPageTitle] = useState(() => localStorage.getItem('er_startseite_title') || 'ER-Startseite')
 
     // New State for Edit Mode
     const [isEditMode, setIsEditMode] = useState(false)
 
-    // Persistence effects
+    // Fetch Config on Mount
     useEffect(() => {
-        localStorage.setItem('er_startseite_bg', JSON.stringify(bgConfig))
-    }, [bgConfig])
+        fetch('/api/v1/config')
+            .then(res => res.json())
+            .then(data => {
+                if (data) {
+                    setPageTitle(data.pageTitle || 'ER-Startseite')
+                    setBgConfig(data.bgConfig || DEFAULT_BG)
+                    setIconConfig(data.iconConfig || DEFAULT_ICON_CONFIG)
+                }
+            })
+            .catch(e => console.error("Failed to load config", e))
+            .finally(() => setConfigLoaded(true))
+    }, [])
 
+    // Auto-save Config
     useEffect(() => {
-        localStorage.setItem('er_startseite_icon_config', JSON.stringify(iconConfig))
-    }, [iconConfig])
+        if (!configLoaded) return
 
-    useEffect(() => {
-        localStorage.setItem('er_startseite_title', pageTitle)
-    }, [pageTitle])
+        const timer = setTimeout(() => {
+            fetch('/api/v1/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    pageTitle,
+                    bgConfig,
+                    iconConfig
+                })
+            }).catch(e => console.error("Failed to save config", e))
+        }, 500) // Debounce 500ms
+
+        return () => clearTimeout(timer)
+    }, [pageTitle, bgConfig, iconConfig, configLoaded])
 
     // Helper to generate icon style
     const getIconStyle = () => {

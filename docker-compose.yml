@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   backend:
-    build: 
+    build:
       context: ./backend
       target: runtime
     ports:
@@ -17,7 +17,9 @@ services:
       - POSTGRES_DB=neonnexus
     depends_on:
       - db
-
+    volumes:
+      - uploads_data:/app/uploads
+      - app_data:/app/data
   frontend:
     build:
       context: ./frontend
@@ -40,3 +42,5 @@ services:
 
 volumes:
   postgres_data:
+  uploads_data:
+  app_data:

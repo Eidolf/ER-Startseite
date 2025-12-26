@@ -51,7 +51,7 @@ export function AppIcon({ src, alt, className }: AppIconProps) {
             <img
                 src="/logo.svg"
                 alt={alt}
-                className={`${className} opacity-80`}
+                className={`${className} opacity-80 scale-125`}
             />
         );
     }
@@ -68,7 +68,7 @@ export function AppIcon({ src, alt, className }: AppIconProps) {
             <img
                 src="/logo.svg"
                 alt={alt}
-                className={`${className} opacity-80`}
+                className={`${className} opacity-80 scale-125`}
             />
         );
     }
