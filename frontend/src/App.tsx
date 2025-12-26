@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { Search, Settings, Grid, Plus } from 'lucide-react'
+import { SettingsModal } from './components/SettingsModal'
 
 function App() {
     const [bgType, setBgType] = useState<'image' | 'video'>('image')
     const [searchQuery, setSearchQuery] = useState('')
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+    const [pageTitle, setPageTitle] = useState('ER-Startseite')
 
     return (
         <div className="min-h-screen relative overflow-hidden text-white font-sans">
@@ -20,17 +23,26 @@ function App() {
                 <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
             </div>
 
+            <SettingsModal
+                isOpen={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                currentTitle={pageTitle}
+                onTitleChange={setPageTitle}
+                bgType={bgType}
+                onBgToggle={() => setBgType(prev => prev === 'image' ? 'video' : 'image')}
+            />
+
             {/* Content */}
             <div className="relative z-10 container mx-auto px-4 py-8 flex flex-col h-screen">
 
                 {/* Header */}
                 <header className="flex justify-between items-center mb-12">
                     <h1 className="text-4xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-neon-cyan to-neon-purple neon-text">
-                        NeonNexus
+                        {pageTitle}
                     </h1>
                     <div className="flex gap-4">
                         <button
-                            onClick={() => setBgType(prev => prev === 'image' ? 'video' : 'image')}
+                            onClick={() => setIsSettingsOpen(true)}
                             className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
                         >
                             <Settings className="w-6 h-6 text-neon-cyan" />
