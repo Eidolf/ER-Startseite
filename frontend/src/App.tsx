@@ -1,23 +1,59 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Search, Settings, Grid, Plus } from 'lucide-react'
 import { SettingsModal } from './components/SettingsModal'
 
+// Define Background Config Type
+export interface BackgroundConfig {
+    type: 'image' | 'video'
+    value: string // URL or 'gradient'
+}
+
+const DEFAULT_BG: BackgroundConfig = {
+    type: 'image',
+    value: 'gradient'
+}
+
 function App() {
-    const [bgType, setBgType] = useState<'image' | 'video'>('image')
+    // Load from local storage or default
+    const [bgConfig, setBgConfig] = useState<BackgroundConfig>(() => {
+        const saved = localStorage.getItem('er_startseite_bg')
+        return saved ? JSON.parse(saved) : DEFAULT_BG
+    })
+
     const [searchQuery, setSearchQuery] = useState('')
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-    const [pageTitle, setPageTitle] = useState('ER-Startseite')
+    const [pageTitle, setPageTitle] = useState(() => localStorage.getItem('er_startseite_title') || 'ER-Startseite')
+
+    // Persistence effects
+    useEffect(() => {
+        localStorage.setItem('er_startseite_bg', JSON.stringify(bgConfig))
+    }, [bgConfig])
+
+    useEffect(() => {
+        localStorage.setItem('er_startseite_title', pageTitle)
+    }, [pageTitle])
 
     return (
         <div className="min-h-screen relative overflow-hidden text-white font-sans">
             {/* Background */}
-            <div className="absolute inset-0 z-0">
-                {bgType === 'video' ? (
-                    <video autoPlay loop muted className="w-full h-full object-cover">
-                        <source src="background.mp4" type="video/mp4" />
+            <div className="absolute inset-0 z-0 bg-black">
+                {bgConfig.type === 'video' && bgConfig.value ? (
+                    <video
+                        autoPlay
+                        loop
+                        muted
+                        className="w-full h-full object-cover"
+                        key={bgConfig.value} // Force reload on source change
+                    >
+                        <source src={bgConfig.value} type="video/mp4" />
                     </video>
-                ) : (
+                ) : bgConfig.value === 'gradient' ? (
                     <div className="w-full h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-[#0a0a0a] to-black" />
+                ) : (
+                    <div
+                        className="w-full h-full bg-cover bg-center transition-all duration-500"
+                        style={{ backgroundImage: `url(${bgConfig.value})` }}
+                    />
                 )}
                 {/* Overlay for readability */}
                 <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
@@ -28,8 +64,8 @@ function App() {
                 onClose={() => setIsSettingsOpen(false)}
                 currentTitle={pageTitle}
                 onTitleChange={setPageTitle}
-                bgType={bgType}
-                onBgToggle={() => setBgType(prev => prev === 'image' ? 'video' : 'image')}
+                bgConfig={bgConfig}
+                onBgChange={setBgConfig}
             />
 
             {/* Content */}
