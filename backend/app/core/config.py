@@ -3,7 +3,7 @@ from pydantic import AnyHttpUrl, validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "NeonNexus"
+    PROJECT_NAME: str = "ER-Startseite"
     API_V1_STR: str = "/api/v1"
     
     # CORS

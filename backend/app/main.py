@@ -9,7 +9,7 @@ logger = structlog.get_logger()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Startup: Initializing NeonNexus Backend")
+    logger.info("Startup: Initializing ER-Startseite Backend")
     yield
     logger.info("Shutdown: cleaning up resources")
 
@@ -33,7 +33,7 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "service": "NeonNexus Backend"}
+    return {"status": "ok", "service": "ER-Startseite Backend"}
 
 @app.get("/ready")
 async def readiness_check():

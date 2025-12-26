@@ -1,4 +1,4 @@
-# NeonNexus 🌌
+# ER-Startseite 🌌
 
 > A modern, highly customizable dashboard with a neon aesthetic, video backgrounds, and robust app integration.
 
