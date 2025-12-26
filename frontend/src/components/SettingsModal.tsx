@@ -122,33 +122,28 @@ export function SettingsModal({
 
                             <div className="space-y-4 pt-4 border-t border-white/10">
                                 <h3 className="text-sm font-medium text-gray-300">Custom Media</h3>
+                                <p className="text-xs text-gray-500">Supports Images (JPG, PNG, WebP) and Videos (MP4, WebM)</p>
 
-                                {/* Type Selector */}
-                                <div className="flex gap-2 p-1 bg-black/40 rounded-lg border border-white/10">
-                                    <button
-                                        onClick={() => onBgChange({ ...bgConfig, type: 'image' })}
-                                        className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-2 ${bgConfig.type === 'image' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-gray-200'}`}
-                                    >
-                                        <ImageIcon className="w-3 h-3" /> Image
-                                    </button>
-                                    <button
-                                        onClick={() => onBgChange({ ...bgConfig, type: 'video' })}
-                                        className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-2 ${bgConfig.type === 'video' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-gray-200'}`}
-                                    >
-                                        <Video className="w-3 h-3" /> Video
-                                    </button>
-                                </div>
-
-                                {/* URL Input */}
+                                {/* Unified URL Input */}
                                 <div className="space-y-2">
                                     <label className="text-xs text-gray-400">Media URL</label>
-                                    <input
-                                        type="text"
-                                        value={bgConfig.value.startsWith('http') ? bgConfig.value : ''}
-                                        onChange={(e) => onBgChange({ ...bgConfig, value: e.target.value })}
-                                        placeholder="https://example.com/media..."
-                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-neon-cyan outline-none"
-                                    />
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={bgConfig.value.startsWith('http') ? bgConfig.value : ''}
+                                            onChange={(e) => {
+                                                const val = e.target.value
+                                                // Simple auto-detection
+                                                const isVideo = /\.(mp4|webm|mov)$/i.test(val)
+                                                onBgChange({
+                                                    type: isVideo ? 'video' : 'image',
+                                                    value: val
+                                                })
+                                            }}
+                                            placeholder="https://example.com/media.jpg"
+                                            className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-neon-cyan outline-none"
+                                        />
+                                    </div>
                                 </div>
 
                                 <div className="relative">
