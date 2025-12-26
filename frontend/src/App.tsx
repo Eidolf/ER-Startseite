@@ -8,9 +8,24 @@ export interface BackgroundConfig {
     value: string // URL or 'gradient'
 }
 
+// Define Icon Config Type
+export interface IconConfig {
+    showBorder: boolean
+    backgroundStyle: 'glass' | 'solid' | 'gradient'
+    backgroundColor: string
+    gradientColors: [string, string]
+}
+
 const DEFAULT_BG: BackgroundConfig = {
     type: 'image',
     value: 'gradient'
+}
+
+const DEFAULT_ICON_CONFIG: IconConfig = {
+    showBorder: true,
+    backgroundStyle: 'glass',
+    backgroundColor: '#1a1a1a',
+    gradientColors: ['#3b82f6', '#9333ea']
 }
 
 function App() {
@@ -18,6 +33,11 @@ function App() {
     const [bgConfig, setBgConfig] = useState<BackgroundConfig>(() => {
         const saved = localStorage.getItem('er_startseite_bg')
         return saved ? JSON.parse(saved) : DEFAULT_BG
+    })
+
+    const [iconConfig, setIconConfig] = useState<IconConfig>(() => {
+        const saved = localStorage.getItem('er_startseite_icon_config')
+        return saved ? JSON.parse(saved) : DEFAULT_ICON_CONFIG
     })
 
     const [searchQuery, setSearchQuery] = useState('')
@@ -30,8 +50,41 @@ function App() {
     }, [bgConfig])
 
     useEffect(() => {
+        localStorage.setItem('er_startseite_icon_config', JSON.stringify(iconConfig))
+    }, [iconConfig])
+
+    useEffect(() => {
         localStorage.setItem('er_startseite_title', pageTitle)
     }, [pageTitle])
+
+    // Helper to generate icon style
+    const getIconStyle = () => {
+        const baseStyle: React.CSSProperties = {}
+
+        if (iconConfig.showBorder) {
+            baseStyle.border = '1px solid #06b6d4' // neon-cyan
+            baseStyle.boxShadow = '0 0 5px rgba(6, 182, 212, 0.3)'
+        } else {
+            baseStyle.border = '1px solid rgba(255,255,255,0.1)'
+        }
+
+        if (iconConfig.backgroundStyle === 'solid') {
+            baseStyle.background = iconConfig.backgroundColor
+            baseStyle.backdropFilter = 'none'
+        } else if (iconConfig.backgroundStyle === 'gradient') {
+            baseStyle.background = `linear-gradient(135deg, ${iconConfig.gradientColors[0]}, ${iconConfig.gradientColors[1]})`
+            baseStyle.backdropFilter = 'none'
+        } else {
+            // Glass (Default)
+            // Handled by class, but we explicitly reset if needed, though class is applied
+        }
+
+        return baseStyle
+    }
+
+    const tileClass = iconConfig.backgroundStyle === 'glass'
+        ? "glass-panel rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:scale-105 transition-transform cursor-pointer group hover:neon-glow"
+        : "rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:scale-105 transition-transform cursor-pointer group hover:neon-glow shadow-xl"
 
     return (
         <div className="min-h-screen relative overflow-hidden text-white font-sans">
@@ -66,6 +119,8 @@ function App() {
                 onTitleChange={setPageTitle}
                 bgConfig={bgConfig}
                 onBgChange={setBgConfig}
+                iconConfig={iconConfig}
+                onIconConfigChange={setIconConfig}
             />
 
             {/* Content */}
@@ -73,7 +128,7 @@ function App() {
 
                 {/* Header */}
                 <header className="flex justify-between items-center mb-12">
-                    <h1 className="text-4xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-neon-cyan to-neon-purple neon-text">
+                    <h1 className="text-4xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-purple" style={{ textShadow: '0 0 10px rgba(6, 182, 212, 0.3)' }}>
                         {pageTitle}
                     </h1>
                     <div className="flex gap-4">
@@ -104,7 +159,10 @@ function App() {
                 <div className="flex-1 overflow-y-auto">
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
                         {/* Example App Tile */}
-                        <div className="glass-panel rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:scale-105 transition-transform cursor-pointer group hover:neon-glow border-white/5">
+                        <div
+                            className={tileClass}
+                            style={getIconStyle()}
+                        >
                             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
                                 <Grid className="w-8 h-8 text-white" />
                             </div>

@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
-import { X, Upload, Monitor } from 'lucide-react'
-import { BackgroundConfig } from '../App'
+import { X, Upload, Monitor, Palette, Sparkles, Layout } from 'lucide-react'
+import { BackgroundConfig, IconConfig } from '../App'
 
 interface SettingsModalProps {
     isOpen: boolean
@@ -9,6 +9,8 @@ interface SettingsModalProps {
     onTitleChange: (newTitle: string) => void
     bgConfig: BackgroundConfig
     onBgChange: (config: BackgroundConfig) => void
+    iconConfig: IconConfig
+    onIconConfigChange: (config: IconConfig) => void
 }
 
 export function SettingsModal({
@@ -17,9 +19,11 @@ export function SettingsModal({
     currentTitle,
     onTitleChange,
     bgConfig,
-    onBgChange
+    onBgChange,
+    iconConfig,
+    onIconConfigChange
 }: SettingsModalProps) {
-    const [activeTab, setActiveTab] = useState<'general' | 'background'>('general')
+    const [activeTab, setActiveTab] = useState<'general' | 'background' | 'effects'>('general')
     const [uploading, setUploading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -79,23 +83,29 @@ export function SettingsModal({
 
                 <div className="p-6 pb-2 border-b border-white/10">
                     <h2 className="text-xl font-bold text-neon-cyan">Settings</h2>
-                    <div className="flex gap-4 mt-6">
+                    <div className="flex gap-4 mt-6 overflow-x-auto no-scrollbar">
                         <button
                             onClick={() => setActiveTab('general')}
-                            className={`pb-2 text-sm font-medium transition-colors ${activeTab === 'general' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'general' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
                             General
                         </button>
                         <button
                             onClick={() => setActiveTab('background')}
-                            className={`pb-2 text-sm font-medium transition-colors ${activeTab === 'background' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'background' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
                             Background
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('effects')}
+                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'effects' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            Effects
                         </button>
                     </div>
                 </div>
 
-                <div className="p-6 overflow-y-auto">
+                <div className="p-6 overflow-y-auto custom-scrollbar">
                     {activeTab === 'general' && (
                         <div className="space-y-4">
                             <div className="space-y-2">
@@ -181,6 +191,105 @@ export function SettingsModal({
                                         <span className="text-sm">Upload File (Max 10MB)</span>
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'effects' && (
+                        <div className="space-y-6">
+                            {/* Border Effect */}
+                            <div className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
+                                <div className="flex items-center gap-3">
+                                    <Sparkles className="w-5 h-5 text-neon-cyan" />
+                                    <div>
+                                        <h3 className="text-sm font-medium text-white">Neon Border</h3>
+                                        <p className="text-xs text-gray-400">Add a glowing border to icons</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => onIconConfigChange({ ...iconConfig, showBorder: !iconConfig.showBorder })}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${iconConfig.showBorder ? 'bg-neon-cyan' : 'bg-gray-700'}`}
+                                >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${iconConfig.showBorder ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
+                            </div>
+
+                            <div className="space-y-3 pt-2">
+                                <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                                    <Palette className="w-4 h-4" />
+                                    Background Style
+                                </h3>
+
+                                <div className="grid grid-cols-3 gap-2">
+                                    <button
+                                        onClick={() => onIconConfigChange({ ...iconConfig, backgroundStyle: 'glass' })}
+                                        className={`p-2 rounded-lg text-xs font-medium border transition-all ${iconConfig.backgroundStyle === 'glass' ? 'bg-neon-cyan/20 border-neon-cyan text-white' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}
+                                    >
+                                        Glass (Default)
+                                    </button>
+                                    <button
+                                        onClick={() => onIconConfigChange({ ...iconConfig, backgroundStyle: 'solid' })}
+                                        className={`p-2 rounded-lg text-xs font-medium border transition-all ${iconConfig.backgroundStyle === 'solid' ? 'bg-neon-cyan/20 border-neon-cyan text-white' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}
+                                    >
+                                        Solid Color
+                                    </button>
+                                    <button
+                                        onClick={() => onIconConfigChange({ ...iconConfig, backgroundStyle: 'gradient' })}
+                                        className={`p-2 rounded-lg text-xs font-medium border transition-all ${iconConfig.backgroundStyle === 'gradient' ? 'bg-neon-cyan/20 border-neon-cyan text-white' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}
+                                    >
+                                        Gradient
+                                    </button>
+                                </div>
+
+                                {iconConfig.backgroundStyle === 'solid' && (
+                                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                                        <label className="text-xs text-gray-500">Pick Color</label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="color"
+                                                value={iconConfig.backgroundColor}
+                                                onChange={(e) => onIconConfigChange({ ...iconConfig, backgroundColor: e.target.value })}
+                                                className="h-8 w-16 rounded cursor-pointer bg-transparent border border-white/20"
+                                            />
+                                            <input
+                                                type="text"
+                                                value={iconConfig.backgroundColor}
+                                                onChange={(e) => onIconConfigChange({ ...iconConfig, backgroundColor: e.target.value })}
+                                                className="flex-1 bg-black/40 border border-white/10 rounded px-2 text-sm text-white focus:border-neon-cyan outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                {iconConfig.backgroundStyle === 'gradient' && (
+                                    <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                                        <label className="text-xs text-gray-500">Pick Gradient Colors</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] text-gray-600 block">Start</span>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="color"
+                                                        value={iconConfig.gradientColors[0]}
+                                                        onChange={(e) => onIconConfigChange({ ...iconConfig, gradientColors: [e.target.value, iconConfig.gradientColors[1]] })}
+                                                        className="h-8 w-full rounded cursor-pointer bg-transparent border border-white/20"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] text-gray-600 block">End</span>
+                                                <div className="flex gap-2">
+                                                    <input
+                                                        type="color"
+                                                        value={iconConfig.gradientColors[1]}
+                                                        onChange={(e) => onIconConfigChange({ ...iconConfig, gradientColors: [iconConfig.gradientColors[0], e.target.value] })}
+                                                        className="h-8 w-full rounded cursor-pointer bg-transparent border border-white/20"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
