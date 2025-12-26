@@ -40,7 +40,7 @@ export function SettingsModal({
         formData.append('file', file)
 
         try {
-            const res = await fetch('http://localhost:8000/api/v1/media/upload', {
+            const res = await fetch('/api/v1/media/upload', { // Use relative path
                 method: 'POST',
                 body: formData
             })
@@ -48,11 +48,12 @@ export function SettingsModal({
             if (!res.ok) throw new Error('Upload failed')
 
             const data = await res.json()
-            const fullUrl = `http://localhost:8000${data.url}`
+            // Backend returns relative URL like /uploads/filename.ext
+            // We use it directly as relative URL
 
             onBgChange({
                 type: data.type,
-                value: fullUrl
+                value: data.url
             })
         } catch (err: any) {
             console.error(err)
