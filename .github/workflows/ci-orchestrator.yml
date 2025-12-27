@@ -27,7 +27,7 @@ jobs:
     needs: test-backend
     uses: ./.github/workflows/build.yml
     with:
-      image-name: neonnexus-backend
+      image-name: er-startseite-backend
       context: ./backend
 
   # Frontend
@@ -46,5 +46,5 @@ jobs:
     needs: test-frontend
     uses: ./.github/workflows/build.yml
     with:
-      image-name: neonnexus-frontend
+      image-name: er-startseite-frontend
       context: ./frontend

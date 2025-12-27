@@ -14,7 +14,7 @@ services:
       - POSTGRES_SERVER=db
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=neonnexus
+      - POSTGRES_DB=er_startseite
     depends_on:
       - db
     volumes:
@@ -34,7 +34,7 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=neonnexus
+      - POSTGRES_DB=er_startseite
     ports:
       - "5432:5432"
     volumes:

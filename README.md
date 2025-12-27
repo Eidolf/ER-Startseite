@@ -30,8 +30,8 @@
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/neonnexus.git
-   cd neonnexus
+   git clone https://github.com/your-username/er-startseite.git
+   cd er-startseite
    ```
 
 2. **Run with Docker Compose**
@@ -46,7 +46,7 @@
 ## 📦 Project Structure
 
 ```
-NeonNexus/
+ER-Startseite/
 ├── backend/          # FastAPI Backend (DDD)
 │   ├── app/
 │   │   ├── domain/   # Business Logic

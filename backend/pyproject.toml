@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "neonnexus-backend"
+name = "er-startseite-backend"
 version = "0.1.0"
 description = "Backend for ER-Startseite Dashboard"
 authors = ["ER-Startseite Team"]
