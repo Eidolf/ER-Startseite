@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { AppIcon } from './components/AppIcon'
+import { AnimatedLogo } from './components/AnimatedLogo'
 import { Search, Settings, Plus, Pencil, Trash2 } from 'lucide-react'
 import { SettingsModal } from './components/SettingsModal'
 
@@ -7,6 +8,12 @@ import { SettingsModal } from './components/SettingsModal'
 export interface BackgroundConfig {
     type: 'image' | 'video'
     value: string // URL or 'gradient'
+}
+
+// Define Logo Config Type
+export interface LogoConfig {
+    type: 'default' | 'image'
+    value?: string
 }
 
 // Define Icon Config Type
@@ -25,6 +32,11 @@ const DEFAULT_BG: BackgroundConfig = {
     value: 'gradient'
 }
 
+const DEFAULT_LOGO_CONFIG: LogoConfig = {
+    type: 'default',
+    value: undefined
+}
+
 const DEFAULT_ICON_CONFIG: IconConfig = {
     showBorder: true,
     borderStyle: 'default',
@@ -38,6 +50,7 @@ const DEFAULT_ICON_CONFIG: IconConfig = {
 function App() {
     // Load defaults initially
     const [bgConfig, setBgConfig] = useState<BackgroundConfig>(DEFAULT_BG)
+    const [logoConfig, setLogoConfig] = useState<LogoConfig>(DEFAULT_LOGO_CONFIG)
     const [iconConfig, setIconConfig] = useState<IconConfig>(DEFAULT_ICON_CONFIG)
     const [pageTitle, setPageTitle] = useState('ER-Startseite')
 
@@ -57,6 +70,7 @@ function App() {
                 if (data) {
                     setPageTitle(data.pageTitle || 'ER-Startseite')
                     setBgConfig(data.bgConfig || DEFAULT_BG)
+                    setLogoConfig(data.logoConfig || DEFAULT_LOGO_CONFIG)
                     setIconConfig(data.iconConfig || DEFAULT_ICON_CONFIG)
                 }
             })
@@ -75,13 +89,14 @@ function App() {
                 body: JSON.stringify({
                     pageTitle,
                     bgConfig,
+                    logoConfig,
                     iconConfig
                 })
             }).catch(e => console.error("Failed to save config", e))
         }, 500) // Debounce 500ms
 
         return () => clearTimeout(timer)
-    }, [pageTitle, bgConfig, iconConfig, configLoaded])
+    }, [pageTitle, bgConfig, logoConfig, iconConfig, configLoaded])
 
     // Helper to generate icon style
     const getIconStyle = () => {
@@ -184,7 +199,7 @@ function App() {
                         loop
                         muted
                         className="w-full h-full object-cover"
-                        key={bgConfig.value} // Force reload on source change
+                        key={bgConfig.value}
                     >
                         <source src={bgConfig.value} type="video/mp4" />
                     </video>
@@ -207,6 +222,8 @@ function App() {
                 onTitleChange={setPageTitle}
                 bgConfig={bgConfig}
                 onBgChange={setBgConfig}
+                logoConfig={logoConfig}
+                onLogoChange={setLogoConfig}
                 iconConfig={iconConfig}
                 onIconConfigChange={setIconConfig}
             />
@@ -217,34 +234,53 @@ function App() {
                 onAdded={fetchApps}
             />
 
-            {/* Content */}
-            <div className="relative z-10 container mx-auto px-4 py-8 flex flex-col h-screen">
+            {/* Top Fixed Header Area */}
+            <div className="absolute top-0 left-0 w-full z-20 p-2 flex justify-between items-start pointer-events-none">
+                {/* Left Spacer for Balance */}
+                <div className="w-24"></div>
 
-                {/* Header */}
-                <header className="flex justify-between items-center mb-12">
-                    <h1 className="text-4xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-purple" style={{ textShadow: '0 0 10px rgba(6, 182, 212, 0.3)' }}>
+                {/* Center: Logo & Title */}
+                <div className="flex flex-col items-center pointer-events-auto -mt-8">
+                    {logoConfig.type === 'image' && logoConfig.value ? (
+                        <div className="h-32 w-auto flex items-end justify-center pb-2">
+                            <img src={logoConfig.value} alt="Logo" className="max-h-full w-auto max-w-[250px] object-contain drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]" />
+                        </div>
+                    ) : (
+                        <AnimatedLogo />
+                    )}
+                    <h1
+                        className={`text-5xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-purple text-center transition-all ${logoConfig.type === 'image' && logoConfig.value ? 'mt-2' : '-mt-16'
+                            }`}
+                        style={{ textShadow: '0 0 15px rgba(6, 182, 212, 0.4)' }}
+                    >
                         {pageTitle}
                     </h1>
-                    <div className="flex gap-4">
-                        <button
-                            onClick={() => setIsEditMode(!isEditMode)}
-                            className={`p-2 rounded-full glass-panel transition ${isEditMode ? 'bg-neon-cyan/20 text-neon-cyan' : 'hover:bg-white/10 text-gray-400'}`}
-                            title="Edit Mode"
-                        >
-                            <Pencil className="w-6 h-6" />
-                        </button>
-                        <button
-                            onClick={() => setIsSettingsOpen(true)}
-                            className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
-                            title="Settings"
-                        >
-                            <Settings className="w-6 h-6 text-neon-cyan" />
-                        </button>
-                    </div>
-                </header>
+                </div>
 
-                {/* Search */}
-                <div className="max-w-2xl mx-auto w-full mb-16 relative group">
+                {/* Right: Settings Buttons */}
+                <div className="flex gap-4 pointer-events-auto w-24 justify-end p-2">
+                    <button
+                        onClick={() => setIsEditMode(!isEditMode)}
+                        className={`p-2 rounded-full glass-panel transition ${isEditMode ? 'bg-neon-cyan/20 text-neon-cyan' : 'hover:bg-white/10 text-gray-400'}`}
+                        title="Edit Mode"
+                    >
+                        <Pencil className="w-6 h-6" />
+                    </button>
+                    <button
+                        onClick={() => setIsSettingsOpen(true)}
+                        className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
+                        title="Settings"
+                    >
+                        <Settings className="w-6 h-6 text-neon-cyan" />
+                    </button>
+                </div>
+            </div>
+
+            {/* Main Content (Padded) */}
+            <div className="relative z-10 container mx-auto px-4 pt-[220px] pb-4 flex flex-col h-screen overflow-hidden">
+
+                {/* Search Field */}
+                <div className="max-w-2xl w-full mx-auto mb-4 relative group shrink-0">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Search className="h-5 w-5 text-gray-400 group-focus-within:text-neon-cyan transition-colors" />
                     </div>
@@ -262,10 +298,9 @@ function App() {
                     />
                 </div>
 
-                {/* Grid */}
-                <div className="flex-1 overflow-y-auto">
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 p-6">
-                        {/* Dynamic Apps from API */}
+                {/* App Grid - Scrollable */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 p-6 pb-24">
                         {apps.filter(app => app.name.toLowerCase().includes(searchQuery.toLowerCase())).map((app) => (
                             <a
                                 key={app.id}
@@ -294,7 +329,6 @@ function App() {
                             </a>
                         ))}
 
-                        {/* Add New Tile */}
                         <div
                             onClick={() => setIsAddAppOpen(true)}
                             className="glass-panel rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:bg-white/5 transition-colors cursor-pointer border-dashed border-2 border-white/20 min-h-[140px]"
@@ -306,7 +340,6 @@ function App() {
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
     )

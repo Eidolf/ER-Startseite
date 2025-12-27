@@ -14,6 +14,11 @@ DEFAULT_BG = {
     "value": "gradient"
 }
 
+DEFAULT_LOGO_CONFIG = {
+    "type": "default",
+    "value": None
+}
+
 DEFAULT_ICON_CONFIG = {
     "showBorder": True,
     "borderStyle": "default",
@@ -28,6 +33,10 @@ class BackgroundConfig(BaseModel):
     type: str
     value: str
 
+class LogoConfig(BaseModel):
+    type: str  # 'default' | 'image'
+    value: Optional[str] = None
+
 class IconConfig(BaseModel):
     showBorder: bool
     borderStyle: str
@@ -40,6 +49,7 @@ class IconConfig(BaseModel):
 class AppConfig(BaseModel):
     pageTitle: str = "ER-Startseite"
     bgConfig: BackgroundConfig = DEFAULT_BG
+    logoConfig: LogoConfig = DEFAULT_LOGO_CONFIG
     iconConfig: IconConfig = DEFAULT_ICON_CONFIG
 
 def read_config() -> dict:
@@ -47,6 +57,7 @@ def read_config() -> dict:
         return {
             "pageTitle": "ER-Startseite",
             "bgConfig": DEFAULT_BG,
+            "logoConfig": DEFAULT_LOGO_CONFIG,
             "iconConfig": DEFAULT_ICON_CONFIG
         }
     try:
@@ -56,6 +67,7 @@ def read_config() -> dict:
          return {
             "pageTitle": "ER-Startseite",
             "bgConfig": DEFAULT_BG,
+            "logoConfig": DEFAULT_LOGO_CONFIG,
             "iconConfig": DEFAULT_ICON_CONFIG
         }
 

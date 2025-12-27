@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { X, Upload, Monitor, Palette, Sparkles, Trash2, Film } from 'lucide-react'
-import { BackgroundConfig, IconConfig } from '../App'
+import { BackgroundConfig, IconConfig, LogoConfig } from '../App'
 
 interface MediaItem {
     name: string
@@ -86,6 +86,8 @@ interface SettingsModalProps {
     onTitleChange: (newTitle: string) => void
     bgConfig: BackgroundConfig
     onBgChange: (config: BackgroundConfig) => void
+    logoConfig: LogoConfig
+    onLogoChange: (config: LogoConfig) => void
     iconConfig: IconConfig
     onIconConfigChange: (config: IconConfig) => void
 }
@@ -97,16 +99,19 @@ export function SettingsModal({
     onTitleChange,
     bgConfig,
     onBgChange,
+    logoConfig,
+    onLogoChange,
     iconConfig,
     onIconConfigChange
 }: SettingsModalProps) {
-    const [activeTab, setActiveTab] = useState<'general' | 'background' | 'effects'>('general')
+    const [activeTab, setActiveTab] = useState<'general' | 'background' | 'logo' | 'effects'>('general')
     const [uploading, setUploading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const logoFileInputRef = useRef<HTMLInputElement>(null)
 
     if (!isOpen) return null
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isLogo = false) => {
         const file = e.target.files?.[0]
         if (!file) return
 
@@ -133,12 +138,18 @@ export function SettingsModal({
 
             const data = await res.json()
             // Backend returns relative URL like /uploads/filename.ext
-            // We use it directly as relative URL
 
-            onBgChange({
-                type: data.type,
-                value: data.url
-            })
+            if (isLogo) {
+                onLogoChange({
+                    type: 'image',
+                    value: data.url
+                })
+            } else {
+                onBgChange({
+                    type: data.type,
+                    value: data.url
+                })
+            }
         } catch (err: any) {
             console.error(err)
             alert(`Upload failed: ${err.message}`)
@@ -172,6 +183,12 @@ export function SettingsModal({
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'background' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
                             Background
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('logo')}
+                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'logo' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            Logo
                         </button>
                         <button
                             onClick={() => setActiveTab('effects')}
@@ -260,7 +277,7 @@ export function SettingsModal({
                                         ref={fileInputRef}
                                         className="hidden"
                                         accept="image/*,video/*"
-                                        onChange={handleFileUpload}
+                                        onChange={(e) => handleFileUpload(e, false)}
                                     />
                                     <button
                                         onClick={() => fileInputRef.current?.click()}
@@ -273,6 +290,79 @@ export function SettingsModal({
                                             <Upload className="w-4 h-4" />
                                         )}
                                         <span className="text-sm">Upload File (Max 10MB)</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'logo' && (
+                        <div className="space-y-6">
+                            {/* Presets */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    onClick={() => onLogoChange({ type: 'default', value: undefined })}
+                                    className={`p-3 rounded-xl border flex flex-col items-center gap-2 transition-all ${logoConfig.type === 'default' ? 'bg-neon-cyan/10 border-neon-cyan text-neon-cyan' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}
+                                >
+                                    <Sparkles className="w-6 h-6" />
+                                    <span className="text-xs font-medium">Default Animated</span>
+                                </button>
+                            </div>
+
+                            <div className="space-y-4 pt-4 border-t border-white/10">
+                                <h3 className="text-sm font-medium text-gray-300">Media Library</h3>
+                                <MediaLibrary
+                                    onSelect={(url) => onLogoChange({ type: 'image', value: url })}
+                                />
+                            </div>
+
+                            <div className="space-y-4 pt-4 border-t border-white/10">
+                                <h3 className="text-sm font-medium text-gray-300">Custom Logo</h3>
+                                <p className="text-xs text-gray-500">Supports Images (JPG, PNG, WebP, SVG)</p>
+
+                                {/* URL Input */}
+                                <div className="space-y-2">
+                                    <label className="text-xs text-gray-400">Image URL</label>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            value={logoConfig.type === 'image' && logoConfig.value ? logoConfig.value : ''}
+                                            onChange={(e) => onLogoChange({ type: 'image', value: e.target.value })}
+                                            placeholder="https://example.com/logo.png"
+                                            className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-neon-cyan outline-none"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="relative">
+                                    <div className="absolute inset-0 flex items-center">
+                                        <span className="w-full border-t border-white/10"></span>
+                                    </div>
+                                    <div className="relative flex justify-center text-xs uppercase">
+                                        <span className="bg-[#1a1a1a] px-2 text-gray-500">Or upload</span>
+                                    </div>
+                                </div>
+
+                                {/* Upload Button */}
+                                <div className="flex justify-center">
+                                    <input
+                                        type="file"
+                                        ref={logoFileInputRef}
+                                        className="hidden"
+                                        accept="image/*"
+                                        onChange={(e) => handleFileUpload(e, true)}
+                                    />
+                                    <button
+                                        onClick={() => logoFileInputRef.current?.click()}
+                                        disabled={uploading}
+                                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 transition-colors border border-white/10 hover:border-white/20 disabled:opacity-50"
+                                    >
+                                        {uploading ? (
+                                            <div className="w-4 h-4 border-2 border-gray-400 border-t-white rounded-full animate-spin" />
+                                        ) : (
+                                            <Upload className="w-4 h-4" />
+                                        )}
+                                        <span className="text-sm">Upload Logo</span>
                                     </button>
                                 </div>
                             </div>
