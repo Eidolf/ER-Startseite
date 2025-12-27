@@ -31,7 +31,8 @@ DEFAULT_ICON_CONFIG = {
 
 DEFAULT_LAYOUT_CONFIG = {
     "mode": "grid",
-    "customOrder": []
+    "customOrder": [],
+    "categories": []
 }
 
 class BackgroundConfig(BaseModel):
@@ -51,9 +52,15 @@ class IconConfig(BaseModel):
     backgroundColor: str
     gradientColors: List[str]
 
+class Category(BaseModel):
+    id: str
+    name: str
+    app_ids: List[str] = []
+
 class LayoutConfig(BaseModel):
     mode: str = "grid"
     customOrder: List[str] = []
+    categories: List[Category] = []
 
 class AppConfig(BaseModel):
     pageTitle: str = "ER-Startseite"
@@ -68,7 +75,8 @@ def read_config() -> dict:
             "pageTitle": "ER-Startseite",
             "bgConfig": DEFAULT_BG,
             "logoConfig": DEFAULT_LOGO_CONFIG,
-            "iconConfig": DEFAULT_ICON_CONFIG
+            "iconConfig": DEFAULT_ICON_CONFIG,
+            "layoutConfig": DEFAULT_LAYOUT_CONFIG
         }
     try:
         with open(CONFIG_FILE, "r") as f:
@@ -78,7 +86,8 @@ def read_config() -> dict:
             "pageTitle": "ER-Startseite",
             "bgConfig": DEFAULT_BG,
             "logoConfig": DEFAULT_LOGO_CONFIG,
-            "iconConfig": DEFAULT_ICON_CONFIG
+            "iconConfig": DEFAULT_ICON_CONFIG,
+            "layoutConfig": DEFAULT_LAYOUT_CONFIG
         }
 
 def write_config(config: dict):

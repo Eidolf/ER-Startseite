@@ -1,0 +1,33 @@
+/* Custom Scrollbar - Neon Point Style */
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background-clip: padding-box;
+    background: linear-gradient(180deg, #00f3ff, #00f3ff);
+    /* Solid Neon Cyan */
+    border: 4px solid transparent;
+    /* Keeps it floating/smaller */
+    border-radius: 100px;
+    box-shadow: 0 0 10px #00f3ff;
+    /* Glow effect */
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #00f3ff, #9d00ff);
+    /* Cyan to Purple on hover */
+    border: 3px solid transparent;
+    box-shadow: 0 0 15px #00f3ff;
+}
+
+/* Firefox Support */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #00f3ff transparent;
+}

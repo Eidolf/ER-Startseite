@@ -1,7 +1,7 @@
-import { LayoutGrid, List, Check, Move } from 'lucide-react'
+import { LayoutGrid, List, Check, Move, Folder } from 'lucide-react'
 import { motion } from 'framer-motion'
 
-export type LayoutMode = 'grid' | 'list' | 'compact'
+export type LayoutMode = 'grid' | 'list' | 'compact' | 'categories'
 
 interface LayoutMenuProps {
     currentMode: LayoutMode
@@ -45,6 +45,15 @@ export function LayoutMenu({ currentMode, onModeChange, isEditMode, onToggleEdit
                         <List className="w-4 h-4" />
                         <span className="flex-1 text-left">List View</span>
                         {currentMode === 'list' && <Check className="w-4 h-4" />}
+                    </button>
+
+                    <button
+                        onClick={() => onModeChange('categories')}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${currentMode === 'categories' ? 'bg-neon-cyan/20 text-neon-cyan' : 'hover:bg-white/5 text-gray-300'}`}
+                    >
+                        <Folder className="w-4 h-4" />
+                        <span className="flex-1 text-left">Category View</span>
+                        {currentMode === 'categories' && <Check className="w-4 h-4" />}
                     </button>
 
                     <div className="h-px bg-white/10 my-2" />

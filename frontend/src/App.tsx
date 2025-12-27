@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { AppIcon } from './components/AppIcon'
 import { AnimatedLogo } from './components/AnimatedLogo'
-import { Search, Settings, Plus, Trash2, LayoutGrid } from 'lucide-react'
+import { Search, Settings, Plus, Trash2, LayoutGrid, Folder, PlusCircle, X, Pencil } from 'lucide-react'
 import { SettingsModal } from './components/SettingsModal'
 import { LayoutMenu, LayoutMode } from './components/LayoutMenu'
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
+import { DndContext, pointerWithin, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, useDroppable } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
@@ -31,9 +31,16 @@ export interface IconConfig {
     gradientColors: [string, string]
 }
 
+export interface Category {
+    id: string
+    name: string
+    app_ids: string[]
+}
+
 export interface LayoutConfig {
     mode: LayoutMode
     customOrder: string[] // Array of App IDs
+    categories: Category[]
 }
 
 const DEFAULT_BG: BackgroundConfig = {
@@ -58,7 +65,8 @@ const DEFAULT_ICON_CONFIG: IconConfig = {
 
 const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
     mode: 'grid',
-    customOrder: []
+    customOrder: [],
+    categories: []
 }
 
 function SortableAppTile({ app, isEditMode, tileClass, style, children, onClick, onDelete }: any) {
@@ -94,6 +102,15 @@ function SortableAppTile({ app, isEditMode, tileClass, style, children, onClick,
             )}
         </div>
     )
+}
+
+function DroppableContainer({ id, children, className }: { id: string, children: React.ReactNode, className?: string }) {
+    const { setNodeRef, isOver } = useDroppable({ id });
+    return (
+        <div ref={setNodeRef} className={`${className} ${isOver ? 'bg-white/10 ring-2 ring-neon-cyan/50' : ''} transition-colors`}>
+            {children}
+        </div>
+    );
 }
 
 function App() {
@@ -265,6 +282,189 @@ function App() {
         }
     }
 
+    // --- Category Logic ---
+
+    // Add Category
+    const handleAddCategory = () => {
+        const name = prompt("Category Name:")
+        if (name) {
+            setLayoutConfig(prev => ({
+                ...prev,
+                categories: [...prev.categories, { id: crypto.randomUUID(), name, app_ids: [] }]
+            }))
+        }
+    }
+
+    // Rename Category
+    const handleRenameCategory = (id: string) => {
+        const cat = layoutConfig.categories.find(c => c.id === id)
+        if (!cat) return
+        const newName = prompt("New Name:", cat.name)
+        if (newName) {
+            setLayoutConfig(prev => ({
+                ...prev,
+                categories: prev.categories.map(c => c.id === id ? { ...c, name: newName } : c)
+            }))
+        }
+    }
+
+    // Delete Category (move apps to uncategorized)
+    const handleDeleteCategory = (id: string) => {
+        if (!confirm("Delete this category? Apps will match to Uncategorized.")) return
+        setLayoutConfig(prev => ({
+            ...prev,
+            categories: prev.categories.filter(c => c.id !== id)
+        }))
+    }
+
+
+
+    const handleDragOver = (event: DragOverEvent) => {
+        const { active, over } = event;
+        if (!over) return;
+
+        const activeId = active.id as string;
+        const overId = over.id as string;
+
+        if (activeId === overId) return;
+
+        // Find which container the items are in
+        const findContainerId = (id: string) => {
+            const cat = layoutConfig.categories.find(c => c.app_ids.includes(id));
+            if (cat) return cat.id;
+            if (layoutConfig.customOrder.includes(id) || apps.find(a => a.id === id)) return 'uncategorized';
+            return null;
+        };
+
+        const activeContainer = findContainerId(activeId);
+        const overContainer = findContainerId(overId);
+
+        // If overId is a container itself
+        const isOverContainer = overId === 'uncategorized' || layoutConfig.categories.some(c => c.id === overId);
+        const targetContainer = isOverContainer ? overId : overContainer;
+
+        if (!activeContainer || !targetContainer || activeContainer === targetContainer) {
+            return;
+        }
+
+        // Move item to new container in state
+        setLayoutConfig(prev => {
+            // Remove from source
+            let newCategories = prev.categories.map(c => ({
+                ...c,
+                app_ids: c.app_ids.filter(id => id !== activeId)
+            }));
+
+            // Add to target
+            if (targetContainer === 'uncategorized') {
+                // Removed from cat, effectively becomes uncategorized
+            } else {
+                newCategories = newCategories.map(c => {
+                    if (c.id === targetContainer) {
+                        // If over container, add to end. If over item, insert at index.
+                        const overIndex = c.app_ids.indexOf(overId);
+                        const newAppIds = [...c.app_ids];
+
+                        if (overIndex >= 0) {
+                            newAppIds.splice(overIndex, 0, activeId);
+                        } else {
+                            newAppIds.push(activeId);
+                        }
+
+                        return { ...c, app_ids: newAppIds };
+                    }
+                    return c;
+                });
+            }
+
+            return { ...prev, categories: newCategories };
+        });
+    };
+
+
+
+    // Update handleDragEnd to handle cross-category moves
+    const onDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (!over) return;
+
+        const activeAppId = active.id as string;
+        const overId = over.id as string;
+
+        if (activeAppId === overId) return;
+
+        // Helper to find container of an app ID
+        const findContainerId = (id: string): string => {
+            const cat = layoutConfig.categories.find(c => c.app_ids.includes(id));
+            if (cat) return cat.id;
+            return 'uncategorized';
+        };
+
+        const activeContainer = findContainerId(activeAppId);
+        const overContainer = findContainerId(overId); // This might be an app ID or a category ID (if dropped on header?)
+
+        // If dropped on a category header/container directly (if we make them droppable)
+        const overCategory = layoutConfig.categories.find(c => c.id === overId);
+        const targetContainer = overCategory ? overCategory.id : overContainer;
+
+        if (activeContainer === targetContainer) {
+            // Reorder within same container
+            if (activeContainer === 'uncategorized') {
+                // Reorder uncategorized (using customOrder or just local sort? 
+                // We should probably store uncategorized order in customOrder)
+                setApps((items) => { // This setApps logic was for the main grid. 
+                    // We should update layoutConfig instead.
+                    return items;
+                })
+                // Actually, we need to update layoutConfig.
+                // For simplicity, let's just support moving apps between categories for now, 
+                // and maybe simple sorting later.
+            } else {
+                // Reorder within category
+                setLayoutConfig(prev => {
+                    const cat = prev.categories.find(c => c.id === activeContainer)!;
+                    const oldIndex = cat.app_ids.indexOf(activeAppId);
+                    const newIndex = overCategory ? cat.app_ids.length : cat.app_ids.indexOf(overId);
+
+                    const newAppIds = arrayMove(cat.app_ids, oldIndex, newIndex);
+
+                    return {
+                        ...prev,
+                        categories: prev.categories.map(c => c.id === activeContainer ? { ...c, app_ids: newAppIds } : c)
+                    };
+                });
+            }
+        } else {
+            // Move between containers
+            setLayoutConfig(prev => {
+                // Remove from source
+                let newCategories = prev.categories.map(c => ({
+                    ...c,
+                    app_ids: c.app_ids.filter(id => id !== activeAppId)
+                }));
+
+                // Add to target
+                if (targetContainer === 'uncategorized') {
+                    // Just removing from categories puts it in uncategorized implicitly
+                } else {
+                    newCategories = newCategories.map(c => {
+                        if (c.id === targetContainer) {
+                            // Insert at specific index if dropped on an item, or end if dropped on container
+                            const newIndex = overCategory ? c.app_ids.length : c.app_ids.indexOf(overId);
+                            const newAppIds = [...c.app_ids];
+                            if (newIndex === -1) newAppIds.push(activeAppId);
+                            else newAppIds.splice(newIndex, 0, activeAppId);
+                            return { ...c, app_ids: newAppIds };
+                        }
+                        return c;
+                    });
+                }
+
+                return { ...prev, categories: newCategories };
+            });
+        }
+    };
 
 
     // Filtered apps for display
@@ -288,6 +488,178 @@ function App() {
             // Logic handled in render currently, but could sync state here if needed
         }
     }, [apps, layoutConfig.customOrder])
+
+    const renderContent = () => {
+        if (layoutConfig.mode === 'categories') {
+            const hasSearch = searchQuery.length > 0;
+            const searchLower = searchQuery.toLowerCase();
+
+            // Filter Uncategorized
+            let uncategorized = apps.filter(app => !layoutConfig.categories.some(c => c.app_ids.includes(app.id)));
+            if (hasSearch) {
+                uncategorized = uncategorized.filter(app => app.name.toLowerCase().includes(searchLower));
+            }
+
+            // Filter Categories
+            // Show category if: 
+            // 1. It has apps that match the search
+            // 2. OR (optional) if the category name matches? The user asked for "Kategorien... die... beinhalten", so maybe just apps.
+            // Let's stick to apps for now as requested: "show categories which contain the searched apps"
+
+            const visibleCategories = layoutConfig.categories.map(cat => {
+                const catApps = cat.app_ids.map(id => apps.find(a => a.id === id)).filter(Boolean);
+
+                // If searching, filter apps inside the category
+                const matchingApps = hasSearch
+                    ? catApps.filter(app => app.name.toLowerCase().includes(searchLower))
+                    : catApps;
+
+                return { ...cat, matchingApps };
+            }).filter(group => !hasSearch || group.matchingApps.length > 0);
+
+
+            return (
+                <div className="flex flex-col gap-8 max-w-6xl mx-auto p-6 pb-24">
+                    {/* Categories */}
+                    {visibleCategories.map(cat => (
+                        <div key={cat.id} className="glass-panel rounded-2xl p-6 border border-white/10">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-neon-cyan flex items-center gap-2">
+                                    <Folder className="w-5 h-5" />
+                                    {cat.name}
+                                </h2>
+                                {isEditMode && (
+                                    <div className="flex gap-2">
+                                        <button onClick={() => handleRenameCategory(cat.id)} className="p-1.5 hover:bg-white/10 rounded transition">
+                                            <Pencil className="w-4 h-4 text-gray-400" />
+                                        </button>
+                                        <button onClick={() => handleDeleteCategory(cat.id)} className="p-1.5 hover:bg-red-500/20 rounded transition text-red-400">
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            <SortableContext items={cat.app_ids} strategy={rectSortingStrategy}>
+                                <DroppableContainer id={cat.id} className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 min-h-[100px] p-2 rounded-xl bg-black/20">
+                                    {cat.matchingApps.map((app: any) => (
+                                        <SortableAppTile
+                                            key={app.id}
+                                            app={app}
+                                            isEditMode={isEditMode}
+                                            tileClass={tileClass}
+                                            style={getIconStyle()}
+                                            onClick={(e: React.MouseEvent) => {
+                                                if (isEditMode) e.preventDefault();
+                                                else window.location.href = app.url;
+                                            }}
+                                            onDelete={handleDeleteApp}
+                                        >
+                                            <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0">
+                                                <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain" />
+                                            </div>
+                                            <span className="font-medium text-gray-200 text-center text-sm truncate w-full px-2">{app.name}</span>
+                                        </SortableAppTile>
+                                    ))}
+                                    {cat.matchingApps.length === 0 && !hasSearch && (
+                                        <div className="col-span-full h-full flex items-center justify-center text-gray-500 text-sm italic py-8">
+                                            Drag apps here
+                                        </div>
+                                    )}
+                                </DroppableContainer>
+                            </SortableContext>
+                        </div>
+                    ))}
+
+                    {/* Uncategorized */}
+                    {(uncategorized.length > 0 || !hasSearch) && (
+                        <div className="glass-panel rounded-2xl p-6 border border-white/10">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-gray-400">Uncategorized</h2>
+                                {isEditMode && !hasSearch && (
+                                    <button onClick={handleAddCategory} className="flex items-center gap-2 px-3 py-1.5 bg-neon-cyan/20 text-neon-cyan rounded-lg hover:bg-neon-cyan/30 transition text-sm font-medium">
+                                        <PlusCircle className="w-4 h-4" />
+                                        New Category
+                                    </button>
+                                )}
+                            </div>
+                            <SortableContext items={uncategorized.map(a => a.id)} strategy={rectSortingStrategy}>
+                                <DroppableContainer id="uncategorized" className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                    {uncategorized.map((app: any) => (
+                                        <SortableAppTile
+                                            key={app.id}
+                                            app={app}
+                                            isEditMode={isEditMode}
+                                            tileClass={tileClass}
+                                            style={getIconStyle()}
+                                            onClick={(e: React.MouseEvent) => {
+                                                if (isEditMode) e.preventDefault();
+                                                else window.location.href = app.url;
+                                            }}
+                                            onDelete={handleDeleteApp}
+                                        >
+                                            <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0">
+                                                <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain" />
+                                            </div>
+                                            <span className="font-medium text-gray-200 text-center text-sm truncate w-full px-2">{app.name}</span>
+                                        </SortableAppTile>
+                                    ))}
+                                </DroppableContainer>
+                            </SortableContext>
+                        </div>
+                    )}
+                </div>
+            )
+        }
+
+        // Default Grid/List View
+        return (
+            <SortableContext items={displayApps.map(app => app.id)} strategy={rectSortingStrategy}>
+                <div className={`p-6 pb-24 gap-6 ${layoutConfig.mode === 'list'
+                    ? 'flex flex-col max-w-3xl mx-auto'
+                    : 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6'
+                    }`}>
+                    {displayApps.map((app) => (
+                        <SortableAppTile
+                            key={app.id}
+                            app={app}
+                            isEditMode={isEditMode}
+                            tileClass={layoutConfig.mode === 'list'
+                                ? "relative rounded-xl p-4 flex items-center gap-4 transition-all duration-300 cursor-pointer group hover:bg-white/5 glass-panel w-full"
+                                : tileClass}
+                            style={getIconStyle()}
+                            onClick={(e: React.MouseEvent) => {
+                                if (isEditMode) e.preventDefault();
+                                else window.location.href = app.url;
+                            }}
+                            onDelete={handleDeleteApp}
+                        >
+                            <div className={`${layoutConfig.mode === 'list' ? 'w-12 h-12' : 'w-16 h-16'} rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0`}>
+                                <AppIcon
+                                    src={app.icon_url}
+                                    alt={app.name}
+                                    className="w-full h-full object-contain"
+                                />
+                            </div>
+                            <span className={`font-medium text-gray-200 group-hover:text-white ${layoutConfig.mode === 'list' ? 'text-lg text-left' : 'text-center text-sm'} truncate w-full px-2`}>
+                                {app.name}
+                            </span>
+                        </SortableAppTile>
+                    ))}
+
+                    <div
+                        onClick={() => setIsAddAppOpen(true)}
+                        className={`glass-panel rounded-xl flex items-center justify-center gap-4 hover:bg-white/5 transition-colors cursor-pointer border-dashed border-2 border-white/20 ${layoutConfig.mode === 'list' ? 'w-full p-4 h-24' : 'flex-col p-6 min-h-[140px]'
+                            }`}
+                    >
+                        <div className={`${layoutConfig.mode === 'list' ? 'w-12 h-12' : 'w-16 h-16'} rounded-full bg-white/5 flex items-center justify-center`}>
+                            <Plus className={`${layoutConfig.mode === 'list' ? 'w-6 h-6' : 'w-8 h-8'} text-gray-400`} />
+                        </div>
+                        <span className="font-medium text-gray-400">Add App</span>
+                    </div>
+                </div>
+            </SortableContext>
+        )
+    }
 
     return (
         <div className="min-h-screen relative overflow-hidden text-white font-sans">
@@ -411,57 +783,11 @@ function App() {
                 <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
                     <DndContext
                         sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
+                        collisionDetection={pointerWithin}
+                        onDragEnd={layoutConfig.mode === 'categories' ? onDragEnd : handleDragEnd}
+                        onDragOver={layoutConfig.mode === 'categories' ? handleDragOver : undefined}
                     >
-                        <SortableContext
-                            items={displayApps.map(app => app.id)}
-                            strategy={rectSortingStrategy}
-                        >
-                            <div className={`p-6 pb-24 gap-6 ${layoutConfig.mode === 'list'
-                                ? 'flex flex-col max-w-3xl mx-auto'
-                                : 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6'
-                                }`}>
-                                {displayApps.map((app) => (
-                                    <SortableAppTile
-                                        key={app.id}
-                                        app={app}
-                                        isEditMode={isEditMode}
-                                        tileClass={layoutConfig.mode === 'list'
-                                            ? "relative rounded-xl p-4 flex items-center gap-4 transition-all duration-300 cursor-pointer group hover:bg-white/5 glass-panel w-full"
-                                            : tileClass}
-                                        style={getIconStyle()}
-                                        onClick={(e: React.MouseEvent) => {
-                                            if (isEditMode) e.preventDefault();
-                                            else window.location.href = app.url;
-                                        }}
-                                        onDelete={handleDeleteApp}
-                                    >
-                                        <div className={`${layoutConfig.mode === 'list' ? 'w-12 h-12' : 'w-16 h-16'} rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0`}>
-                                            <AppIcon
-                                                src={app.icon_url}
-                                                alt={app.name}
-                                                className="w-full h-full object-contain"
-                                            />
-                                        </div>
-                                        <span className={`font-medium text-gray-200 group-hover:text-white ${layoutConfig.mode === 'list' ? 'text-lg text-left' : 'text-center text-sm'} truncate w-full px-2`}>
-                                            {app.name}
-                                        </span>
-                                    </SortableAppTile>
-                                ))}
-
-                                <div
-                                    onClick={() => setIsAddAppOpen(true)}
-                                    className={`glass-panel rounded-xl flex items-center justify-center gap-4 hover:bg-white/5 transition-colors cursor-pointer border-dashed border-2 border-white/20 ${layoutConfig.mode === 'list' ? 'w-full p-4 h-24' : 'flex-col p-6 min-h-[140px]'
-                                        }`}
-                                >
-                                    <div className={`${layoutConfig.mode === 'list' ? 'w-12 h-12' : 'w-16 h-16'} rounded-full bg-white/5 flex items-center justify-center`}>
-                                        <Plus className={`${layoutConfig.mode === 'list' ? 'w-6 h-6' : 'w-8 h-8'} text-gray-400`} />
-                                    </div>
-                                    <span className="font-medium text-gray-400">Add App</span>
-                                </div>
-                            </div>
-                        </SortableContext>
+                        {renderContent()}
                     </DndContext>
                 </div>
             </div>
