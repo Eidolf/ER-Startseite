@@ -796,9 +796,29 @@ function App() {
 }
 
 function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: () => void, onAdded: () => void }) {
+    const [activeTab, setActiveTab] = useState<'custom' | 'store'>('custom')
+    const [premiumApps, setPremiumApps] = useState<any[]>([])
+    const [selectedPremiumApp, setSelectedPremiumApp] = useState<any>(null)
+
+    // Form State
     const [name, setName] = useState('')
     const [url, setUrl] = useState('')
     const [loading, setLoading] = useState(false)
+
+    useEffect(() => {
+        if (isOpen && activeTab === 'store') {
+            fetch('/api/v1/apps/premium')
+                .then(res => res.json())
+                .then(data => setPremiumApps(data))
+                .catch(e => console.error("Failed to load premium apps", e))
+        }
+    }, [isOpen, activeTab])
+
+    const handleSelectPremium = (app: any) => {
+        setSelectedPremiumApp(app)
+        setName(app.name)
+        setUrl('')
+    }
 
     if (!isOpen) return null
 
@@ -813,16 +833,24 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
         }
 
         try {
+            const body: any = { name, url: finalUrl }
+            if (activeTab === 'store' && selectedPremiumApp) {
+                body.premium_id = selectedPremiumApp.id
+            }
+
             const res = await fetch('/api/v1/apps', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, url: finalUrl })
+                body: JSON.stringify(body)
             })
             if (res.ok) {
                 onAdded()
                 onClose()
+                // Reset form
                 setName('')
                 setUrl('')
+                setSelectedPremiumApp(null)
+                setActiveTab('custom')
             }
         } catch (e) {
             console.error("Failed to add app", e)
@@ -831,47 +859,114 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
         }
     }
 
+    // Determine what form content to show
+    const renderFormContent = () => {
+        if (activeTab === 'store' && !selectedPremiumApp) {
+            // Store Grid
+            return (
+                <div className="grid grid-cols-2 gap-4 max-h-[400px] overflow-y-auto custom-scrollbar p-1">
+                    {premiumApps.map(app => (
+                        <div
+                            key={app.id}
+                            onClick={() => handleSelectPremium(app)}
+                            className="bg-white/5 hover:bg-white/10 border border-white/5 hover:border-neon-cyan/50 rounded-xl p-4 flex flex-col items-center gap-3 cursor-pointer transition-all group"
+                        >
+                            <div className="w-12 h-12 bg-black/20 rounded-lg p-2 group-hover:scale-110 transition-transform">
+                                <AppIcon src={app.default_icon} alt={app.name} className="w-full h-full object-contain" />
+                            </div>
+                            <div className="text-center">
+                                <h3 className="font-medium text-white text-sm">{app.name}</h3>
+                                <p className="text-xs text-gray-400 line-clamp-2 mt-1">{app.description}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )
+        }
+
+        return (
+            <div className="space-y-4">
+                {selectedPremiumApp && (
+                    <div className="flex items-center gap-3 bg-neon-cyan/10 border border-neon-cyan/20 p-3 rounded-lg mb-4">
+                        <div className="w-10 h-10 bg-black/20 rounded-lg p-1.5 shrink-0">
+                            <AppIcon src={selectedPremiumApp.default_icon} alt={selectedPremiumApp.name} className="w-full h-full object-contain" />
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-medium text-neon-cyan">Configuring {selectedPremiumApp.name}</h4>
+                            <button type="button" onClick={() => setSelectedPremiumApp(null)} className="text-xs text-gray-400 hover:text-white underline">Back to Store</button>
+                        </div>
+                    </div>
+                )}
+
+                <div className="space-y-2">
+                    <label className="text-sm text-gray-400">App Name</label>
+                    <input
+                        type="text"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="e.g. Google"
+                        className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-neon-cyan outline-none transition"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <label className="text-sm text-gray-400">URL</label>
+                    <input
+                        type="text"
+                        required
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        placeholder="https://..."
+                        className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-neon-cyan outline-none transition"
+                    />
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden glass-panel">
-                <div className="flex justify-between items-center px-6 py-4 border-b border-white/10">
-                    <h2 className="text-lg font-semibold text-white">Add New App</h2>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white transition">
-                        <Plus className="w-5 h-5 rotate-45" />
-                    </button>
+                <div className="flex flex-col border-b border-white/10">
+                    <div className="flex justify-between items-center px-6 py-4">
+                        <h2 className="text-lg font-semibold text-white">Add New App</h2>
+                        <button onClick={onClose} className="text-gray-400 hover:text-white transition">
+                            <Plus className="w-5 h-5 rotate-45" />
+                        </button>
+                    </div>
+                    {/* Tabs */}
+                    <div className="flex px-6 gap-6">
+                        <button
+                            onClick={() => { setActiveTab('custom'); setSelectedPremiumApp(null); }}
+                            className={`pb-3 text-sm font-medium transition-colors relative ${activeTab === 'custom' ? 'text-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            Custom URL
+                            {activeTab === 'custom' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-neon-cyan shadow-[0_0_10px_#00f3ff]" />}
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('store')}
+                            className={`pb-3 text-sm font-medium transition-colors relative ${activeTab === 'store' ? 'text-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            App Store
+                            {activeTab === 'store' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-neon-cyan shadow-[0_0_10px_#00f3ff]" />}
+                        </button>
+                    </div>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                    <div className="space-y-2">
-                        <label className="text-sm text-gray-400">App Name</label>
-                        <input
-                            type="text"
-                            required
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="e.g. Google"
-                            className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-neon-cyan outline-none transition"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-sm text-gray-400">URL</label>
-                        <input
-                            type="text"
-                            required
-                            value={url}
-                            onChange={(e) => setUrl(e.target.value)}
-                            placeholder="example.com"
-                            className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-neon-cyan outline-none transition"
-                        />
-                    </div>
+                <form onSubmit={handleSubmit} className="p-6">
+                    {renderFormContent()}
 
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full mt-4 bg-neon-cyan hover:bg-cyan-400 text-black font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                        {loading ? 'Adding...' : 'Add App'}
-                    </button>
+                    {(activeTab === 'custom' || selectedPremiumApp) && (
+                        <div className="pt-6">
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full bg-gradient-to-r from-neon-cyan to-neon-purple text-white font-medium py-2.5 rounded-lg hover:opacity-90 transition disabled:opacity-50"
+                            >
+                                {loading ? 'Adding...' : 'Add App'}
+                            </button>
+                        </div>
+                    )}
                 </form>
             </div>
         </div>

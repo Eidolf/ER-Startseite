@@ -6,6 +6,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Body
 from pydantic import BaseModel, HttpUrl
 from datetime import datetime
+from app.core.premium_apps import AppRegistry, PremiumAppDefinition
 
 router = APIRouter()
 
@@ -16,6 +17,7 @@ class AppBase(BaseModel):
     name: str
     url: HttpUrl
     icon_url: Optional[str] = None
+    premium_id: Optional[str] = None # Link to premium definition
 
 class AppCreate(AppBase):
     pass
@@ -110,6 +112,11 @@ async def list_apps():
     """List all apps."""
     return read_apps()
 
+@router.get("/premium", response_model=List[PremiumAppDefinition])
+async def list_premium_apps():
+    """List available premium apps from the registry."""
+    return AppRegistry.get_all()
+
 @router.post("", response_model=App)
 async def create_app(app_in: AppCreate):
     """Create a new app."""
@@ -118,13 +125,22 @@ async def create_app(app_in: AppCreate):
     # Auto-generate icon if missing
     icon_url = app_in.icon_url
     if not icon_url:
-        icon_url = await fetch_best_icon(str(app_in.url))
+        # Check if it's a premium app with a default icon
+        if app_in.premium_id:
+            premium_app = AppRegistry.get(app_in.premium_id)
+            if premium_app and premium_app.default_icon:
+                icon_url = premium_app.default_icon
+        
+        # Fallback to fetching
+        if not icon_url:
+            icon_url = await fetch_best_icon(str(app_in.url))
     
     new_app = {
         "id": str(uuid.uuid4()),
         "name": app_in.name,
         "url": str(app_in.url),
         "icon_url": icon_url,
+        "premium_id": app_in.premium_id,
         "created_at": datetime.utcnow().isoformat()
     }
     
