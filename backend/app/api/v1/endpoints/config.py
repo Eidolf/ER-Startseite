@@ -29,6 +29,11 @@ DEFAULT_ICON_CONFIG = {
     "gradientColors": ["#3b82f6", "#9333ea"]
 }
 
+DEFAULT_LAYOUT_CONFIG = {
+    "mode": "grid",
+    "customOrder": []
+}
+
 class BackgroundConfig(BaseModel):
     type: str
     value: str
@@ -46,11 +51,16 @@ class IconConfig(BaseModel):
     backgroundColor: str
     gradientColors: List[str]
 
+class LayoutConfig(BaseModel):
+    mode: str = "grid"
+    customOrder: List[str] = []
+
 class AppConfig(BaseModel):
     pageTitle: str = "ER-Startseite"
     bgConfig: BackgroundConfig = DEFAULT_BG
     logoConfig: LogoConfig = DEFAULT_LOGO_CONFIG
     iconConfig: IconConfig = DEFAULT_ICON_CONFIG
+    layoutConfig: LayoutConfig = DEFAULT_LAYOUT_CONFIG
 
 def read_config() -> dict:
     if not os.path.exists(CONFIG_FILE):

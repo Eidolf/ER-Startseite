@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react'
 import { AppIcon } from './components/AppIcon'
 import { AnimatedLogo } from './components/AnimatedLogo'
-import { Search, Settings, Plus, Pencil, Trash2 } from 'lucide-react'
+import { Search, Settings, Plus, Trash2, LayoutGrid } from 'lucide-react'
 import { SettingsModal } from './components/SettingsModal'
+import { LayoutMenu, LayoutMode } from './components/LayoutMenu'
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core'
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 // Define Background Config Type
 export interface BackgroundConfig {
@@ -27,6 +31,11 @@ export interface IconConfig {
     gradientColors: [string, string]
 }
 
+export interface LayoutConfig {
+    mode: LayoutMode
+    customOrder: string[] // Array of App IDs
+}
+
 const DEFAULT_BG: BackgroundConfig = {
     type: 'image',
     value: 'gradient'
@@ -47,20 +56,65 @@ const DEFAULT_ICON_CONFIG: IconConfig = {
     gradientColors: ['#3b82f6', '#9333ea']
 }
 
+const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
+    mode: 'grid',
+    customOrder: []
+}
+
+function SortableAppTile({ app, isEditMode, tileClass, style, children, onClick, onDelete }: any) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: app.id, disabled: !isEditMode });
+
+    const combinedStyle = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        ...style,
+        opacity: isDragging ? 0.5 : 1,
+        zIndex: isDragging ? 50 : 'auto',
+        touchAction: 'none'
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={combinedStyle}
+            {...attributes}
+            {...listeners}
+            className={`${tileClass} ${isEditMode ? 'cursor-grab active:cursor-grabbing animate-pulse' : ''}`}
+            onClick={onClick}
+        >
+            {children}
+            {isEditMode && (
+                <button
+                    onClick={(e) => onDelete(e, app.id)}
+                    className="absolute -top-2 -right-2 z-20 bg-red-500 text-white p-1.5 rounded-full hover:bg-red-600 transition shadow-lg shrink-0 flex items-center justify-center"
+                    onPointerDown={(e) => e.stopPropagation()} // Prevent drag start on delete button
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
+            )}
+        </div>
+    )
+}
+
 function App() {
     // Load defaults initially
     const [bgConfig, setBgConfig] = useState<BackgroundConfig>(DEFAULT_BG)
     const [logoConfig, setLogoConfig] = useState<LogoConfig>(DEFAULT_LOGO_CONFIG)
     const [iconConfig, setIconConfig] = useState<IconConfig>(DEFAULT_ICON_CONFIG)
+    const [layoutConfig, setLayoutConfig] = useState<LayoutConfig>(DEFAULT_LAYOUT_CONFIG)
     const [pageTitle, setPageTitle] = useState('ER-Startseite')
 
     const [configLoaded, setConfigLoaded] = useState(false)
 
     const [searchQuery, setSearchQuery] = useState('')
     const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+    const [isLayoutMenuOpen, setIsLayoutMenuOpen] = useState(false)
 
     // New State for Edit Mode
     const [isEditMode, setIsEditMode] = useState(false)
+
+    const [apps, setApps] = useState<any[]>([])
+    const [isAddAppOpen, setIsAddAppOpen] = useState(false)
 
     // Fetch Config on Mount
     useEffect(() => {
@@ -72,6 +126,7 @@ function App() {
                     setBgConfig(data.bgConfig || DEFAULT_BG)
                     setLogoConfig(data.logoConfig || DEFAULT_LOGO_CONFIG)
                     setIconConfig(data.iconConfig || DEFAULT_ICON_CONFIG)
+                    setLayoutConfig(data.layoutConfig || DEFAULT_LAYOUT_CONFIG)
                 }
             })
             .catch(e => console.error("Failed to load config", e))
@@ -90,13 +145,14 @@ function App() {
                     pageTitle,
                     bgConfig,
                     logoConfig,
-                    iconConfig
+                    iconConfig,
+                    layoutConfig
                 })
             }).catch(e => console.error("Failed to save config", e))
         }, 500) // Debounce 500ms
 
         return () => clearTimeout(timer)
-    }, [pageTitle, bgConfig, logoConfig, iconConfig, configLoaded])
+    }, [pageTitle, bgConfig, logoConfig, iconConfig, layoutConfig, configLoaded])
 
     // Helper to generate icon style
     const getIconStyle = () => {
@@ -153,9 +209,6 @@ function App() {
         tileClass += "hover:scale-105 hover:bg-white/5 border border-white/5 "
     }
 
-    const [apps, setApps] = useState<any[]>([])
-    const [isAddAppOpen, setIsAddAppOpen] = useState(false)
-
     // Fetch Apps
     const fetchApps = async () => {
         try {
@@ -188,6 +241,53 @@ function App() {
     useEffect(() => {
         fetchApps()
     }, [])
+
+    // DnD Sensors
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    )
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event
+        if (over && active.id !== over.id) {
+            setApps((items) => {
+                const oldIndex = items.findIndex(item => item.id === active.id)
+                const newIndex = items.findIndex(item => item.id === over.id)
+                const newOrder = arrayMove(items, oldIndex, newIndex)
+
+                // Update customOrder in layoutConfig
+                const newOrderIds = newOrder.map(app => app.id)
+                setLayoutConfig(prev => ({ ...prev, customOrder: newOrderIds }))
+
+                return newOrder
+            })
+        }
+    }
+
+
+
+    // Filtered apps for display
+    const filteredApps = apps.filter(app => app.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    // We only sort if NOT searching (or maybe we should?)
+    // If searching, we usually want relevancy or just alphabetical.
+    // Let's apply custom sort ONLY if search query is empty to avoid confusion.
+    const displayApps = searchQuery ? filteredApps : (apps.length > 0 && layoutConfig.customOrder.length > 0 ? [...apps].sort((a, b) => {
+        const indexA = layoutConfig.customOrder.indexOf(a.id);
+        const indexB = layoutConfig.customOrder.indexOf(b.id);
+        if (indexA === -1 && indexB === -1) return 0;
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
+    }) : apps);
+
+    // Only verify app list with customOrder on load/fetch
+    useEffect(() => {
+        if (apps.length > 0 && layoutConfig.customOrder.length > 0) {
+            // Logic handled in render currently, but could sync state here if needed
+        }
+    }, [apps, layoutConfig.customOrder])
 
     return (
         <div className="min-h-screen relative overflow-hidden text-white font-sans">
@@ -228,6 +328,15 @@ function App() {
                 onIconConfigChange={setIconConfig}
             />
 
+            <LayoutMenu
+                isOpen={isLayoutMenuOpen}
+                onClose={() => setIsLayoutMenuOpen(false)}
+                currentMode={layoutConfig.mode}
+                onModeChange={(mode) => setLayoutConfig({ ...layoutConfig, mode })}
+                isEditMode={isEditMode}
+                onToggleEditMode={() => setIsEditMode(!isEditMode)}
+            />
+
             <AddAppModal
                 isOpen={isAddAppOpen}
                 onClose={() => setIsAddAppOpen(false)}
@@ -260,11 +369,11 @@ function App() {
                 {/* Right: Settings Buttons */}
                 <div className="flex gap-4 pointer-events-auto w-24 justify-end p-2">
                     <button
-                        onClick={() => setIsEditMode(!isEditMode)}
-                        className={`p-2 rounded-full glass-panel transition ${isEditMode ? 'bg-neon-cyan/20 text-neon-cyan' : 'hover:bg-white/10 text-gray-400'}`}
-                        title="Edit Mode"
+                        onClick={() => setIsLayoutMenuOpen(true)}
+                        className={`p-2 rounded-full glass-panel transition ${isLayoutMenuOpen ? 'bg-neon-cyan/20 text-neon-cyan' : 'hover:bg-white/10 text-gray-400'}`}
+                        title="Layout"
                     >
-                        <Pencil className="w-6 h-6" />
+                        <LayoutGrid className="w-6 h-6" />
                     </button>
                     <button
                         onClick={() => setIsSettingsOpen(true)}
@@ -300,45 +409,60 @@ function App() {
 
                 {/* App Grid - Scrollable */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 p-6 pb-24">
-                        {apps.filter(app => app.name.toLowerCase().includes(searchQuery.toLowerCase())).map((app) => (
-                            <a
-                                key={app.id}
-                                href={!isEditMode ? app.url : undefined}
-                                onClick={(e) => isEditMode && e.preventDefault()}
-                                className={`${tileClass} ${isEditMode ? 'animate-pulse cursor-default' : ''}`}
-                                style={getIconStyle()}
-                            >
-                                {isEditMode && (
-                                    <button
-                                        onClick={(e) => handleDeleteApp(e, app.id)}
-                                        className="absolute -top-2 -right-2 z-20 bg-red-500 text-white p-1.5 rounded-full hover:bg-red-600 transition shadow-lg"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                )}
-
-                                <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5">
-                                    <AppIcon
-                                        src={app.icon_url}
-                                        alt={app.name}
-                                        className="w-full h-full object-contain"
-                                    />
-                                </div>
-                                <span className="font-medium text-gray-200 group-hover:text-white text-center text-sm truncate w-full px-2">{app.name}</span>
-                            </a>
-                        ))}
-
-                        <div
-                            onClick={() => setIsAddAppOpen(true)}
-                            className="glass-panel rounded-xl p-6 flex flex-col items-center justify-center gap-4 hover:bg-white/5 transition-colors cursor-pointer border-dashed border-2 border-white/20 min-h-[140px]"
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={handleDragEnd}
+                    >
+                        <SortableContext
+                            items={displayApps.map(app => app.id)}
+                            strategy={rectSortingStrategy}
                         >
-                            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
-                                <Plus className="w-8 h-8 text-gray-400" />
+                            <div className={`p-6 pb-24 gap-6 ${layoutConfig.mode === 'list'
+                                ? 'flex flex-col max-w-3xl mx-auto'
+                                : 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6'
+                                }`}>
+                                {displayApps.map((app) => (
+                                    <SortableAppTile
+                                        key={app.id}
+                                        app={app}
+                                        isEditMode={isEditMode}
+                                        tileClass={layoutConfig.mode === 'list'
+                                            ? "relative rounded-xl p-4 flex items-center gap-4 transition-all duration-300 cursor-pointer group hover:bg-white/5 glass-panel w-full"
+                                            : tileClass}
+                                        style={getIconStyle()}
+                                        onClick={(e: React.MouseEvent) => {
+                                            if (isEditMode) e.preventDefault();
+                                            else window.location.href = app.url;
+                                        }}
+                                        onDelete={handleDeleteApp}
+                                    >
+                                        <div className={`${layoutConfig.mode === 'list' ? 'w-12 h-12' : 'w-16 h-16'} rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0`}>
+                                            <AppIcon
+                                                src={app.icon_url}
+                                                alt={app.name}
+                                                className="w-full h-full object-contain"
+                                            />
+                                        </div>
+                                        <span className={`font-medium text-gray-200 group-hover:text-white ${layoutConfig.mode === 'list' ? 'text-lg text-left' : 'text-center text-sm'} truncate w-full px-2`}>
+                                            {app.name}
+                                        </span>
+                                    </SortableAppTile>
+                                ))}
+
+                                <div
+                                    onClick={() => setIsAddAppOpen(true)}
+                                    className={`glass-panel rounded-xl flex items-center justify-center gap-4 hover:bg-white/5 transition-colors cursor-pointer border-dashed border-2 border-white/20 ${layoutConfig.mode === 'list' ? 'w-full p-4 h-24' : 'flex-col p-6 min-h-[140px]'
+                                        }`}
+                                >
+                                    <div className={`${layoutConfig.mode === 'list' ? 'w-12 h-12' : 'w-16 h-16'} rounded-full bg-white/5 flex items-center justify-center`}>
+                                        <Plus className={`${layoutConfig.mode === 'list' ? 'w-6 h-6' : 'w-8 h-8'} text-gray-400`} />
+                                    </div>
+                                    <span className="font-medium text-gray-400">Add App</span>
+                                </div>
                             </div>
-                            <span className="font-medium text-gray-400">Add App</span>
-                        </div>
-                    </div>
+                        </SortableContext>
+                    </DndContext>
                 </div>
             </div>
         </div>
