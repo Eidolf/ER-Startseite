@@ -1,10 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 import structlog
 from app.core.config import settings
 from app.api.v1.router import api_router
+from app.core.exceptions import BackendException
 
 logger = structlog.get_logger()
 
@@ -19,6 +21,14 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     lifespan=lifespan,
 )
+
+@app.exception_handler(BackendException)
+async def backend_exception_handler(request: Request, exc: BackendException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"success": False, "error_code": exc.code, "message": exc.message}
+    )
+
 
 # Set all CORS enabled origins
 if settings.BACKEND_CORS_ORIGINS:
