@@ -4,15 +4,19 @@ on:
   workflow_dispatch:
     inputs:
       target_tag:
-        description: 'Target Tag (e.g. v1.0.0)'
+        description: 'Target Tag to cleanup/rollback to (e.g. v1.0.0)'
         required: true
+
+permissions:
+  packages: write
+  contents: write # Needed to delete tags/releases if we go that far, or just packages.
 
 jobs:
   rollback:
     runs-on: ubuntu-latest
-    permissions:
-      packages: write
     steps:
+      - uses: actions/checkout@v4
+      
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -23,11 +27,24 @@ jobs:
       - name: Rollback Images
         run: |
           REPO=ghcr.io/${{ github.repository }}
+          # Convert to lowercase
+          REPO=$(echo $REPO | tr '[:upper:]' '[:lower:]')
           TARGET=${{ inputs.target_tag }}
+          
+          if [[ -z "$TARGET" ]]; then
+            echo "Error: Target tag is empty."
+            exit 1
+          fi
           
           for SERVICE in backend frontend; do
             echo "Restoring $SERVICE:latest to $TARGET"
+            # Pull the target version
             docker pull $REPO/$SERVICE:$TARGET
+            # Tag it as latest
             docker tag $REPO/$SERVICE:$TARGET $REPO/$SERVICE:latest
+            # Push latest
             docker push $REPO/$SERVICE:latest
           done
+          
+          echo "Rollback of 'latest' tag complete. The 'latest' tag now points to $TARGET."
+

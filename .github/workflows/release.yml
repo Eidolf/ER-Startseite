@@ -20,6 +20,7 @@ permissions:
 
 jobs:
   release:
+    name: Release ${{ inputs.release_type }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,10 +28,12 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
+      # Backend Checks / Setup
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip' # poetry usually not cached by setup-python directly this way unless configured, but okay for scripts
 
       - name: Determine Version
         id: version
@@ -45,6 +48,12 @@ jobs:
             # Beta/Stable: Use manager
             TYPE="patch"
             if [[ "${{ inputs.release_type }}" == "beta" ]]; then TYPE="beta"; fi
+            if [[ "${{ inputs.release_type }}" == "stable" ]]; then TYPE="patch"; fi
+            
+            # Ensure script can run
+            pip install poetry
+            # Just use base python for version script if strict deps not needed, 
+            # or install minimal deps if version_manager.py has them (it uses standard lib)
             
             NEW_VER=$(python3 scripts/version_manager.py bump --type $TYPE)
             echo "new_version=$NEW_VER" >> $GITHUB_OUTPUT
@@ -88,6 +97,8 @@ jobs:
         run: |
           VERSION=${{ steps.version.outputs.new_version }}
           REPO=ghcr.io/${{ github.repository }}
+          # Convert to lowercase just in case
+          REPO=$(echo $REPO | tr '[:upper:]' '[:lower:]')
           
           for SERVICE in backend frontend; do
             TAGS="$REPO/$SERVICE:$VERSION"
@@ -109,8 +120,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull origin main
+          git pull origin main --rebase
           
+          # For post-release bump, usually handled by 'dev' type
           NEXT_DEV=$(python3 scripts/version_manager.py bump --type dev)
           git add VERSION
           git commit -m "chore: bump to dev version $NEXT_DEV"

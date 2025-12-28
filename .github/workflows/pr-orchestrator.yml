@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   label:
+    name: Label PR
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -19,6 +20,7 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           configuration-path: .github/labeler.yml
+          sync-labels: true
 
   # CI Orchestrator runs independently on PRs to main, so no need to call it here.
   # This workflow is strictly for PR management (Labeling).
