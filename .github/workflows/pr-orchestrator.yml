@@ -20,7 +20,5 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           configuration-path: .github/labeler.yml
 
-  # Lightweight checks for PRs (Labeling is main purpose, but we ensure quality)
-  check-quality:
-    needs: label
-    uses: ./.github/workflows/ci-orchestrator.yml
+  # CI Orchestrator runs independently on PRs to main, so no need to call it here.
+  # This workflow is strictly for PR management (Labeling).
