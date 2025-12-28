@@ -5,8 +5,6 @@
 
 > A modern, highly customizable dashboard with a neon aesthetic, video backgrounds, and robust app integration.
 
-![Logo](images/logo.png) (Placeholder)
-
 ## 🚀 Features
 
 - **Neon/Dark Theme**: Stunning visual design with glassmorphism and neon accents.
