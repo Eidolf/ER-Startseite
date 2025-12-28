@@ -1,4 +1,4 @@
-import { LayoutGrid, List, Check, Move, Folder } from 'lucide-react'
+import { LayoutGrid, List, Check, Move, Folder, Eye, EyeOff } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 export type LayoutMode = 'grid' | 'list' | 'compact' | 'categories'
@@ -8,11 +8,13 @@ interface LayoutMenuProps {
     onModeChange: (mode: LayoutMode) => void
     isEditMode: boolean
     onToggleEditMode: () => void
+    showHidden: boolean
+    onToggleShowHidden: () => void
     isOpen: boolean
     onClose: () => void
 }
 
-export function LayoutMenu({ currentMode, onModeChange, isEditMode, onToggleEditMode, isOpen, onClose }: LayoutMenuProps) {
+export function LayoutMenu({ currentMode, onModeChange, isEditMode, onToggleEditMode, showHidden, onToggleShowHidden, isOpen, onClose }: LayoutMenuProps) {
     if (!isOpen) return null
 
     return (
@@ -65,13 +67,35 @@ export function LayoutMenu({ currentMode, onModeChange, isEditMode, onToggleEdit
                     <button
                         onClick={() => {
                             onToggleEditMode()
-                            // If entering edit mode, maybe give a toast or visual cue?
                         }}
                         className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${isEditMode ? 'bg-neon-purple/20 text-neon-purple' : 'hover:bg-white/5 text-gray-300'}`}
                     >
                         <Move className="w-4 h-4" />
                         <span className="flex-1 text-left">Edit / Reorder</span>
                         {isEditMode && <div className="w-2 h-2 rounded-full bg-neon-purple animate-pulse" />}
+                    </button>
+
+                    <div className="h-px bg-white/10 my-2" />
+
+                    <div className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                        Hidden Area
+                    </div>
+
+                    <button
+                        onClick={onToggleShowHidden}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${showHidden ? 'bg-red-500/20 text-red-500' : 'hover:bg-white/5 text-gray-300'}`}
+                    >
+                        {showHidden ? (
+                            <>
+                                <EyeOff className="w-4 h-4" />
+                                <span className="flex-1 text-left">Hide Secret Apps</span>
+                            </>
+                        ) : (
+                            <>
+                                <Eye className="w-4 h-4" />
+                                <span className="flex-1 text-left">Show Secret Apps</span>
+                            </>
+                        )}
                     </button>
                 </div>
             </motion.div>

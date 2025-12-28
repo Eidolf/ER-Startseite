@@ -32,7 +32,8 @@ DEFAULT_ICON_CONFIG = {
 DEFAULT_LAYOUT_CONFIG = {
     "mode": "grid",
     "customOrder": [],
-    "categories": []
+    "categories": [],
+    "hiddenAppIds": []
 }
 
 class BackgroundConfig(BaseModel):
@@ -61,6 +62,7 @@ class LayoutConfig(BaseModel):
     mode: str = "grid"
     customOrder: List[str] = []
     categories: List[Category] = []
+    hiddenAppIds: List[str] = []
 
 class AppConfig(BaseModel):
     pageTitle: str = "ER-Startseite"

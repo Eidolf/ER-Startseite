@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { AppIcon } from './components/AppIcon'
 import { AnimatedLogo } from './components/AnimatedLogo'
-import { Search, Settings, Plus, Trash2, LayoutGrid, Folder, PlusCircle, X, Pencil } from 'lucide-react'
+import { Search, Settings, Plus, Trash2, LayoutGrid, Folder, PlusCircle, X, Pencil, EyeOff } from 'lucide-react'
 import { SettingsModal } from './components/SettingsModal'
 import { LayoutMenu, LayoutMode } from './components/LayoutMenu'
 import { DndContext, pointerWithin, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, useDroppable } from '@dnd-kit/core'
@@ -41,6 +41,7 @@ export interface LayoutConfig {
     mode: LayoutMode
     customOrder: string[] // Array of App IDs
     categories: Category[]
+    hiddenAppIds: string[]
 }
 
 const DEFAULT_BG: BackgroundConfig = {
@@ -66,7 +67,8 @@ const DEFAULT_ICON_CONFIG: IconConfig = {
 const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
     mode: 'grid',
     customOrder: [],
-    categories: []
+    categories: [],
+    hiddenAppIds: []
 }
 
 function SortableAppTile({ app, isEditMode, tileClass, style, children, onClick, onDelete }: any) {
@@ -113,7 +115,134 @@ function DroppableContainer({ id, children, className }: { id: string, children:
     );
 }
 
+function SetupModal({ onSetupComplete }: { onSetupComplete: () => void }) {
+    const [pin, setPin] = useState('')
+    const [loading, setLoading] = useState(false)
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (pin.length < 4) return alert("PIN must be at least 4 digits")
+        setLoading(true)
+        try {
+            const res = await fetch('/api/v1/auth/setup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pin })
+            })
+            if (res.ok) {
+                onSetupComplete()
+            }
+        } catch (e) {
+            console.error("Setup failed", e)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+            <div className="max-w-md w-full glass-panel border border-neon-cyan/30 p-8 rounded-2xl text-center">
+                <div className="mb-6 flex justify-center">
+                    <div className="w-16 h-16 rounded-full bg-neon-cyan/20 flex items-center justify-center">
+                        <Settings className="w-8 h-8 text-neon-cyan animate-spin-slow" />
+                    </div>
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-2">Welcome to ER-Startseite</h2>
+                <p className="text-gray-400 mb-6">Please create a security PIN to protect your settings.</p>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <input
+                        type="password"
+                        value={pin}
+                        onChange={(e) => setPin(e.target.value)}
+                        placeholder="Enter 4-digit PIN"
+                        className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-center text-2xl tracking-[0.5em] text-white focus:ring-2 focus:ring-neon-cyan outline-none"
+                        maxLength={8}
+                        autoFocus
+                    />
+                    <button
+                        type="submit"
+                        disabled={loading || pin.length < 4}
+                        className="w-full bg-neon-cyan text-black font-bold py-3 rounded-xl hover:bg-cyan-400 transition disabled:opacity-50"
+                    >
+                        {loading ? 'Setting up...' : 'Set PIN & Start'}
+                    </button>
+                </form>
+            </div>
+        </div>
+    )
+}
+
+function UnlockModal({ isOpen, onClose, onUnlock }: { isOpen: boolean, onClose: () => void, onUnlock: () => void }) {
+    const [pin, setPin] = useState('')
+    const [error, setError] = useState(false)
+    const [loading, setLoading] = useState(false)
+
+    useEffect(() => {
+        if (isOpen) {
+            setPin('')
+            setError(false)
+        }
+    }, [isOpen])
+
+    if (!isOpen) return null
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setLoading(true)
+        setError(false)
+        try {
+            const res = await fetch('/api/v1/auth/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: pin })
+            })
+            if (res.ok) {
+                onUnlock()
+                onClose()
+            } else {
+                setError(true)
+                setPin('')
+            }
+        } catch (e) {
+            console.error(e)
+            setError(true)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="max-w-xs w-full glass-panel border border-white/10 p-6 rounded-2xl text-center relative">
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white">
+                    <X className="w-5 h-5" />
+                </button>
+                <h3 className="text-xl font-bold text-white mb-4">Security Check</h3>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <input
+                        type="password"
+                        value={pin}
+                        onChange={(e) => { setPin(e.target.value); setError(false); }}
+                        placeholder="PIN"
+                        className={`w-full bg-black/50 border ${error ? 'border-red-500 animate-pulse' : 'border-white/10'} rounded-xl px-4 py-3 text-center text-xl tracking-[0.5em] text-white focus:ring-2 focus:ring-neon-cyan outline-none`}
+                        autoFocus
+                    />
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full bg-white/10 hover:bg-white/20 text-white font-medium py-2 rounded-xl transition"
+                    >
+                        Unlock
+                    </button>
+                </form>
+            </div>
+        </div>
+    )
+}
+
 function App() {
+    // Auth State (Managed below)
+
     // Load defaults initially
     const [bgConfig, setBgConfig] = useState<BackgroundConfig>(DEFAULT_BG)
     const [logoConfig, setLogoConfig] = useState<LogoConfig>(DEFAULT_LOGO_CONFIG)
@@ -129,9 +258,49 @@ function App() {
 
     // New State for Edit Mode
     const [isEditMode, setIsEditMode] = useState(false)
+    const [showHiddenApps, setShowHiddenApps] = useState(false)
 
     const [apps, setApps] = useState<any[]>([])
     const [isAddAppOpen, setIsAddAppOpen] = useState(false)
+
+    // Auth State
+    const [isSetup, setIsSetup] = useState(true)
+    const [isAuthenticated, setIsAuthenticated] = useState(false)
+    const [showUnlockModal, setShowUnlockModal] = useState(false)
+    const [pendingAction, setPendingAction] = useState<'settings' | 'layout_menu' | 'add_app' | 'edit_mode' | 'show_hidden' | null>(null)
+
+    // Check Auth Status
+    useEffect(() => {
+        fetch('/api/v1/auth/status')
+            .then(res => res.json())
+            .then(data => {
+                setIsSetup(data.is_setup)
+            })
+            .catch(e => console.error("Auth status check failed", e))
+    }, [])
+
+    const handleUnlockSuccess = () => {
+        setIsAuthenticated(true)
+        if (pendingAction === 'settings') setIsSettingsOpen(true)
+        if (pendingAction === 'layout_menu') setIsLayoutMenuOpen(true)
+        if (pendingAction === 'add_app') setIsAddAppOpen(true)
+        if (pendingAction === 'edit_mode') setIsEditMode(prev => !prev)
+        if (pendingAction === 'show_hidden') setShowHiddenApps(prev => !prev)
+        setPendingAction(null)
+    }
+
+    const handleProtectedAction = (action: 'settings' | 'layout_menu' | 'add_app' | 'edit_mode' | 'show_hidden') => {
+        if (isAuthenticated) {
+            if (action === 'settings') setIsSettingsOpen(true)
+            if (action === 'layout_menu') setIsLayoutMenuOpen(true)
+            if (action === 'add_app') setIsAddAppOpen(true)
+            if (action === 'edit_mode') setIsEditMode(prev => !prev)
+            if (action === 'show_hidden') setShowHiddenApps(prev => !prev)
+            return
+        }
+        setPendingAction(action)
+        setShowUnlockModal(true)
+    }
 
     // Fetch Config on Mount
     useEffect(() => {
@@ -332,6 +501,7 @@ function App() {
         const findContainerId = (id: string) => {
             const cat = layoutConfig.categories.find(c => c.app_ids.includes(id));
             if (cat) return cat.id;
+            if (layoutConfig.hiddenAppIds && layoutConfig.hiddenAppIds.includes(id)) return 'hidden-apps'; // Check hidden
             if (layoutConfig.customOrder.includes(id) || apps.find(a => a.id === id)) return 'uncategorized';
             return null;
         };
@@ -340,7 +510,7 @@ function App() {
         const overContainer = findContainerId(overId);
 
         // If overId is a container itself
-        const isOverContainer = overId === 'uncategorized' || layoutConfig.categories.some(c => c.id === overId);
+        const isOverContainer = overId === 'uncategorized' || overId === 'hidden-apps' || layoutConfig.categories.some(c => c.id === overId);
         const targetContainer = isOverContainer ? overId : overContainer;
 
         if (!activeContainer || !targetContainer || activeContainer === targetContainer) {
@@ -354,36 +524,38 @@ function App() {
                 ...c,
                 app_ids: c.app_ids.filter(id => id !== activeId)
             }));
+            let newHiddenAppIds = prev.hiddenAppIds ? prev.hiddenAppIds.filter(id => id !== activeId) : [];
 
             // Add to target
             if (targetContainer === 'uncategorized') {
-                // Removed from cat, effectively becomes uncategorized
+                // Implicitly uncategorized
+            } else if (targetContainer === 'hidden-apps') {
+                // Add to hidden apps
+                if (!newHiddenAppIds.includes(activeId)) {
+                    newHiddenAppIds.push(activeId);
+                }
             } else {
                 newCategories = newCategories.map(c => {
                     if (c.id === targetContainer) {
-                        // If over container, add to end. If over item, insert at index.
                         const overIndex = c.app_ids.indexOf(overId);
                         const newAppIds = [...c.app_ids];
-
                         if (overIndex >= 0) {
                             newAppIds.splice(overIndex, 0, activeId);
                         } else {
                             newAppIds.push(activeId);
                         }
-
                         return { ...c, app_ids: newAppIds };
                     }
                     return c;
                 });
             }
 
-            return { ...prev, categories: newCategories };
+            return { ...prev, categories: newCategories, hiddenAppIds: newHiddenAppIds };
         });
     };
 
 
 
-    // Update handleDragEnd to handle cross-category moves
     const onDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
 
@@ -398,28 +570,34 @@ function App() {
         const findContainerId = (id: string): string => {
             const cat = layoutConfig.categories.find(c => c.app_ids.includes(id));
             if (cat) return cat.id;
+            if (layoutConfig.hiddenAppIds && layoutConfig.hiddenAppIds.includes(id)) return 'hidden-apps';
             return 'uncategorized';
         };
 
         const activeContainer = findContainerId(activeAppId);
-        const overContainer = findContainerId(overId); // This might be an app ID or a category ID (if dropped on header?)
+        const overContainer = findContainerId(overId);
 
-        // If dropped on a category header/container directly (if we make them droppable)
         const overCategory = layoutConfig.categories.find(c => c.id === overId);
-        const targetContainer = overCategory ? overCategory.id : overContainer;
+        const isOverHidden = overId === 'hidden-apps';
+
+        let targetContainer = overContainer;
+        if (overCategory) targetContainer = overCategory.id;
+        if (isOverHidden) targetContainer = 'hidden-apps';
 
         if (activeContainer === targetContainer) {
             // Reorder within same container
             if (activeContainer === 'uncategorized') {
-                // Reorder uncategorized (using customOrder or just local sort? 
-                // We should probably store uncategorized order in customOrder)
-                setApps((items) => { // This setApps logic was for the main grid. 
-                    // We should update layoutConfig instead.
-                    return items;
+                return; // already handled or n/a
+            } else if (activeContainer === 'hidden-apps') {
+                // Reorder within hidden apps
+                setLayoutConfig(prev => {
+                    const oldIndex = prev.hiddenAppIds.indexOf(activeAppId);
+                    const newIndex = prev.hiddenAppIds.indexOf(overId);
+                    return {
+                        ...prev,
+                        hiddenAppIds: arrayMove(prev.hiddenAppIds, oldIndex, newIndex)
+                    }
                 })
-                // Actually, we need to update layoutConfig.
-                // For simplicity, let's just support moving apps between categories for now, 
-                // and maybe simple sorting later.
             } else {
                 // Reorder within category
                 setLayoutConfig(prev => {
@@ -436,21 +614,37 @@ function App() {
                 });
             }
         } else {
-            // Move between containers
+            // Move between containers (logic mostly handled in dragOver, but final clean up if needed)
+            // Usually DragOver handles the visual move, DragEnd commits it if we were doing interim updates.
+            // Since we update state in DragOver, DragEnd might just need to ensure consistency or do nothing if state is already updated.
+            // BUT dnd-kit recommends final reorder in DragEnd.
+            // Given our DragOver logic updates state "live", we might be okay.
+            // However, for cross-container, we should ensure the item is definitely in the right place.
+
+            // Let's rely on DragOver for the cross-container state mutation as it provides the 'preview'.
+            // We can duplicate the logic here or just leave it if DragOver is sufficient.
+            // For robustness, let's keep the logic consistent with DragOver but as a final commit.
+
             setLayoutConfig(prev => {
                 // Remove from source
                 let newCategories = prev.categories.map(c => ({
                     ...c,
                     app_ids: c.app_ids.filter(id => id !== activeAppId)
                 }));
+                let newHiddenAppIds = prev.hiddenAppIds ? prev.hiddenAppIds.filter(id => id !== activeAppId) : [];
 
                 // Add to target
                 if (targetContainer === 'uncategorized') {
-                    // Just removing from categories puts it in uncategorized implicitly
+                    // ...
+                } else if (targetContainer === 'hidden-apps') {
+                    if (!newHiddenAppIds.includes(activeAppId)) {
+                        const newIndex = isOverHidden ? newHiddenAppIds.length : newHiddenAppIds.indexOf(overId);
+                        if (newIndex === -1) newHiddenAppIds.push(activeAppId);
+                        else newHiddenAppIds.splice(newIndex, 0, activeAppId);
+                    }
                 } else {
                     newCategories = newCategories.map(c => {
                         if (c.id === targetContainer) {
-                            // Insert at specific index if dropped on an item, or end if dropped on container
                             const newIndex = overCategory ? c.app_ids.length : c.app_ids.indexOf(overId);
                             const newAppIds = [...c.app_ids];
                             if (newIndex === -1) newAppIds.push(activeAppId);
@@ -460,27 +654,35 @@ function App() {
                         return c;
                     });
                 }
-
-                return { ...prev, categories: newCategories };
+                return { ...prev, categories: newCategories, hiddenAppIds: newHiddenAppIds };
             });
         }
     };
 
 
-    // Filtered apps for display
-    const filteredApps = apps.filter(app => app.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    // Filter and Sort Apps for Grid/List View
+    let displayApps = apps;
 
-    // We only sort if NOT searching (or maybe we should?)
-    // If searching, we usually want relevancy or just alphabetical.
-    // Let's apply custom sort ONLY if search query is empty to avoid confusion.
-    const displayApps = searchQuery ? filteredApps : (apps.length > 0 && layoutConfig.customOrder.length > 0 ? [...apps].sort((a, b) => {
-        const indexA = layoutConfig.customOrder.indexOf(a.id);
-        const indexB = layoutConfig.customOrder.indexOf(b.id);
-        if (indexA === -1 && indexB === -1) return 0;
-        if (indexA === -1) return 1;
-        if (indexB === -1) return -1;
-        return indexA - indexB;
-    }) : apps);
+    // 1. Filter Hidden Apps
+    if (layoutConfig.hiddenAppIds && layoutConfig.hiddenAppIds.length > 0) {
+        displayApps = displayApps.filter(a => !layoutConfig.hiddenAppIds.includes(a.id));
+    }
+
+    // 2. Filter Search
+    if (searchQuery) {
+        displayApps = displayApps.filter(a => a.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
+    // 3. Custom Sort (only if no search)
+    else if (layoutConfig.customOrder.length > 0) {
+        displayApps = [...displayApps].sort((a, b) => {
+            const indexA = layoutConfig.customOrder.indexOf(a.id);
+            const indexB = layoutConfig.customOrder.indexOf(b.id);
+            if (indexA === -1 && indexB === -1) return 0;
+            if (indexA === -1) return 1;
+            if (indexB === -1) return -1;
+            return indexA - indexB;
+        });
+    }
 
     // Only verify app list with customOrder on load/fetch
     useEffect(() => {
@@ -495,7 +697,11 @@ function App() {
             const searchLower = searchQuery.toLowerCase();
 
             // Filter Uncategorized
-            let uncategorized = apps.filter(app => !layoutConfig.categories.some(c => c.app_ids.includes(app.id)));
+            let uncategorized = apps.filter(app => {
+                const inCategory = layoutConfig.categories.some(c => c.app_ids.includes(app.id));
+                const inHidden = layoutConfig.hiddenAppIds && layoutConfig.hiddenAppIds.includes(app.id);
+                return !inCategory && !inHidden;
+            });
             if (hasSearch) {
                 uncategorized = uncategorized.filter(app => app.name.toLowerCase().includes(searchLower));
             }
@@ -509,10 +715,17 @@ function App() {
             const visibleCategories = layoutConfig.categories.map(cat => {
                 const catApps = cat.app_ids.map(id => apps.find(a => a.id === id)).filter(Boolean);
 
+                let matchingApps = catApps;
+
+                // Filter Hidden
+                if (layoutConfig.hiddenAppIds) {
+                    matchingApps = matchingApps.filter(app => !layoutConfig.hiddenAppIds.includes(app.id));
+                }
+
                 // If searching, filter apps inside the category
-                const matchingApps = hasSearch
-                    ? catApps.filter(app => app.name.toLowerCase().includes(searchLower))
-                    : catApps;
+                if (hasSearch) {
+                    matchingApps = matchingApps.filter(app => app.name.toLowerCase().includes(searchLower));
+                }
 
                 return { ...cat, matchingApps };
             }).filter(group => !hasSearch || group.matchingApps.length > 0);
@@ -569,6 +782,50 @@ function App() {
                             </SortableContext>
                         </div>
                     ))}
+
+                    {/* Hidden Apps Area */}
+                    {showHiddenApps && (
+                        <div className="glass-panel rounded-2xl p-6 border border-red-500/30 bg-red-900/10">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-red-400 flex items-center gap-2">
+                                    <EyeOff className="w-5 h-5" />
+                                    Hidden Apps
+                                </h2>
+                            </div>
+                            <SortableContext items={layoutConfig.hiddenAppIds || []} strategy={rectSortingStrategy}>
+                                <DroppableContainer id="hidden-apps" className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 min-h-[100px] p-2 rounded-xl bg-black/20 border-dashed border border-red-500/20">
+                                    {(layoutConfig.hiddenAppIds || []).map((id) => {
+                                        const app = apps.find(a => a.id === id);
+                                        if (!app) return null;
+                                        return (
+                                            <SortableAppTile
+                                                key={app.id}
+                                                app={app}
+                                                isEditMode={isEditMode}
+                                                tileClass={tileClass}
+                                                style={getIconStyle()}
+                                                onClick={(e: React.MouseEvent) => {
+                                                    if (isEditMode) e.preventDefault();
+                                                    else window.location.href = app.url;
+                                                }}
+                                                onDelete={handleDeleteApp}
+                                            >
+                                                <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0 opacity-70">
+                                                    <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain grayscale" />
+                                                </div>
+                                                <span className="font-medium text-gray-400 text-center text-sm truncate w-full px-2">{app.name}</span>
+                                            </SortableAppTile>
+                                        )
+                                    })}
+                                    {(!layoutConfig.hiddenAppIds || layoutConfig.hiddenAppIds.length === 0) && (
+                                        <div className="col-span-full h-full flex items-center justify-center text-red-400/50 text-sm italic py-8">
+                                            Drag apps here to hide them
+                                        </div>
+                                    )}
+                                </DroppableContainer>
+                            </SortableContext>
+                        </div>
+                    )}
 
                     {/* Uncategorized */}
                     {(uncategorized.length > 0 || !hasSearch) && (
@@ -647,7 +904,7 @@ function App() {
                     ))}
 
                     <div
-                        onClick={() => setIsAddAppOpen(true)}
+                        onClick={() => handleProtectedAction('add_app')}
                         className={`glass-panel rounded-xl flex items-center justify-center gap-4 hover:bg-white/5 transition-colors cursor-pointer border-dashed border-2 border-white/20 ${layoutConfig.mode === 'list' ? 'w-full p-4 h-24' : 'flex-col p-6 min-h-[140px]'
                             }`}
                     >
@@ -656,6 +913,53 @@ function App() {
                         </div>
                         <span className="font-medium text-gray-400">Add App</span>
                     </div>
+
+                    {/* Hidden Apps Area */}
+                    {showHiddenApps && (
+                        <div className={`glass-panel rounded-2xl p-6 border border-red-500/30 bg-red-900/10 ${layoutConfig.mode === 'list' ? 'col-span-full' : 'col-span-full'}`}>
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-red-400 flex items-center gap-2">
+                                    <EyeOff className="w-5 h-5" />
+                                    Hidden Apps
+                                </h2>
+                                <p className="text-xs text-red-300/70">
+                                    Visible because you are authenticated.
+                                </p>
+                            </div>
+                            <SortableContext items={layoutConfig.hiddenAppIds || []} strategy={rectSortingStrategy}>
+                                <DroppableContainer id="hidden-apps" className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 min-h-[100px] p-2 rounded-xl bg-black/20 border-dashed border border-red-500/20">
+                                    {(layoutConfig.hiddenAppIds || []).map((id) => {
+                                        const app = apps.find(a => a.id === id);
+                                        if (!app) return null;
+                                        return (
+                                            <SortableAppTile
+                                                key={app.id}
+                                                app={app}
+                                                isEditMode={isEditMode}
+                                                tileClass={tileClass}
+                                                style={getIconStyle()}
+                                                onClick={(e: React.MouseEvent) => {
+                                                    if (isEditMode) e.preventDefault();
+                                                    else window.location.href = app.url;
+                                                }}
+                                                onDelete={handleDeleteApp}
+                                            >
+                                                <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0 opacity-70">
+                                                    <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain grayscale" />
+                                                </div>
+                                                <span className="font-medium text-gray-400 text-center text-sm truncate w-full px-2">{app.name}</span>
+                                            </SortableAppTile>
+                                        )
+                                    })}
+                                    {(!layoutConfig.hiddenAppIds || layoutConfig.hiddenAppIds.length === 0) && (
+                                        <div className="col-span-full h-full flex items-center justify-center text-red-400/50 text-sm italic py-8">
+                                            Drag apps here to hide them
+                                        </div>
+                                    )}
+                                </DroppableContainer>
+                            </SortableContext>
+                        </div>
+                    )}
                 </div>
             </SortableContext>
         )
@@ -700,19 +1004,50 @@ function App() {
                 onIconConfigChange={setIconConfig}
             />
 
-            <LayoutMenu
-                isOpen={isLayoutMenuOpen}
-                onClose={() => setIsLayoutMenuOpen(false)}
-                currentMode={layoutConfig.mode}
-                onModeChange={(mode) => setLayoutConfig({ ...layoutConfig, mode })}
-                isEditMode={isEditMode}
-                onToggleEditMode={() => setIsEditMode(!isEditMode)}
+            {!isSetup && (
+                <SetupModal onSetupComplete={() => { setIsSetup(true); setIsAuthenticated(true); }} />
+            )}
+
+            <UnlockModal
+                isOpen={showUnlockModal}
+                onClose={() => setShowUnlockModal(false)}
+                onUnlock={handleUnlockSuccess}
             />
+
+
+
+            {/* Layout Menu Logic Adjustment: We treat "LayoutGrid" button as the entry to Edit/Layout Ops */}
+            {/* If protected action 'edit' succeeds, what happens? */}
+            {/* Strategy: 'edit' action opens LayoutMenu. LayoutMenu contains the "Enable Edit Mode" toggle. */}
+            {/* Actually, user said "Edit apps" protected. Changing layout mode is also kind of editing config. */}
+            {/* So protecting the Layout Menu open is correct. */}
+
+            {isLayoutMenuOpen && (
+                <LayoutMenu
+                    isOpen={true}
+                    onClose={() => setIsLayoutMenuOpen(false)}
+                    currentMode={layoutConfig.mode}
+                    onModeChange={(mode) => setLayoutConfig({ ...layoutConfig, mode })}
+                    isEditMode={isEditMode}
+                    onToggleEditMode={() => handleProtectedAction('edit_mode')}
+                    showHidden={showHiddenApps}
+                    onToggleShowHidden={() => handleProtectedAction('show_hidden')}
+                />
+            )}
 
             <AddAppModal
                 isOpen={isAddAppOpen}
                 onClose={() => setIsAddAppOpen(false)}
-                onAdded={fetchApps}
+                onAdded={async (isHidden, appId) => {
+                    await fetchApps()
+                    if (isHidden && appId) {
+                        // Immediately hide the app
+                        setLayoutConfig(prev => {
+                            const newHidden = [...(prev.hiddenAppIds || []), appId]
+                            return { ...prev, hiddenAppIds: newHidden }
+                        })
+                    }
+                }}
             />
 
             {/* Top Fixed Header Area */}
@@ -743,12 +1078,12 @@ function App() {
                     <button
                         onClick={() => setIsLayoutMenuOpen(true)}
                         className={`p-2 rounded-full glass-panel transition ${isLayoutMenuOpen ? 'bg-neon-cyan/20 text-neon-cyan' : 'hover:bg-white/10 text-gray-400'}`}
-                        title="Layout"
+                        title="Layout / Edit"
                     >
                         <LayoutGrid className="w-6 h-6" />
                     </button>
                     <button
-                        onClick={() => setIsSettingsOpen(true)}
+                        onClick={() => handleProtectedAction('settings')}
                         className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
                         title="Settings"
                     >
@@ -795,7 +1130,7 @@ function App() {
     )
 }
 
-function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: () => void, onAdded: () => void }) {
+function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: () => void, onAdded: (isHidden?: boolean, appId?: string) => void }) {
     const [activeTab, setActiveTab] = useState<'custom' | 'store'>('custom')
     const [premiumApps, setPremiumApps] = useState<any[]>([])
     const [selectedPremiumApp, setSelectedPremiumApp] = useState<any>(null)
@@ -803,6 +1138,7 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
     // Form State
     const [name, setName] = useState('')
     const [url, setUrl] = useState('')
+    const [hideApp, setHideApp] = useState(false)
     const [loading, setLoading] = useState(false)
 
     useEffect(() => {
@@ -844,11 +1180,13 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
                 body: JSON.stringify(body)
             })
             if (res.ok) {
-                onAdded()
+                const newApp = await res.json()
+                onAdded(hideApp, newApp.id)
                 onClose()
                 // Reset form
                 setName('')
                 setUrl('')
+                setHideApp(false)
                 setSelectedPremiumApp(null)
                 setActiveTab('custom')
             }
@@ -919,6 +1257,18 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
                         placeholder="https://..."
                         className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-neon-cyan outline-none transition"
                     />
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                    <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-400 hover:text-white transition group relative">
+                        <input
+                            type="checkbox"
+                            checked={hideApp}
+                            onChange={(e) => setHideApp(e.target.checked)}
+                            className="w-4 h-4 rounded border-gray-600 bg-black/40 text-neon-cyan focus:ring-neon-cyan/50"
+                        />
+                        <span>Hide this app immediately</span>
+                    </label>
                 </div>
             </div>
         )
