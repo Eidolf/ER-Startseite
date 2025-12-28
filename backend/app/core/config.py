@@ -15,6 +15,7 @@ class Settings(BaseSettings):
         "http://localhost:4173",
         "http://localhost:3000",
         "http://localhost:8000",
+        "http://localhost:13001",
     ]
 
     @validator("BACKEND_CORS_ORIGINS", pre=True)
