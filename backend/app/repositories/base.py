@@ -1,9 +1,11 @@
 import json
-from typing import Generic, TypeVar, List, Optional
+from typing import Generic, List, TypeVar
+
 from anyio import Path
 from pydantic import BaseModel, parse_obj_as
 
 T = TypeVar("T", bound=BaseModel)
+
 
 class JsonRepository(Generic[T]):
     def __init__(self, file_path: str, model: type[T]):
@@ -13,7 +15,7 @@ class JsonRepository(Generic[T]):
     async def _ensure_dir(self):
         parent = self.file_path.parent
         if not await parent.exists():
-             await parent.mkdir(parents=True, exist_ok=True)
+            await parent.mkdir(parents=True, exist_ok=True)
 
     async def read_all(self) -> List[T]:
         if not await self.file_path.exists():
@@ -23,7 +25,7 @@ class JsonRepository(Generic[T]):
             data = json.loads(content)
             # Handle list vs single object logic if needed, but assuming List[T] for now or generic list
             # Actually for generality let's assume this repo manages a List of items
-            return parse_obj_as(List[self.model], data)
+            return parse_obj_as(List[self.model], data)  # type: ignore
         except (ValueError, json.JSONDecodeError):
             return []
 

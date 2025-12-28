@@ -1,5 +1,7 @@
 from typing import Optional
+
 from pydantic import BaseModel, HttpUrl
+
 
 class AppBase(BaseModel):
     name: str
@@ -7,8 +9,10 @@ class AppBase(BaseModel):
     icon_url: Optional[str] = None
     premium_id: Optional[str] = None
 
+
 class AppCreate(AppBase):
     pass
+
 
 class App(AppBase):
     id: str

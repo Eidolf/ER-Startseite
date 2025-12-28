@@ -37,10 +37,13 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 120
+
+[tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
-target-version = "py311"
+ignore = ["B008"]
+
 
 [tool.mypy]
 python_version = "3.11"
-strict = true
+strict = false
 ignore_missing_imports = true

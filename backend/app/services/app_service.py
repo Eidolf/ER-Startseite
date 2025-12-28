@@ -1,14 +1,16 @@
 import re
 import uuid
-import httpx
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
 from urllib.parse import urljoin, urlparse
 
-from app.schemas.app import App, AppCreate
-from app.repositories.repos import AppRepository
-from app.core.premium_apps import AppRegistry
+import httpx
+
 from app.core.exceptions import NotFoundException
+from app.core.premium_apps import AppRegistry
+from app.repositories.repos import AppRepository
+from app.schemas.app import App, AppCreate
+
 
 class AppService:
     def __init__(self):
@@ -26,7 +28,7 @@ class AppService:
                 premium_app = AppRegistry.get(app_in.premium_id)
                 if premium_app and premium_app.default_icon:
                     icon_url = premium_app.default_icon
-            
+
             # Fallback to fetching
             if not icon_url:
                 icon_url = await self._fetch_best_icon(str(app_in.url))
@@ -38,7 +40,7 @@ class AppService:
             url=app_in.url,
             icon_url=icon_url,
             premium_id=app_in.premium_id,
-            created_at=datetime.utcnow().isoformat()
+            created_at=datetime.utcnow().isoformat(),
         )
 
         # 3. Save
@@ -53,20 +55,25 @@ class AppService:
     # --- Helper Logic (Refactored from old endpoint) ---
     async def _fetch_best_icon(self, url: str) -> Optional[str]:
         try:
-            async with httpx.AsyncClient(verify=False, follow_redirects=True, timeout=5.0) as client:
+            async with httpx.AsyncClient(
+                verify=False, follow_redirects=True, timeout=5.0
+            ) as client:
                 # 1. Fetch Page Content
                 try:
                     response = await client.get(url)
                     if response.status_code == 200:
                         html = response.text
-                        icon_regex = r'<link[^>]*rel=["\'](?:shortcut\s+)?(?:apple-touch-)?icon["\'][^>]*href=["\']([^"\']+)["\']'
+                        icon_regex = (
+                            r'<link[^>]*rel=["\'](?:shortcut\s+)?(?:apple-touch-)?'
+                            r'icon["\'][^>]*href=["\']([^"\']+)["\']'
+                        )
                         matches = re.findall(icon_regex, html, re.IGNORECASE)
                         if matches:
                             candidate = urljoin(url, matches[0])
                             if await self._validate_icon_url(client, candidate):
                                 return candidate
                 except Exception:
-                    pass 
+                    pass
 
                 # 2. Try default /favicon.ico
                 parsed = urlparse(url)
@@ -79,16 +86,20 @@ class AppService:
             return None
         return None
 
-    async def _validate_icon_url(self, client: httpx.AsyncClient, icon_url: str) -> bool:
+    async def _validate_icon_url(
+        self, client: httpx.AsyncClient, icon_url: str
+    ) -> bool:
         try:
             head_resp = await client.head(icon_url)
-            if head_resp.status_code == 200:
-                if head_resp.headers.get("content-type", "").lower().startswith("image/"):
-                    return True
+            if head_resp.status_code == 200 and head_resp.headers.get(
+                "content-type", ""
+            ).lower().startswith("image/"):
+                return True
             get_resp = await client.get(icon_url)
-            if get_resp.status_code == 200:
-                 if get_resp.headers.get("content-type", "").lower().startswith("image/"):
-                    return True
+            if get_resp.status_code == 200 and get_resp.headers.get(
+                "content-type", ""
+            ).lower().startswith("image/"):
+                return True
         except Exception:
             pass
         return False

@@ -1,5 +1,6 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import media, apps, config, auth
+
+from app.api.v1.endpoints import apps, auth, config, media
 
 api_router = APIRouter()
 

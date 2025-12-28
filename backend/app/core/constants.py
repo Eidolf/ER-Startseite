@@ -1,12 +1,6 @@
-DEFAULT_BG = {
-    "type": "image",
-    "value": "gradient"
-}
+DEFAULT_BG = {"type": "image", "value": "gradient"}
 
-DEFAULT_LOGO_CONFIG = {
-    "type": "default",
-    "value": None
-}
+DEFAULT_LOGO_CONFIG = {"type": "default", "value": None}
 
 DEFAULT_ICON_CONFIG = {
     "showBorder": True,
@@ -15,12 +9,12 @@ DEFAULT_ICON_CONFIG = {
     "borderGradientColors": ["#00f3ff", "#9d00ff"],
     "backgroundStyle": "glass",
     "backgroundColor": "#1a1a1a",
-    "gradientColors": ["#3b82f6", "#9333ea"]
+    "gradientColors": ["#3b82f6", "#9333ea"],
 }
 
 DEFAULT_LAYOUT_CONFIG = {
     "mode": "grid",
     "customOrder": [],
     "categories": [],
-    "hiddenAppIds": []
+    "hiddenAppIds": [],
 }

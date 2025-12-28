@@ -1,15 +1,18 @@
-from typing import List, Union
-from pydantic import AnyHttpUrl, validator
+from typing import Any, List, Union
+
+from pydantic import validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "ER-Startseite"
     API_V1_STR: str = "/api/v1"
-    
+
     # CORS
-    BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = [
+    # CORS
+    BACKEND_CORS_ORIGINS: List[str] = [
         "http://localhost:5173",
-        "http://localhost:4173", 
+        "http://localhost:4173",
         "http://localhost:3000",
         "http://localhost:8000",
     ]
@@ -23,14 +26,14 @@ class Settings(BaseSettings):
         raise ValueError(v)
 
     # Database
-    POSTGRES_SERVER: str
-    POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
-    POSTGRES_DB: str
+    POSTGRES_SERVER: str = "localhost"
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str = "postgres"
+    POSTGRES_DB: str = "app"
     DATABASE_URI: str | None = None
 
     @validator("DATABASE_URI", pre=True)
-    def assemble_db_connection(cls, v: str | None, values: dict[str, any]) -> str:
+    def assemble_db_connection(cls, v: str | None, values: dict[str, Any]) -> str:
         if isinstance(v, str):
             return v
         return str(
@@ -39,8 +42,11 @@ class Settings(BaseSettings):
         )
 
     # Security
-    SECRET_KEY: str
+    SECRET_KEY: str = "changeme"
 
-    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        case_sensitive=True, env_file=".env", extra="ignore"
+    )
+
 
 settings = Settings()

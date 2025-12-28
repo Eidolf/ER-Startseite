@@ -1,6 +1,7 @@
 from app.core import security
 from app.core.exceptions import AuthException, ValidationException
 
+
 class AuthService:
     def is_setup(self) -> bool:
         return security.is_setup()
@@ -12,5 +13,5 @@ class AuthService:
 
     def verify_password(self, password: str) -> bool:
         if not self.is_setup():
-             raise AuthException("Not setup")
+            raise AuthException("Not setup")
         return security.check_password(password)

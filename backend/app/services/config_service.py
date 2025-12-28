@@ -1,5 +1,6 @@
-from app.schemas.config import AppConfig
 from app.repositories.repos import ConfigRepository
+from app.schemas.config import AppConfig
+
 
 class ConfigService:
     def __init__(self):

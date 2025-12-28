@@ -1,13 +1,17 @@
 from typing import List, Optional
+
 from pydantic import BaseModel
+
 
 class BackgroundConfig(BaseModel):
     type: str
     value: str
 
+
 class LogoConfig(BaseModel):
     type: str
     value: Optional[str] = None
+
 
 class IconConfig(BaseModel):
     showBorder: bool
@@ -18,16 +22,19 @@ class IconConfig(BaseModel):
     backgroundColor: str
     gradientColors: List[str]
 
+
 class Category(BaseModel):
     id: str
     name: str
     app_ids: List[str] = []
+
 
 class LayoutConfig(BaseModel):
     mode: str = "grid"
     customOrder: List[str] = []
     categories: List[Category] = []
     hiddenAppIds: List[str] = []
+
 
 class AppConfig(BaseModel):
     pageTitle: str = "ER-Startseite"
