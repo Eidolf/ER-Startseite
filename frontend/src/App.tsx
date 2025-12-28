@@ -71,7 +71,26 @@ const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
     hiddenAppIds: []
 }
 
-function SortableAppTile({ app, isEditMode, tileClass, style, children, onClick, onDelete }: any) {
+export interface AppData {
+    id: string
+    name: string
+    url: string
+    icon_url: string
+    description?: string
+    default_icon?: string // For premium apps
+}
+
+interface SortableAppTileProps {
+    app: AppData
+    isEditMode: boolean
+    tileClass: string
+    style: React.CSSProperties
+    children: React.ReactNode
+    onClick: (e: React.MouseEvent) => void
+    onDelete: (e: React.MouseEvent, id: string) => void
+}
+
+function SortableAppTile({ app, isEditMode, tileClass, style, children, onClick, onDelete }: SortableAppTileProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: app.id, disabled: !isEditMode });
 
     const combinedStyle = {
@@ -260,7 +279,7 @@ function App() {
     const [isEditMode, setIsEditMode] = useState(false)
     const [showHiddenApps, setShowHiddenApps] = useState(false)
 
-    const [apps, setApps] = useState<any[]>([])
+    const [apps, setApps] = useState<AppData[]>([])
     const [isAddAppOpen, setIsAddAppOpen] = useState(false)
 
     // Auth State
@@ -524,7 +543,7 @@ function App() {
                 ...c,
                 app_ids: c.app_ids.filter(id => id !== activeId)
             }));
-            let newHiddenAppIds = prev.hiddenAppIds ? prev.hiddenAppIds.filter(id => id !== activeId) : [];
+            const newHiddenAppIds = prev.hiddenAppIds ? prev.hiddenAppIds.filter(id => id !== activeId) : [];
 
             // Add to target
             if (targetContainer === 'uncategorized') {
@@ -631,7 +650,7 @@ function App() {
                     ...c,
                     app_ids: c.app_ids.filter(id => id !== activeAppId)
                 }));
-                let newHiddenAppIds = prev.hiddenAppIds ? prev.hiddenAppIds.filter(id => id !== activeAppId) : [];
+                const newHiddenAppIds = prev.hiddenAppIds ? prev.hiddenAppIds.filter(id => id !== activeAppId) : [];
 
                 // Add to target
                 if (targetContainer === 'uncategorized') {
@@ -713,7 +732,7 @@ function App() {
             // Let's stick to apps for now as requested: "show categories which contain the searched apps"
 
             const visibleCategories = layoutConfig.categories.map(cat => {
-                const catApps = cat.app_ids.map(id => apps.find(a => a.id === id)).filter(Boolean);
+                const catApps = cat.app_ids.map(id => apps.find(a => a.id === id)).filter((a): a is AppData => !!a);
 
                 let matchingApps = catApps;
 
@@ -754,7 +773,7 @@ function App() {
                             </div>
                             <SortableContext items={cat.app_ids} strategy={rectSortingStrategy}>
                                 <DroppableContainer id={cat.id} className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 min-h-[100px] p-2 rounded-xl bg-black/20">
-                                    {cat.matchingApps.map((app: any) => (
+                                    {cat.matchingApps.map((app: AppData) => (
                                         <SortableAppTile
                                             key={app.id}
                                             app={app}
@@ -841,7 +860,7 @@ function App() {
                             </div>
                             <SortableContext items={uncategorized.map(a => a.id)} strategy={rectSortingStrategy}>
                                 <DroppableContainer id="uncategorized" className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                                    {uncategorized.map((app: any) => (
+                                    {uncategorized.map((app: AppData) => (
                                         <SortableAppTile
                                             key={app.id}
                                             app={app}
@@ -1132,8 +1151,8 @@ function App() {
 
 function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: () => void, onAdded: (isHidden?: boolean, appId?: string) => void }) {
     const [activeTab, setActiveTab] = useState<'custom' | 'store'>('custom')
-    const [premiumApps, setPremiumApps] = useState<any[]>([])
-    const [selectedPremiumApp, setSelectedPremiumApp] = useState<any>(null)
+    const [premiumApps, setPremiumApps] = useState<AppData[]>([])
+    const [selectedPremiumApp, setSelectedPremiumApp] = useState<AppData | null>(null)
 
     // Form State
     const [name, setName] = useState('')
@@ -1150,7 +1169,7 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
         }
     }, [isOpen, activeTab])
 
-    const handleSelectPremium = (app: any) => {
+    const handleSelectPremium = (app: AppData) => {
         setSelectedPremiumApp(app)
         setName(app.name)
         setUrl('')
@@ -1169,7 +1188,7 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
         }
 
         try {
-            const body: any = { name, url: finalUrl }
+            const body: { name: string; url: string; premium_id?: string } = { name, url: finalUrl }
             if (activeTab === 'store' && selectedPremiumApp) {
                 body.premium_id = selectedPremiumApp.id
             }

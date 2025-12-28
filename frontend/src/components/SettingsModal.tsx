@@ -150,9 +150,10 @@ export function SettingsModal({
                     value: data.url
                 })
             }
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err)
-            alert(`Upload failed: ${err.message}`)
+            const message = err instanceof Error ? err.message : 'Unknown error'
+            alert(`Upload failed: ${message}`)
         } finally {
             setUploading(false)
         }
@@ -523,7 +524,7 @@ export function SettingsModal({
                         </div>
                     )}
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     )
 }
