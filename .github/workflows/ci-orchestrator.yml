@@ -1,0 +1,85 @@
+name: CI Orchestrator
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup Caches & Runtime based on service
+      - name: Setup Python
+        if: matrix.service == 'backend'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Setup Node
+        if: matrix.service == 'frontend'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      # Install & Lint
+      - name: Install & Lint Backend
+        if: matrix.service == 'backend'
+        working-directory: ./backend
+        run: |
+          pip install ruff black mypy
+          ruff check .
+          black --check .
+      
+      - name: Install & Lint Frontend
+        if: matrix.service == 'frontend'
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm run lint
+
+      # Tests
+      - name: Test Backend
+        if: matrix.service == 'backend'
+        working-directory: ./backend
+        run: |
+          pip install poetry
+          poetry config virtualenvs.create false
+          poetry install --with dev
+          poetry run pytest
+        env:
+          POSTGRES_SERVER: localhost
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: er_startseite_test
+
+      - name: Test Frontend
+        if: matrix.service == 'frontend'
+        working-directory: ./frontend
+        run: npm run test -- --run
+
+      # Docker Build Validation (Dry Run)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build Docker Image (Validation)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./${{ matrix.service }}
+          push: false
+          tags: validation:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

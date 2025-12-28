@@ -1,0 +1,12 @@
+backend:
+- backend/**/*
+- backend/**/*
+
+frontend:
+- frontend/**/*
+- frontend/**/*
+
+infrastructure:
+- Dockerfile
+- docker-compose.yml
+- .github/**/*

@@ -1,26 +1,17 @@
-name: Release Manager
+name: Release
 
 on:
   workflow_dispatch:
     inputs:
-      bump:
-        description: 'Version Bump Type'
+      release_type:
+        description: 'Release Type'
         required: true
-        default: 'patch'
+        default: 'nightly'
         type: choice
         options:
-        - major
-        - minor
-        - patch
+        - nightly
         - beta
-      channel:
-        description: 'Release Channel'
-        required: true
-        default: 'stable'
-        type: choice
-        options:
         - stable
-        - beta
 
 permissions:
   contents: write
@@ -28,67 +19,60 @@ permissions:
   pull-requests: write
 
 jobs:
-  prepare-release:
+  release:
     runs-on: ubuntu-latest
-    outputs:
-      new_version: ${{ steps.bump.outputs.version }}
-    
     steps:
       - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Verify Branch
-        if: inputs.channel == 'stable' && github.ref != 'refs/heads/main'
-        run: |
-          echo "Error: Stable releases must be created from main branch."
-          exit 1
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Bump Version
-        id: bump
+      - name: Determine Version
+        id: version
         run: |
-          # Use script to bump version
-          NEW_VERSION=$(python3 scripts/manage_version.py bump --type ${{ inputs.bump }})
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          
-          # Setup Git
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Commit Changes
-          git add VERSION
-          git commit -m "chore(release): bump version to $NEW_VERSION"
-          git push
+          if [[ "${{ inputs.release_type }}" == "nightly" ]]; then
+            # Nightly: 0.0.0-nightly.YYYYMMDD.SHA
+            DATE=$(date +%Y%m%d)
+            SHA=$(git rev-parse --short HEAD)
+            echo "new_version=0.0.0-nightly.${DATE}.${SHA}" >> $GITHUB_OUTPUT
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          else
+            # Beta/Stable: Use manager
+            TYPE="patch"
+            if [[ "${{ inputs.release_type }}" == "beta" ]]; then TYPE="beta"; fi
+            
+            NEW_VER=$(python3 scripts/version_manager.py bump --type $TYPE)
+            echo "new_version=$NEW_VER" >> $GITHUB_OUTPUT
+            
+            IS_PRE="false"
+            if [[ "${{ inputs.release_type }}" == "beta" ]]; then IS_PRE="true"; fi
+            echo "is_prerelease=$IS_PRE" >> $GITHUB_OUTPUT
+            
+            # Commit File Change
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add VERSION
+            git commit -m "chore(release): bump version to $NEW_VER"
+            git push
+          fi
 
       - name: Create Tag
         run: |
-          TAG="v${{ steps.bump.outputs.version }}"
+          TAG="v${{ steps.version.outputs.new_version }}"
           git tag $TAG
           git push origin $TAG
 
       - name: Generate Release Notes
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v${{ steps.bump.outputs.version }}
-          prerelease: ${{ inputs.channel == 'beta' }}
+          tag_name: v${{ steps.version.outputs.new_version }}
+          prerelease: ${{ steps.version.outputs.is_prerelease }}
           generate_release_notes: true
-
-  build-and-push:
-    needs: prepare-release
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service: [backend, frontend]
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: v${{ needs.prepare-release.outputs.new_version }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -100,51 +84,34 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Determine Tags
-        id: meta
+      - name: Build and Push Docker
         run: |
-          VERSION=${{ needs.prepare-release.outputs.new_version }}
-          IMAGE_NAME=ghcr.io/${{ github.repository }}/${{ matrix.service }}
+          VERSION=${{ steps.version.outputs.new_version }}
+          REPO=ghcr.io/${{ github.repository }}
           
-          TAGS="$IMAGE_NAME:$VERSION"
-          
-          # If stable, add latest
-          if [[ "${{ inputs.channel }}" == "stable" ]]; then
-            TAGS="$TAGS,$IMAGE_NAME:latest"
-          fi
-          
-          echo "tags=$TAGS" >> $GITHUB_OUTPUT
+          for SERVICE in backend frontend; do
+            TAGS="$REPO/$SERVICE:$VERSION"
+            if [[ "${{ inputs.release_type }}" == "stable" ]]; then
+              TAGS="$TAGS,$REPO/$SERVICE:latest"
+            fi
+            
+            echo "Building $SERVICE with tags: $TAGS"
+            docker buildx build \
+              --push \
+              --tag $TAGS \
+              --cache-from type=gha \
+              --cache-to type=gha,mode=max \
+              ./$SERVICE
+          done
 
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: ./${{ matrix.service }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-  post-release:
-    needs: [prepare-release, build-and-push]
-    runs-on: ubuntu-latest
-    if: inputs.channel == 'stable' # Only bump to dev after stable (or optionally after beta)
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main # Ensure we are on main
-          token: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Pull latest
-        run: git pull origin main
-      
-      - name: Bump to Dev
+      - name: Bump Dev Version (Post-Release)
+        if: inputs.release_type != 'nightly'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull origin main
           
-          # Bump to next patch-dev
-          NEXT_DEV=$(python3 scripts/manage_version.py bump --type dev)
-          
+          NEXT_DEV=$(python3 scripts/version_manager.py bump --type dev)
           git add VERSION
-          git commit -m "chore: bump to next development version $NEXT_DEV"
+          git commit -m "chore: bump to dev version $NEXT_DEV"
           git push

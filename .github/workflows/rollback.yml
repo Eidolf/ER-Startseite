@@ -1,12 +1,10 @@
-name: Rollback Release
+name: Rollback
+
 on:
   workflow_dispatch:
     inputs:
       target_tag:
-        description: 'Target version to rollback to (e.g. v1.0.0)'
-        required: true
-      reason:
-        description: 'Reason for rollback'
+        description: 'Target Tag (e.g. v1.0.0)'
         required: true
 
 jobs:
@@ -14,35 +12,22 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       packages: write
-    
-    strategy:
-      matrix:
-        service: [backend, frontend]
-
     steps:
-      - name: Log in to GitHub Container Registry
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Retag and Push
+      - name: Rollback Images
         run: |
-          IMAGE_NAME=ghcr.io/${{ github.repository }}/${{ matrix.service }}
-          TARGET_TAG=${{ inputs.target_tag }}
+          REPO=ghcr.io/${{ github.repository }}
+          TARGET=${{ inputs.target_tag }}
           
-          echo "Rolling back $IMAGE_NAME to $TARGET_TAG"
-          
-          docker pull $IMAGE_NAME:$TARGET_TAG
-          docker tag $IMAGE_NAME:$TARGET_TAG $IMAGE_NAME:latest
-          docker push $IMAGE_NAME:latest
-          
-          echo "✅ Rollback complete for $IMAGE_NAME. 'latest' now points to $TARGET_TAG."
-
-  notify-rollback:
-    runs-on: ubuntu-latest
-    needs: rollback
-    steps:
-      - name: Notify
-        run: echo "⚠️ Rollback to version ${{ inputs.target_tag }} initiated by ${{ github.actor }}. Reason: ${{ inputs.reason }}"
+          for SERVICE in backend frontend; do
+            echo "Restoring $SERVICE:latest to $TARGET"
+            docker pull $REPO/$SERVICE:$TARGET
+            docker tag $REPO/$SERVICE:$TARGET $REPO/$SERVICE:latest
+            docker push $REPO/$SERVICE:latest
+          done
