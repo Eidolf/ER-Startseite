@@ -477,7 +477,7 @@ function App() {
         }
         // Fallback
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
             return v.toString(16);
         });
     }
@@ -1226,9 +1226,10 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
                 alert(`Failed to add app: ${res.status} ${errData.detail || errData.message || 'Unknown error'}`);
                 console.error("Add app failed", res.status, errData);
             }
-        } catch (e: any) {
+        } catch (e) {
             console.error("Failed to add app", e)
-            alert(`Error adding app: ${e.message || e}`);
+            const msg = e instanceof Error ? e.message : String(e);
+            alert(`Error adding app: ${msg}`);
         } finally {
             setLoading(false)
         }

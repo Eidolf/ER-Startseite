@@ -38,29 +38,21 @@ jobs:
       - name: Determine Version
         id: version
         run: |
-          if [[ "${{ inputs.release_type }}" == "nightly" ]]; then
-            # Nightly: 0.0.0-nightly.YYYYMMDD.SHA
-            DATE=$(date +%Y%m%d)
-            SHA=$(git rev-parse --short HEAD)
-            echo "new_version=0.0.0-nightly.${DATE}.${SHA}" >> $GITHUB_OUTPUT
-            echo "is_prerelease=true" >> $GITHUB_OUTPUT
-          else
-            # Beta/Stable: Use manager
-            TYPE="patch"
-            if [[ "${{ inputs.release_type }}" == "beta" ]]; then TYPE="beta"; fi
-            if [[ "${{ inputs.release_type }}" == "stable" ]]; then TYPE="patch"; fi
-            
-            # Ensure script can run
-            pip install poetry
-            # Just use base python for version script if strict deps not needed, 
-            # or install minimal deps if version_manager.py has them (it uses standard lib)
-            
-            NEW_VER=$(python3 scripts/version_manager.py bump --type $TYPE)
-            echo "new_version=$NEW_VER" >> $GITHUB_OUTPUT
-            
-            IS_PRE="false"
-            if [[ "${{ inputs.release_type }}" == "beta" ]]; then IS_PRE="true"; fi
-            echo "is_prerelease=$IS_PRE" >> $GITHUB_OUTPUT
+          # Use script to calculate version for ALL types (nightly, beta, stable)
+          TYPE="${{ inputs.release_type }}"
+          
+          # Script requires --action calculate --type [stable|beta|nightly]
+          NEW_VER=$(python3 scripts/version_manager.py --action calculate --type $TYPE)
+          echo "new_version=$NEW_VER" >> $GITHUB_OUTPUT
+          
+          IS_PRE="true"
+          if [[ "$TYPE" == "stable" ]]; then IS_PRE="false"; fi
+          echo "is_prerelease=$IS_PRE" >> $GITHUB_OUTPUT
+          
+          # For Beta/Stable: Commit the new version to the repo
+          if [[ "$TYPE" != "nightly" ]]; then
+            # Write key to file
+            python3 scripts/version_manager.py --action write --version $NEW_VER
             
             # Commit File Change
             git config user.name "github-actions[bot]"
@@ -68,6 +60,8 @@ jobs:
             git add VERSION
             git commit -m "chore(release): bump version to $NEW_VER"
             git push
+          else
+            echo "Nightly release: $NEW_VER (Tagged only, not committed properly to main history as separate version bump)"
           fi
 
       - name: Create Tag
@@ -123,7 +117,9 @@ jobs:
           git pull origin main --rebase
           
           # For post-release bump, usually handled by 'dev' type
-          NEXT_DEV=$(python3 scripts/version_manager.py bump --type dev)
+          NEXT_DEV=$(python3 scripts/version_manager.py --action bump-dev)
+          python3 scripts/version_manager.py --action write --version $NEXT_DEV
+          
           git add VERSION
           git commit -m "chore: bump to dev version $NEXT_DEV"
           git push

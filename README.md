@@ -1,5 +1,8 @@
 # ER-Startseite 🌌
 
+[![CI Pipeline](https://github.com/Eidolf/ER-Startseite/actions/workflows/ci-orchestrator.yml/badge.svg)](https://github.com/Eidolf/ER-Startseite/actions/workflows/ci-orchestrator.yml)
+[![Release](https://github.com/Eidolf/ER-Startseite/actions/workflows/release.yml/badge.svg)](https://github.com/Eidolf/ER-Startseite/actions/workflows/release.yml)
+
 > A modern, highly customizable dashboard with a neon aesthetic, video backgrounds, and robust app integration.
 
 ![Logo](images/logo.png) (Placeholder)
@@ -40,7 +43,7 @@
    ```
 
 3. **Access the Application**
-   - Frontend: `http://localhost:5173`
+   - Frontend: `http://localhost:13001`
    - Backend API: `http://localhost:13000/docs`
 
 ## 📦 Project Structure
