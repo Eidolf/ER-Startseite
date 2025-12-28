@@ -43,6 +43,7 @@ class Settings(BaseSettings):
 
     # Security
     SECRET_KEY: str = "changeme"
+    UPLOAD_DIR: str = "uploads"
 
     model_config = SettingsConfigDict(
         case_sensitive=True, env_file=".env", extra="ignore"

@@ -6,7 +6,9 @@ from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
-UPLOAD_DIR = "/app/uploads"
+from app.core.config import settings
+
+UPLOAD_DIR = settings.UPLOAD_DIR
 # Ensure directory exists
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
