@@ -1,96 +1,132 @@
 #!/usr/bin/env python3
-import sys
-import re
+import datetime
 import argparse
+import sys
+import os
+import re
 
-VERSION_FILE = "VERSION"
+VERSION_FILE = 'VERSION'
+
+def get_current_date():
+    return datetime.datetime.now(datetime.timezone.utc)
 
 def read_version():
-    try:
-        with open(VERSION_FILE, "r") as f:
-            return f.read().strip()
-    except FileNotFoundError:
-        return "0.0.0"
+    if not os.path.exists(VERSION_FILE):
+        print(f"Error: {VERSION_FILE} not found.", file=sys.stderr)
+        sys.exit(1)
+    with open(VERSION_FILE, 'r') as f:
+        return f.read().strip()
 
 def write_version(version):
-    with open(VERSION_FILE, "w") as f:
+    with open(VERSION_FILE, 'w') as f:
         f.write(version)
+    print(f"Updated {VERSION_FILE} to {version}")
 
 def parse_version(version_str):
-    # Regex for SemVer (simplified)
-    # Match: Major.Minor.Patch(-Prerelease)?
-    match = re.match(r"^(\d+)\.(\d+)\.(\d+)(?:-(.+))?$", version_str)
+    # Regex for YYYY.MM.Patch(-Suffix)?
+    match = re.match(r'^(\d{4})\.(\d{1,2})\.(\d+)(?:-(.+))?$', version_str)
     if not match:
-        raise ValueError(f"Invalid version string: {version_str}")
-    return {
-        "major": int(match.group(1)),
-        "minor": int(match.group(2)),
-        "patch": int(match.group(3)),
-        "prerelease": match.group(4)
-    }
+        raise ValueError(f"Invalid version format: {version_str}")
+    
+    year = int(match.group(1))
+    month = int(match.group(2))
+    patch = int(match.group(3))
+    suffix = match.group(4)
+    
+    return year, month, patch, suffix
 
-def bump_version(current_str, bump_type, prerelease_tag=None):
-    v = parse_version(current_str)
+def calculate_next_version(release_type):
+    current_version_str = read_version()
+    now = get_current_date()
+    current_year, current_month = now.year, now.month
     
-    if bump_type == "major":
-        v["major"] += 1
-        v["minor"] = 0
-        v["patch"] = 0
-        v["prerelease"] = None
-    elif bump_type == "minor":
-        v["minor"] += 1
-        v["patch"] = 0
-        v["prerelease"] = None
-    elif bump_type == "patch":
-        v["patch"] += 1
-        v["prerelease"] = None
-    elif bump_type == "beta":
-        # Logic for beta bump
-        # If already beta, bump the beta number (e.g. beta.1 -> beta.2)
-        # If not, append -beta.1
-        if v["prerelease"] and v["prerelease"].startswith(prerelease_tag or "beta"):
-             parts = v["prerelease"].split('.')
-             if len(parts) > 1 and parts[-1].isdigit():
-                 new_num = int(parts[-1]) + 1
-                 v["prerelease"] = f"{parts[0]}.{new_num}"
-             else:
-                 v["prerelease"] = f"{prerelease_tag or 'beta'}.1"
+    try:
+        v_year, v_month, v_patch, v_suffix = parse_version(current_version_str)
+    except ValueError:
+        v_year, v_month, v_patch, v_suffix = 0, 0, 0, None
+
+    # Determine "Base" patch level
+    if v_year == current_year and v_month == current_month:
+        if v_suffix and 'dev' in v_suffix:
+            # If we are on a dev version (e.g. 2025.12.0-dev), it means we are working towards 2025.12.0.
+            # So for the release, we keep the patch.
+            new_patch = v_patch
         else:
-            v["prerelease"] = f"{prerelease_tag or 'beta'}.1"
-    elif bump_type == "dev":
-         # Bump to next patch version + dev
-         # Only if not already prerelease, or handling specific dev logic
-         # User asked for "bump to next development version"
-         # Usually means 1.0.0 -> 1.0.1-dev
-         if not v["prerelease"]:
-             v["patch"] += 1
-         v["prerelease"] = "dev"
+            # If we are on a stable version (2025.12.0) or beta (2025.12.0-beta),
+            # and we want a NEW release, typically we increment.
+            # However, if 2025.12.0-beta exists, and we want 2025.12.0 (Stable),
+            # we should reuse the patch.
+            
+            # Simple logic:
+            # If we are bumping dev AFTER release, v_suffix will be 'dev'.
+            # If v_suffix is 'beta', we usually want to move to stable (same patch) or next beta.
+            # Strategy: If suffix is present (dev/beta), keep patch.
+            # If suffix is empty (stable), increment patch.
+            if v_suffix:
+                new_patch = v_patch
+            else:
+                new_patch = v_patch + 1
+    else:
+        new_patch = 1 # Reset on new month
+        
+    base = f"{current_year}.{current_month}.{new_patch}"
     
-    new_version = f"{v['major']}.{v['minor']}.{v['patch']}"
-    if v["prerelease"]:
-        new_version += f"-{v['prerelease']}"
+    if release_type == 'stable':
+        return base
+    elif release_type == 'beta':
+        return f"{base}-beta"
+    elif release_type == 'nightly':
+        timestamp = now.strftime('%Y%m%d.%H%M')
+        return f"{base}-nightly.{timestamp}"
+    else:
+        raise ValueError("Unknown release type")
+
+def bump_dev_version():
+    current_version_str = read_version()
+    now = get_current_date()
     
-    return new_version
+    try:
+        year, month, patch, suffix = parse_version(current_version_str)
+    except ValueError:
+        # If invalid (e.g. nightly), rely on date
+        return f"{now.year}.{now.month}.1-dev"
+
+    # Always increment patch for next dev cycle
+    new_patch = patch + 1
+    
+    # Handle Year/Month rollover just in case script runs across month boundary
+    if year != now.year or month != now.month:
+        return f"{now.year}.{now.month}.1-dev"
+        
+    return f"{year}.{month}.{new_patch}-dev"
 
 def main():
-    parser = argparse.ArgumentParser(description="Manage project version")
-    parser.add_argument("action", choices=["read", "bump"])
-    parser.add_argument("--type", choices=["major", "minor", "patch", "beta", "dev"], help="Type of bump")
-    parser.add_argument("--tag", default="beta", help="Prerelease tag (default: beta)")
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--action', required=True, choices=['get-current', 'calculate', 'bump-dev', 'write'])
+    parser.add_argument('--type', choices=['stable', 'beta', 'nightly'], help='Release type for calculation')
+    parser.add_argument('--version', help='Version to write')
     
     args = parser.parse_args()
     
-    current = read_version()
-    
-    if args.action == "read":
-        print(current)
-    elif args.action == "bump":
+    if args.action == 'get-current':
+        print(read_version())
+            
+    elif args.action == 'calculate':
         if not args.type:
-            print("Error: --type is required for bump action")
+            print("Error: --type required for calculate", file=sys.stderr)
             sys.exit(1)
-        new_v = bump_version(current, args.type, args.tag)
-        write_version(new_v)
+        new_v = calculate_next_version(args.type)
         print(new_v)
+        
+    elif args.action == 'bump-dev':
+        new_v = bump_dev_version()
+        print(new_v)
+        
+    elif args.action == 'write':
+        if not args.version:
+             print("Error: --version required for write", file=sys.stderr)
+             sys.exit(1)
+        write_version(args.version)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
