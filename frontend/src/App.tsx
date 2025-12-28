@@ -39,7 +39,7 @@ export interface Category {
 
 export interface LayoutConfig {
     mode: LayoutMode
-    customOrder: string[] // Array of App IDs
+    customOrder: string[] // App IDs
     categories: Category[]
     hiddenAppIds: string[]
 }
@@ -470,6 +470,18 @@ function App() {
         }
     }
 
+    // Helper for secure/non-secure contexts
+    const generateUUID = () => {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return crypto.randomUUID();
+        }
+        // Fallback
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
     // --- Category Logic ---
 
     // Add Category
@@ -478,7 +490,7 @@ function App() {
         if (name) {
             setLayoutConfig(prev => ({
                 ...prev,
-                categories: [...prev.categories, { id: crypto.randomUUID(), name, app_ids: [] }]
+                categories: [...prev.categories, { id: generateUUID(), name, app_ids: [] }]
             }))
         }
     }
@@ -922,8 +934,9 @@ function App() {
                         </SortableAppTile>
                     ))}
 
-                    <div
+                    <button
                         onClick={() => handleProtectedAction('add_app')}
+                        onPointerDown={(e) => e.stopPropagation()}
                         className={`glass-panel rounded-xl flex items-center justify-center gap-4 hover:bg-white/5 transition-colors cursor-pointer border-dashed border-2 border-white/20 ${layoutConfig.mode === 'list' ? 'w-full p-4 h-24' : 'flex-col p-6 min-h-[140px]'
                             }`}
                     >
@@ -931,7 +944,7 @@ function App() {
                             <Plus className={`${layoutConfig.mode === 'list' ? 'w-6 h-6' : 'w-8 h-8'} text-gray-400`} />
                         </div>
                         <span className="font-medium text-gray-400">Add App</span>
-                    </div>
+                    </button>
 
                     {/* Hidden Apps Area */}
                     {showHiddenApps && (
@@ -1208,9 +1221,14 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
                 setHideApp(false)
                 setSelectedPremiumApp(null)
                 setActiveTab('custom')
+            } else {
+                const errData = await res.json().catch(() => ({}));
+                alert(`Failed to add app: ${res.status} ${errData.detail || errData.message || 'Unknown error'}`);
+                console.error("Add app failed", res.status, errData);
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error("Failed to add app", e)
+            alert(`Error adding app: ${e.message || e}`);
         } finally {
             setLoading(false)
         }
@@ -1294,7 +1312,7 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden glass-panel">
                 <div className="flex flex-col border-b border-white/10">
                     <div className="flex justify-between items-center px-6 py-4">

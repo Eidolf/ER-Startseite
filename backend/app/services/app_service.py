@@ -31,7 +31,12 @@ class AppService:
 
             # Fallback to fetching
             if not icon_url:
-                icon_url = await self._fetch_best_icon(str(app_in.url))
+                try:
+                    print(f"Fetching icon for {app_in.url}", flush=True)
+                    icon_url = await self._fetch_best_icon(str(app_in.url))
+                    print(f"Fetched icon: {icon_url}", flush=True)
+                except Exception as e:
+                    print(f"Error fetching icon: {e}", flush=True)
 
         # 2. Create Instance
         new_app = App(
@@ -44,6 +49,7 @@ class AppService:
         )
 
         # 3. Save
+        print(f"Saving app {new_app.id} to DB", flush=True)
         await self.repo.add(new_app)
         return new_app
 
@@ -56,7 +62,7 @@ class AppService:
     async def _fetch_best_icon(self, url: str) -> Optional[str]:
         try:
             async with httpx.AsyncClient(
-                verify=False, follow_redirects=True, timeout=5.0
+                verify=False, follow_redirects=True, timeout=2.0
             ) as client:
                 # 1. Fetch Page Content
                 try:

@@ -35,11 +35,22 @@ async def backend_exception_handler(request: Request, exc: BackendException):
     )
 
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error("Global Exception", error=str(exc))
+    import traceback
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"success": False, "error_code": "INTERNAL_ERROR", "message": f"Internal Server Error: {str(exc)}"},
+    )
+
+
 # Set all CORS enabled origins
 if settings.BACKEND_CORS_ORIGINS:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+        allow_origin_regex=".*",  # Allow all origins for local/network testing
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

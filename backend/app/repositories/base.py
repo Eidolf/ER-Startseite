@@ -18,20 +18,27 @@ class JsonRepository(Generic[T]):
             await parent.mkdir(parents=True, exist_ok=True)
 
     async def read_all(self) -> List[T]:
-        if not await self.file_path.exists():
-            return []
         try:
+            if not await self.file_path.exists():
+                return []
             content = await self.file_path.read_text(encoding="utf-8")
             data = json.loads(content)
             # Handle list vs single object logic if needed, but assuming List[T] for now or generic list
             # Actually for generality let's assume this repo manages a List of items
             return parse_obj_as(List[self.model], data)  # type: ignore
+        except PermissionError:
+            print(f"ERROR: Permission denied reading {self.file_path}", flush=True)
+            return []
         except (ValueError, json.JSONDecodeError):
+            return []
+        except Exception as e:
+            print(f"ERROR: Failed reading {self.file_path}: {e}", flush=True)
             return []
 
     async def save_all(self, items: List[T]):
         await self._ensure_dir()
-        data = [item.dict() for item in items]
+        # Use model_dump(mode='json') to ensure HttpUrl and strict types are serialized
+        data = [item.model_dump(mode="json") for item in items]
         await self.file_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
     async def add(self, item: T) -> List[T]:

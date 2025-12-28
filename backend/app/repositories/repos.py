@@ -12,14 +12,14 @@ from app.schemas.config import (
 # App Repo manages a LIST of Apps
 class AppRepository(JsonRepository[App]):
     def __init__(self):
-        super().__init__("/app/data/apps.json", App)
+        super().__init__("data/apps.json", App)
 
 
 # Config Repo manages a SINGLE Config Object (stored as a JSON object, not list)
 # We need to override read/save for single object
 class ConfigRepository:
     def __init__(self):
-        self._repo = JsonRepository("/app/data/config.json", AppConfig)
+        self._repo = JsonRepository("data/config.json", AppConfig)
         # But JsonRepository assumes list...
         # Let's customize for Config
 
@@ -34,7 +34,7 @@ class ConfigRepository:
 
     async def save_config(self, config: AppConfig):
         await self._repo._ensure_dir()
-        await self._repo.file_path.write_text(config.json(indent=2), encoding="utf-8")
+        await self._repo.file_path.write_text(config.model_dump_json(indent=2), encoding="utf-8")
 
     def _get_default(self) -> AppConfig:
         from app.core.constants import (
