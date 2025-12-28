@@ -25,6 +25,8 @@ jobs:
           context: ${{ inputs.context }}
           tags: ${{ inputs.image-name }}:latest
           outputs: type=docker,dest=/tmp/${{ inputs.image-name }}.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

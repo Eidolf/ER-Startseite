@@ -37,11 +37,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Poetry
+        if: contains(inputs.working-directory, 'backend')
+        run: pip install poetry
 
       - name: Install Python Deps (Poetry)
         if: contains(inputs.working-directory, 'backend')
         run: |
-          pip install poetry
           poetry config virtualenvs.create false
           poetry install --with dev
 
@@ -60,6 +64,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
 
       - name: Install Node Deps
         if: contains(inputs.working-directory, 'frontend')
