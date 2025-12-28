@@ -4,9 +4,9 @@ import shutil
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
-router = APIRouter()
-
 from app.core.config import settings
+
+router = APIRouter()
 
 UPLOAD_DIR = settings.UPLOAD_DIR
 # Ensure directory exists
