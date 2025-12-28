@@ -39,10 +39,15 @@ async def backend_exception_handler(request: Request, exc: BackendException):
 async def global_exception_handler(request: Request, exc: Exception):
     logger.error("Global Exception", error=str(exc))
     import traceback
+
     traceback.print_exc()
     return JSONResponse(
         status_code=500,
-        content={"success": False, "error_code": "INTERNAL_ERROR", "message": f"Internal Server Error: {str(exc)}"},
+        content={
+            "success": False,
+            "error_code": "INTERNAL_ERROR",
+            "message": f"Internal Server Error: {str(exc)}",
+        },
     )
 
 

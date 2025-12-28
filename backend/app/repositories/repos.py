@@ -34,7 +34,9 @@ class ConfigRepository:
 
     async def save_config(self, config: AppConfig):
         await self._repo._ensure_dir()
-        await self._repo.file_path.write_text(config.model_dump_json(indent=2), encoding="utf-8")
+        await self._repo.file_path.write_text(
+            config.model_dump_json(indent=2), encoding="utf-8"
+        )
 
     def _get_default(self) -> AppConfig:
         from app.core.constants import (
