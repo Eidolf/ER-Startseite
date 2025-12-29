@@ -1082,8 +1082,44 @@ function App() {
                 }}
             />
 
-            {/* Top Fixed Header Area */}
-            <div className="absolute top-0 left-0 w-full z-20 p-2 flex justify-between items-start pointer-events-none">
+            {/* ================= MOBILE HEADER (Visible only on mobile) ================= */}
+            <div className="md:hidden fixed top-0 left-0 w-full z-50 h-14 pointer-events-none">
+                {/* Left: Logo & Title */}
+                <div className="absolute top-1 left-2 flex items-center pointer-events-auto gap-2">
+                    {logoConfig.type === 'image' && logoConfig.value ? (
+                        <div className="h-10 w-auto flex items-center justify-center">
+                            <img src={logoConfig.value} alt="Logo" className="max-h-full w-auto max-w-[100px] object-contain drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]" />
+                        </div>
+                    ) : (
+                        <AnimatedLogo className="w-12 h-12" />
+                    )}
+                    <h1 className="text-xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-purple leading-none ml-0"
+                        style={{ textShadow: '0 0 10px rgba(6, 182, 212, 0.4)' }}>
+                        {pageTitle}
+                    </h1>
+                </div>
+
+                {/* Right: Settings Icons */}
+                <div className="absolute top-1 right-2 flex gap-2 pointer-events-auto items-center">
+                    <button
+                        onClick={() => setIsLayoutMenuOpen(true)}
+                        className={`p-2 rounded-full glass-panel transition ${isLayoutMenuOpen ? 'bg-neon-cyan/20 text-neon-cyan' : 'hover:bg-white/10 text-gray-400'}`}
+                        title="Layout / Edit"
+                    >
+                        <LayoutGrid className="w-5 h-5" />
+                    </button>
+                    <button
+                        onClick={() => handleProtectedAction('settings')}
+                        className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
+                        title="Settings"
+                    >
+                        <Settings className="w-5 h-5 text-neon-cyan" />
+                    </button>
+                </div>
+            </div>
+
+            {/* ================= DESKTOP HEADER (Visible only on desktop) ================= */}
+            <div className="hidden md:flex absolute top-0 left-0 w-full z-20 p-4 justify-between items-start pointer-events-none">
                 {/* Left Spacer for Balance */}
                 <div className="w-24"></div>
 
@@ -1125,7 +1161,7 @@ function App() {
             </div>
 
             {/* Main Content (Padded) */}
-            <div className="relative z-10 container mx-auto px-4 pt-[220px] pb-4 flex flex-col h-screen overflow-hidden">
+            <div className="relative z-10 container mx-auto px-4 pt-[110px] md:pt-[220px] pb-4 flex flex-col h-screen overflow-hidden">
 
                 {/* Search Field */}
                 <div className="max-w-2xl w-full mx-auto mb-4 relative group shrink-0">
