@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { AppIcon } from './components/AppIcon'
 import { AnimatedLogo } from './components/AnimatedLogo'
-import { Search, Settings, Plus, Trash2, LayoutGrid, Folder, PlusCircle, X, Pencil, EyeOff } from 'lucide-react'
+import { Search, Settings, Plus, Trash2, LayoutGrid, Folder, PlusCircle, X, Pencil, EyeOff, UserCheck } from 'lucide-react'
 import { SettingsModal } from './components/SettingsModal'
 import { LayoutMenu, LayoutMode } from './components/LayoutMenu'
 import { DndContext, pointerWithin, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, useDroppable } from '@dnd-kit/core'
@@ -99,7 +99,7 @@ function SortableAppTile({ app, isEditMode, tileClass, style, children, onClick,
         ...style,
         opacity: isDragging ? 0.5 : 1,
         zIndex: isDragging ? 50 : 'auto',
-        touchAction: 'none'
+        touchAction: 'pan-y'
     };
 
     return (
@@ -134,19 +134,46 @@ function DroppableContainer({ id, children, className }: { id: string, children:
     );
 }
 
+const getStrength = (pass: string) => {
+    let score = 0
+    if (pass.length > 7) score++
+    if (pass.length > 11) score++
+    if (/[0-9]/.test(pass)) score++
+    if (/[^A-Za-z0-9]/.test(pass)) score++
+    if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) score++
+    return score
+}
+
+const getStrengthColor = (score: number) => {
+    if (score < 2) return 'bg-red-500'
+    if (score < 4) return 'bg-yellow-500'
+    return 'bg-green-500'
+}
+
+const getStrengthLabel = (score: number) => {
+    if (score < 2) return 'Very Weak'
+    if (score < 4) return 'Medium'
+    return 'Strong'
+}
+
 function SetupModal({ onSetupComplete }: { onSetupComplete: () => void }) {
-    const [pin, setPin] = useState('')
+    const [password, setPassword] = useState('')
+    const [confirmPassword, setConfirmPassword] = useState('')
     const [loading, setLoading] = useState(false)
+
+    const strength = getStrength(password)
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (pin.length < 4) return alert("PIN must be at least 4 digits")
+        if (password.length < 4) return alert("Password must be at least 4 characters")
+        if (password !== confirmPassword) return alert("Passwords do not match")
+
         setLoading(true)
         try {
             const res = await fetch('/api/v1/auth/setup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: pin })
+                body: JSON.stringify({ password })
             })
             if (res.ok) {
                 onSetupComplete()
@@ -159,32 +186,62 @@ function SetupModal({ onSetupComplete }: { onSetupComplete: () => void }) {
     }
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
-            <div className="max-w-md w-full glass-panel border border-neon-cyan/30 p-8 rounded-2xl text-center">
-                <div className="mb-6 flex justify-center">
-                    <div className="w-16 h-16 rounded-full bg-neon-cyan/20 flex items-center justify-center">
-                        <Settings className="w-8 h-8 text-neon-cyan animate-spin-slow" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xl">
+            <div className="w-full max-w-md p-8 flex flex-col items-center animate-in fade-in zoom-in-95 duration-300">
+                <div className="mb-8 relative">
+                    <div className="absolute inset-0 bg-neon-cyan/20 blur-xl rounded-full animate-pulse"></div>
+                    <div className="relative bg-black/50 p-6 rounded-full border border-neon-cyan/30 shadow-[0_0_30px_rgba(6,182,212,0.3)]">
+                        <UserCheck className="w-12 h-12 text-neon-cyan" />
                     </div>
                 </div>
                 <h2 className="text-2xl font-bold text-white mb-2">Welcome to ER-Startseite</h2>
-                <p className="text-gray-400 mb-6">Please create a security PIN to protect your settings.</p>
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <p className="text-gray-400 mb-6 text-center">Please create a secure Password to protect your settings.</p>
+                <form onSubmit={handleSubmit} className="space-y-4 w-full">
+                    <div className="space-y-2">
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-center text-xl text-white focus:ring-2 focus:ring-neon-cyan outline-none transition-all placeholder:text-gray-600"
+                            placeholder="Create Password"
+                            required
+                            autoFocus
+                        />
+                        {/* Strength Meter */}
+                        {password.length > 0 && (
+                            <div className="flex items-center gap-2 px-1">
+                                <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                    <div
+                                        className={`h-full transition-all duration-300 ${getStrengthColor(strength)}`}
+                                        style={{ width: `${(strength / 5) * 100}%` }}
+                                    />
+                                </div>
+                                <span className="text-xs text-gray-400 min-w-[60px] text-right">
+                                    {getStrengthLabel(strength)}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+
                     <input
                         type="password"
-                        value={pin}
-                        onChange={(e) => setPin(e.target.value)}
-                        placeholder="Enter 4-digit PIN"
-                        className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-center text-2xl tracking-[0.5em] text-white focus:ring-2 focus:ring-neon-cyan outline-none"
-                        maxLength={8}
-                        autoFocus
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-center text-xl text-white focus:ring-2 focus:ring-neon-cyan outline-none transition-all placeholder:text-gray-600"
+                        placeholder="Confirm Password"
+                        required
                     />
+
                     <button
                         type="submit"
-                        disabled={loading || pin.length < 4}
-                        className="w-full bg-neon-cyan text-black font-bold py-3 rounded-xl hover:bg-cyan-400 transition disabled:opacity-50"
+                        disabled={loading || password.length < 4 || password !== confirmPassword}
+                        className="w-full bg-neon-cyan text-black font-bold py-3 rounded-xl hover:bg-cyan-400 transition disabled:opacity-50 disabled:cursor-not-allowed mt-4"
                     >
-                        {loading ? 'Setting up...' : 'Set PIN & Start'}
+                        {loading ? 'Setting up...' : 'Set Password & Start'}
                     </button>
+                    {password !== confirmPassword && confirmPassword.length > 0 && (
+                        <p className="text-red-400 text-xs text-center animate-pulse">Passwords do not match</p>
+                    )}
                 </form>
             </div>
         </div>
@@ -192,13 +249,13 @@ function SetupModal({ onSetupComplete }: { onSetupComplete: () => void }) {
 }
 
 function UnlockModal({ isOpen, onClose, onUnlock }: { isOpen: boolean, onClose: () => void, onUnlock: () => void }) {
-    const [pin, setPin] = useState('')
+    const [password, setPassword] = useState('')
     const [error, setError] = useState(false)
     const [loading, setLoading] = useState(false)
 
     useEffect(() => {
         if (isOpen) {
-            setPin('')
+            setPassword('')
             setError(false)
         }
     }, [isOpen])
@@ -213,14 +270,14 @@ function UnlockModal({ isOpen, onClose, onUnlock }: { isOpen: boolean, onClose: 
             const res = await fetch('/api/v1/auth/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password: pin })
+                body: JSON.stringify({ password })
             })
             if (res.ok) {
                 onUnlock()
                 onClose()
             } else {
                 setError(true)
-                setPin('')
+                setPassword('')
             }
         } catch (e) {
             console.error(e)
@@ -240,10 +297,10 @@ function UnlockModal({ isOpen, onClose, onUnlock }: { isOpen: boolean, onClose: 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <input
                         type="password"
-                        value={pin}
-                        onChange={(e) => { setPin(e.target.value); setError(false); }}
-                        placeholder="PIN"
-                        className={`w-full bg-black/50 border ${error ? 'border-red-500 animate-pulse' : 'border-white/10'} rounded-xl px-4 py-3 text-center text-xl tracking-[0.5em] text-white focus:ring-2 focus:ring-neon-cyan outline-none`}
+                        value={password}
+                        onChange={(e) => { setPassword(e.target.value); setError(false); }}
+                        placeholder="Password"
+                        className={`w-full bg-black/50 border ${error ? 'border-red-500 animate-pulse' : 'border-white/10'} rounded-xl px-4 py-3 text-center text-xl tracking-[0.2em] text-white focus:ring-2 focus:ring-neon-cyan outline-none`}
                         autoFocus
                     />
                     <button
@@ -934,18 +991,6 @@ function App() {
                         </SortableAppTile>
                     ))}
 
-                    <button
-                        onClick={() => handleProtectedAction('add_app')}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        className={`glass-panel rounded-xl flex items-center justify-center gap-4 hover:bg-white/5 transition-colors cursor-pointer border-dashed border-2 border-white/20 ${layoutConfig.mode === 'list' ? 'w-full p-4 h-24' : 'flex-col p-6 min-h-[140px]'
-                            }`}
-                    >
-                        <div className={`${layoutConfig.mode === 'list' ? 'w-12 h-12' : 'w-16 h-16'} rounded-full bg-white/5 flex items-center justify-center`}>
-                            <Plus className={`${layoutConfig.mode === 'list' ? 'w-6 h-6' : 'w-8 h-8'} text-gray-400`} />
-                        </div>
-                        <span className="font-medium text-gray-400">Add App</span>
-                    </button>
-
                     {/* Hidden Apps Area */}
                     {showHiddenApps && (
                         <div className={`glass-panel rounded-2xl p-6 border border-red-500/30 bg-red-900/10 ${layoutConfig.mode === 'list' ? 'col-span-full' : 'col-span-full'}`}>
@@ -1102,6 +1147,13 @@ function App() {
                 {/* Right: Settings Icons */}
                 <div className="absolute top-1 right-2 flex gap-2 pointer-events-auto items-center">
                     <button
+                        onClick={() => handleProtectedAction('add_app')}
+                        className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
+                        title="Add App"
+                    >
+                        <Plus className="w-5 h-5 text-neon-cyan" />
+                    </button>
+                    <button
                         onClick={() => setIsLayoutMenuOpen(true)}
                         className={`p-2 rounded-full glass-panel transition ${isLayoutMenuOpen ? 'bg-neon-cyan/20 text-neon-cyan' : 'hover:bg-white/10 text-gray-400'}`}
                         title="Layout / Edit"
@@ -1121,7 +1173,7 @@ function App() {
             {/* ================= DESKTOP HEADER (Visible only on desktop) ================= */}
             <div className="hidden md:flex absolute top-0 left-0 w-full z-20 p-4 justify-between items-start pointer-events-none">
                 {/* Left Spacer for Balance */}
-                <div className="w-24"></div>
+                <div className="w-40"></div>
 
                 {/* Center: Logo & Title */}
                 <div className="flex flex-col items-center pointer-events-auto -mt-8">
@@ -1142,7 +1194,14 @@ function App() {
                 </div>
 
                 {/* Right: Settings Buttons */}
-                <div className="flex gap-4 pointer-events-auto w-24 justify-end p-2">
+                <div className="flex gap-4 pointer-events-auto w-40 justify-end p-2">
+                    <button
+                        onClick={() => handleProtectedAction('add_app')}
+                        className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
+                        title="Add App"
+                    >
+                        <Plus className="w-6 h-6 text-neon-cyan" />
+                    </button>
                     <button
                         onClick={() => setIsLayoutMenuOpen(true)}
                         className={`p-2 rounded-full glass-panel transition ${isLayoutMenuOpen ? 'bg-neon-cyan/20 text-neon-cyan' : 'hover:bg-white/10 text-gray-400'}`}

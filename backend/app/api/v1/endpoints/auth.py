@@ -49,3 +49,16 @@ async def verify(req: LoginRequest, service: AuthService = Depends(get_service))
     if not service.verify_password(req.password):
         raise AuthException("Invalid password")
     return {"status": "valid"}
+
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
+@router.post("/change-password")
+async def change_password(
+    req: ChangePasswordRequest, service: AuthService = Depends(get_service)
+):
+    service.change_password(req.old_password, req.new_password)
+    return {"status": "success"}

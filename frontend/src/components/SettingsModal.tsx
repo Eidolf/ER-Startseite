@@ -8,6 +8,123 @@ interface MediaItem {
     type: 'image' | 'video'
 }
 
+const getStrength = (pass: string) => {
+    let score = 0
+    if (pass.length > 7) score++
+    if (pass.length > 11) score++
+    if (/[0-9]/.test(pass)) score++
+    if (/[^A-Za-z0-9]/.test(pass)) score++
+    if (/[A-Z]/.test(pass) && /[a-z]/.test(pass)) score++
+    return score
+}
+
+const getStrengthColor = (score: number) => {
+    if (score < 2) return 'bg-red-500'
+    if (score < 4) return 'bg-yellow-500'
+    return 'bg-green-500'
+}
+
+const getStrengthLabel = (score: number) => {
+    if (score < 2) return 'Very Weak'
+    if (score < 4) return 'Medium'
+    return 'Strong'
+}
+
+function ChangePasswordForm() {
+    const [oldPass, setOldPass] = useState('')
+    const [newPass, setNewPass] = useState('')
+    const [confirmPass, setConfirmPass] = useState('')
+    const [loading, setLoading] = useState(false)
+
+    const strength = getStrength(newPass)
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (newPass !== confirmPass) return alert("Passwords do not match")
+        if (newPass.length < 4) return alert("New password too short")
+
+        setLoading(true)
+        try {
+            const res = await fetch('/api/v1/auth/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ old_password: oldPass, new_password: newPass })
+            })
+            if (res.ok) {
+                alert("Password changed successfully")
+                setOldPass('')
+                setNewPass('')
+                setConfirmPass('')
+            } else {
+                alert("Failed to change password. Check old password.")
+            }
+        } catch (err) {
+            alert("Error changing password")
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-3">
+            <input
+                type="password"
+                value={oldPass}
+                onChange={(e) => setOldPass(e.target.value)}
+                placeholder="Current Password"
+                required
+                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-1 focus:ring-neon-cyan outline-none placeholder:text-gray-500"
+            />
+
+            <div className="space-y-1">
+                <input
+                    type="password"
+                    value={newPass}
+                    onChange={(e) => setNewPass(e.target.value)}
+                    placeholder="New Password"
+                    required
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-1 focus:ring-neon-cyan outline-none placeholder:text-gray-500"
+                />
+                {newPass.length > 0 && (
+                    <div className="flex items-center gap-2 px-1 pt-1">
+                        <div className="flex-1 h-1 bg-gray-800 rounded-full overflow-hidden">
+                            <div
+                                className={`h-full transition-all duration-300 ${getStrengthColor(strength)}`}
+                                style={{ width: `${(strength / 5) * 100}%` }}
+                            />
+                        </div>
+                        <span className="text-[10px] text-gray-400 min-w-[50px] text-right">
+                            {getStrengthLabel(strength)}
+                        </span>
+                    </div>
+                )}
+            </div>
+
+            <div className="space-y-1">
+                <input
+                    type="password"
+                    value={confirmPass}
+                    onChange={(e) => setConfirmPass(e.target.value)}
+                    placeholder="Confirm New Password"
+                    required
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:ring-1 focus:ring-neon-cyan outline-none placeholder:text-gray-500"
+                />
+                {newPass !== confirmPass && confirmPass.length > 0 && (
+                    <p className="text-red-400 text-[10px] animate-pulse px-1">Passwords do not match</p>
+                )}
+            </div>
+
+            <button
+                type="submit"
+                disabled={loading || newPass !== confirmPass || newPass.length < 4}
+                className="w-full py-2 rounded-lg bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/50 hover:bg-neon-cyan/30 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                {loading ? 'Updating...' : 'Update Password'}
+            </button>
+        </form>
+    )
+}
+
 function MediaLibrary({ onSelect }: { onSelect: (url: string, type: string) => void }) {
     const [media, setMedia] = useState<MediaItem[]>([])
     const [loading, setLoading] = useState(true)
@@ -104,7 +221,7 @@ export function SettingsModal({
     iconConfig,
     onIconConfigChange
 }: SettingsModalProps) {
-    const [activeTab, setActiveTab] = useState<'general' | 'background' | 'logo' | 'effects'>('general')
+    const [activeTab, setActiveTab] = useState<'general' | 'background' | 'logo' | 'effects' | 'security'>('general')
     const [uploading, setUploading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const logoFileInputRef = useRef<HTMLInputElement>(null)
@@ -196,6 +313,12 @@ export function SettingsModal({
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'effects' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
                             Effects
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('security')}
+                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'security' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            Security
                         </button>
                     </div>
                 </div>
@@ -520,6 +643,17 @@ export function SettingsModal({
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'security' && (
+                        <div className="space-y-6">
+                            <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-4">
+                                <h3 className="text-sm font-medium text-white flex items-center gap-2">
+                                    Change Password
+                                </h3>
+                                <ChangePasswordForm />
                             </div>
                         </div>
                     )}

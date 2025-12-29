@@ -15,3 +15,8 @@ class AuthService:
         if not self.is_setup():
             raise AuthException("Not setup")
         return security.check_password(password)
+
+    def change_password(self, old_password: str, new_password: str):
+        if not self.verify_password(old_password):
+            raise AuthException("Invalid old password")
+        security.setup_password(new_password)
