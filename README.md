@@ -70,4 +70,4 @@ See `CONTRIBUTING.md` (To be created) for guidelines.
 
 ## 📄 License
 
-MIT
+AGPL
