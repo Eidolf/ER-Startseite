@@ -1,5 +1,5 @@
 import json
-from typing import Generic, List, Type, TypeVar, Optional
+from typing import Generic, List, Optional, TypeVar
 
 from anyio import Path
 from pydantic import BaseModel, parse_obj_as
