@@ -62,11 +62,18 @@ ER-Startseite/
 
 ## 🛡 Security
 
-See `SECURITY.md` (To be created) for reporting vulnerabilities.
+- **Authentication**: Uses bcrypt hashing for passwords and secure HTTP-only cookies for session management.
+- **Deployment**: Highly recommended to run behind a reverse proxy (e.g., Nginx, Traefik, Caddy) with SSL/TLS enabled.
+- **Reporting**: This is a personal project. Please report vulnerabilities via GitHub Issues.
 
 ## 🤝 Contributing
 
-See `CONTRIBUTING.md` (To be created) for guidelines.
+Contributions are welcome!
+1. Fork the project.
+2. Create your feature branch (`git checkout -b feature/NewFeature`).
+3. Commit your changes (`git commit -m 'Add some NewFeature'`).
+4. Push to the branch (`git push origin feature/NewFeature`).
+5. Open a Pull Request.
 
 ## 📄 License
 

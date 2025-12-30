@@ -1683,7 +1683,7 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
         }
 
         try {
-            const body: any = {
+            const body: { name: string; type: 'folder' | 'link'; url?: string; premium_id?: string; contents?: AppData[] } = {
                 name,
                 type: activeTab === 'folder' ? 'folder' : 'link'
             }
