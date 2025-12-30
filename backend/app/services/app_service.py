@@ -22,9 +22,9 @@ class AppService:
     async def create(self, app_in: AppCreate) -> App:
         # 1. Determine Icon Logic
         icon_url = app_in.icon_url
-        
+
         # Only fetch icon if it's a link and has a URL
-        if app_in.type == 'link' and app_in.url and not icon_url:
+        if app_in.type == "link" and app_in.url and not icon_url:
             # Check premium default
             if app_in.premium_id:
                 premium_app = AppRegistry.get(app_in.premium_id)

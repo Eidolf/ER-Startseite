@@ -21,5 +21,5 @@ class App(AppBase):
     id: str
     created_at: str
 
-App.model_rebuild()
 
+App.model_rebuild()

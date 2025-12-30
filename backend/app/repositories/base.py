@@ -56,7 +56,9 @@ class JsonRepository(Generic[T]):
             return True
         return False
 
-    async def update(self, item_id: str, update_data: dict, id_field: str = "id") -> Optional[T]:
+    async def update(
+        self, item_id: str, update_data: dict, id_field: str = "id"
+    ) -> Optional[T]:
         items = await self.read_all()
         for i, item in enumerate(items):
             if getattr(item, id_field) == item_id:
