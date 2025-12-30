@@ -1,5 +1,5 @@
 import json
-from typing import Generic, List, TypeVar
+from typing import Generic, List, Type, TypeVar, Optional
 
 from anyio import Path
 from pydantic import BaseModel, parse_obj_as
@@ -55,3 +55,15 @@ class JsonRepository(Generic[T]):
             await self.save_all(items)
             return True
         return False
+
+    async def update(self, item_id: str, update_data: dict, id_field: str = "id") -> Optional[T]:
+        items = await self.read_all()
+        for i, item in enumerate(items):
+            if getattr(item, id_field) == item_id:
+                curr_data = item.model_dump(mode="json")
+                curr_data.update(update_data)
+                new_item = self.model(**curr_data)
+                items[i] = new_item
+                await self.save_all(items)
+                return new_item
+        return None

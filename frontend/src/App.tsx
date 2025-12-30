@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { AppIcon } from './components/AppIcon'
 import { AnimatedLogo } from './components/AnimatedLogo'
-import { Search, Settings, Plus, Trash2, LayoutGrid, Folder, PlusCircle, X, Pencil, EyeOff, UserCheck } from 'lucide-react'
+import { Plus, Search, Settings, LayoutGrid, X, Trash, EyeOff, Folder, Pencil, PlusCircle, Check, UserCheck, ArrowUpFromLine } from 'lucide-react'
 import { SettingsModal } from './components/SettingsModal'
 import { LayoutMenu, LayoutMode } from './components/LayoutMenu'
 import { DndContext, pointerWithin, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, useDroppable } from '@dnd-kit/core'
@@ -29,6 +29,7 @@ export interface IconConfig {
     backgroundStyle: 'glass' | 'solid' | 'gradient'
     backgroundColor: string
     gradientColors: [string, string]
+    backgroundOpacity: number // 0-100
 }
 
 export interface Category {
@@ -54,14 +55,27 @@ const DEFAULT_LOGO_CONFIG: LogoConfig = {
     value: undefined
 }
 
+export interface TitleConfig {
+    style: 'default' | 'solid' | 'gradient'
+    color?: string
+    gradientColors?: [string, string]
+}
+
+const DEFAULT_TITLE_CONFIG: TitleConfig = {
+    style: 'default',
+    color: '#ffffff',
+    gradientColors: ['#00f3ff', '#9d00ff']
+}
+
 const DEFAULT_ICON_CONFIG: IconConfig = {
     showBorder: true,
     borderStyle: 'default',
     borderColor: '#00f3ff', // neon-cyan
     borderGradientColors: ['#00f3ff', '#9d00ff'], // Cyan -> Purple
     backgroundStyle: 'glass',
-    backgroundColor: '#1a1a1a',
-    gradientColors: ['#3b82f6', '#9333ea']
+    backgroundColor: '#000000',
+    gradientColors: ['#1a1a1a', '#000000'],
+    backgroundOpacity: 10 // Default glass opacity (low)
 }
 
 const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
@@ -74,10 +88,12 @@ const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
 export interface AppData {
     id: string
     name: string
-    url: string
-    icon_url: string
+    url?: string
+    icon_url?: string
     description?: string
     default_icon?: string // For premium apps
+    type?: 'link' | 'folder'
+    contents?: AppData[]
 }
 
 interface SortableAppTileProps {
@@ -93,18 +109,33 @@ interface SortableAppTileProps {
 function SortableAppTile({ app, isEditMode, tileClass, style, children, onClick, onDelete }: SortableAppTileProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: app.id, disabled: !isEditMode });
 
+    // Enable drop for folders
+    const { setNodeRef: setDroppableRef, isOver: isDroppableOver } = useDroppable({
+        id: `folder-drop-${app.id}`,
+        disabled: app.type !== 'folder',
+        data: { folderId: app.id }
+    });
+
     const combinedStyle = {
         transform: CSS.Transform.toString(transform),
         transition,
         ...style,
         opacity: isDragging ? 0.5 : 1,
         zIndex: isDragging ? 50 : 'auto',
-        touchAction: 'pan-y'
+        touchAction: 'pan-y',
+        ...(isDroppableOver && app.type === 'folder' ? {
+            borderColor: '#00f3ff',
+            boxShadow: '0 0 20px rgba(0, 243, 255, 0.5)',
+            transform: `${CSS.Transform.toString(transform)} scale(1.05)`
+        } : {})
     };
 
     return (
         <div
-            ref={setNodeRef}
+            ref={(node) => {
+                setNodeRef(node);
+                if (app.type === 'folder') setDroppableRef(node);
+            }}
             style={combinedStyle}
             {...attributes}
             {...listeners}
@@ -118,7 +149,7 @@ function SortableAppTile({ app, isEditMode, tileClass, style, children, onClick,
                     className="absolute -top-2 -right-2 z-20 bg-red-500 text-white p-1.5 rounded-full hover:bg-red-600 transition shadow-lg shrink-0 flex items-center justify-center"
                     onPointerDown={(e) => e.stopPropagation()} // Prevent drag start on delete button
                 >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash className="w-4 h-4" />
                 </button>
             )}
         </div>
@@ -340,9 +371,16 @@ function App() {
     const [isAddAppOpen, setIsAddAppOpen] = useState(false)
 
     // Auth State
-    const [isSetup, setIsSetup] = useState(true)
+    const [titleConfig, setTitleConfig] = useState<TitleConfig>(() => {
+        const saved = localStorage.getItem('titleConfig')
+        return saved ? JSON.parse(saved) : DEFAULT_TITLE_CONFIG
+    })
+
+    const [isSetup, setIsSetup] = useState(false)
     const [isAuthenticated, setIsAuthenticated] = useState(false)
     const [showUnlockModal, setShowUnlockModal] = useState(false)
+    const [openFolder, setOpenFolder] = useState<AppData | null>(null)
+    const [targetFolderId, setTargetFolderId] = useState<string | null>(null)
     const [pendingAction, setPendingAction] = useState<'settings' | 'layout_menu' | 'add_app' | 'edit_mode' | 'show_hidden' | null>(null)
 
     // Check Auth Status
@@ -378,6 +416,22 @@ function App() {
         setShowUnlockModal(true)
     }
 
+    // Dynamic Favicon Effect
+    useEffect(() => {
+        const link = document.querySelector("link[rel*='icon']") as HTMLLinkElement || document.createElement('link')
+        link.type = 'image/x-icon'
+        link.rel = 'icon'
+
+        if (logoConfig.type === 'image' && logoConfig.value) {
+            link.href = logoConfig.value
+        } else {
+            // Revert to default
+            link.href = '/logo.svg' // Assuming logo.svg is the default as seen in index.html
+        }
+
+        document.getElementsByTagName('head')[0].appendChild(link)
+    }, [logoConfig])
+
     // Fetch Config on Mount
     useEffect(() => {
         fetch('/api/v1/config')
@@ -408,24 +462,58 @@ function App() {
                     bgConfig,
                     logoConfig,
                     iconConfig,
-                    layoutConfig
+                    layoutConfig,
+                    titleConfig // Added titleConfig
                 })
             }).catch(e => console.error("Failed to save config", e))
         }, 500) // Debounce 500ms
 
         return () => clearTimeout(timer)
-    }, [pageTitle, bgConfig, logoConfig, iconConfig, layoutConfig, configLoaded])
+    }, [pageTitle, bgConfig, logoConfig, iconConfig, layoutConfig, titleConfig, configLoaded])
 
     // Helper to generate icon style
     const getIconStyle = () => {
         const style: React.CSSProperties & { [key: string]: string } = {}
 
         // Background Logic
-        if (iconConfig.backgroundStyle === 'solid') {
-            style.background = iconConfig.backgroundColor
+        const opacity = iconConfig.backgroundOpacity !== undefined ? iconConfig.backgroundOpacity / 100 : 0.1
+
+        if (iconConfig.backgroundStyle === 'glass') {
+            // For Glass, we explicity clear inline styles to let CSS .glass-panel class take over
+            style.background = undefined
+            style.backgroundColor = undefined
+            style.backdropFilter = undefined
+        } else if (iconConfig.backgroundStyle === 'solid') {
+            // Convert Hex to RGBA manually or just use opacity if it works
+            const hex = iconConfig.backgroundColor.replace('#', '')
+            const r = parseInt(hex.substring(0, 2), 16)
+            const g = parseInt(hex.substring(2, 4), 16)
+            const b = parseInt(hex.substring(4, 6), 16)
+
+            if (!isNaN(r)) {
+                style.background = `rgba(${r}, ${g}, ${b}, ${opacity})`
+            } else {
+                style.background = iconConfig.backgroundColor
+            }
             style.backdropFilter = 'none'
         } else if (iconConfig.backgroundStyle === 'gradient') {
-            style.background = `linear-gradient(135deg, ${iconConfig.gradientColors[0]}, ${iconConfig.gradientColors[1]})`
+            // Gradients + Opacity
+            const hex1 = iconConfig.gradientColors[0].replace('#', '')
+            const r1 = parseInt(hex1.substring(0, 2), 16)
+            const g1 = parseInt(hex1.substring(2, 4), 16)
+            const b1 = parseInt(hex1.substring(4, 6), 16)
+
+            const hex2 = iconConfig.gradientColors[1].replace('#', '')
+            const r2 = parseInt(hex2.substring(0, 2), 16)
+            const g2 = parseInt(hex2.substring(2, 4), 16)
+            const b2 = parseInt(hex2.substring(4, 6), 16)
+
+            if (!isNaN(r1) && !isNaN(r2)) {
+                style.background = `linear-gradient(135deg, rgba(${r1},${g1},${b1},${opacity}), rgba(${r2},${g2},${b2},${opacity}))`
+            } else {
+                style.background = `linear-gradient(135deg, ${iconConfig.gradientColors[0]}, ${iconConfig.gradientColors[1]})`
+            }
+
             style.backdropFilter = 'none'
         }
 
@@ -510,12 +598,188 @@ function App() {
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     )
 
+    // Move App to Folder
+    const moveAppToFolder = async (app: AppData, folder: AppData) => {
+        try {
+            // Updated contents
+            const newContents = [...(folder.contents || []), app]
+
+            // Update Folder
+            const resFolder = await fetch(`/api/v1/apps/${folder.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...folder, contents: newContents })
+            })
+
+            if (!resFolder.ok) throw new Error("Failed to update folder")
+
+            // Delete specific app from root
+            const resDelete = await fetch(`/api/v1/apps/${app.id}`, { method: 'DELETE' })
+            if (!resDelete.ok) throw new Error("Failed to remove app from root")
+
+            // Refresh
+            fetchApps()
+        } catch (e) {
+            console.error("Move to folder failed", e)
+            alert("Failed to move app to folder")
+        }
+    }
+
+    // Delete App from Folder
+    const handleDeleteFromFolder = async (folderId: string, appId: string) => {
+        if (!confirm("Remove app from folder?")) return
+        try {
+            const folder = apps.find(a => a.id === folderId)
+            if (!folder) return
+
+            const newContents = folder.contents?.filter(a => a.id !== appId) || []
+
+            // Update Folder
+            const resFolder = await fetch(`/api/v1/apps/${folder.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...folder, contents: newContents })
+            })
+
+            if (!resFolder.ok) throw new Error("Failed to update folder")
+
+            fetchApps()
+
+            // Update openFolder state to reflect changes immediately
+            if (openFolder?.id === folderId) {
+                setOpenFolder({ ...folder, contents: newContents })
+            }
+        } catch (e) {
+            console.error("Failed to delete from folder", e)
+        }
+    }
+
+    // Move App from Folder to Root
+    const handleMoveFromFolderToRoot = async (folderId: string, app: AppData) => {
+        if (!confirm("Move app to main grid?")) return
+        try {
+            const folder = apps.find(a => a.id === folderId)
+            if (!folder) return
+
+            // 1. Remove from Folder
+            const newContents = folder.contents?.filter(a => a.id !== app.id) || []
+
+            const resFolder = await fetch(`/api/v1/apps/${folder.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...folder, contents: newContents })
+            })
+
+            if (!resFolder.ok) throw new Error("Failed to update folder")
+
+            // 2. Create at Root
+            // We strip 'id' to let backend assign a new one
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { id, ...appData } = app
+
+            const resCreate = await fetch('/api/v1/apps', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(appData)
+            })
+
+            if (!resCreate.ok) throw new Error("Failed to create app at root")
+
+            fetchApps()
+
+            // Update openFolder state
+            if (openFolder?.id === folderId) {
+                setOpenFolder({ ...folder, contents: newContents })
+            }
+
+        } catch (e) {
+            console.error("Failed to move to root", e)
+            alert("Failed to move app to root")
+        }
+    }
+
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event
-        if (over && active.id !== over.id) {
+        if (!over) return
+
+        const activeId = active.id as string
+        const overId = over.id as string
+
+        if (activeId === overId) return
+
+        // Check if dropping into folder
+        let targetFolderId: string | null = null
+        if (overId.startsWith('folder-drop-')) {
+            targetFolderId = overId.replace('folder-drop-', '')
+        } else {
+            const potentialFolder = apps.find(a => a.id === overId)
+            if (potentialFolder?.type === 'folder') {
+                targetFolderId = overId
+            }
+        }
+
+        if (targetFolderId) {
+            const folder = apps.find(a => a.id === targetFolderId)
+            const activeApp = apps.find(a => a.id === activeId)
+
+            if (folder && activeApp && activeApp.id !== folder.id) {
+                if (activeApp.type === 'folder') {
+                    alert("Nested folders are not supported yet.")
+                    return
+                }
+                moveAppToFolder(activeApp, folder)
+                return
+            }
+        }
+
+        // Check for Hidden Apps Interaction (Grid/List Mode)
+        const isHiddenAppsDrop = overId === 'hidden-apps' || (layoutConfig.hiddenAppIds || []).includes(overId)
+        const isFromHiddenApps = (layoutConfig.hiddenAppIds || []).includes(activeId)
+
+        if (isHiddenAppsDrop || isFromHiddenApps) {
+            // Moving TO Hidden Apps
+            if (!isFromHiddenApps && isHiddenAppsDrop) {
+                if (confirm("Hide this app?")) {
+                    setLayoutConfig(prev => ({
+                        ...prev,
+                        hiddenAppIds: [...(prev.hiddenAppIds || []), activeId]
+                    }))
+                }
+                return
+            }
+
+            // Moving FROM Hidden Apps TO Grid (Uncategorized)
+            if (isFromHiddenApps && !isHiddenAppsDrop) {
+                if (confirm("Unhide this app?")) {
+                    setLayoutConfig(prev => ({
+                        ...prev,
+                        hiddenAppIds: prev.hiddenAppIds?.filter(id => id !== activeId) || []
+                    }))
+                }
+                return
+            }
+
+            // Reordering WITHIN Hidden Apps
+            if (isFromHiddenApps && isHiddenAppsDrop && activeId !== overId) {
+                const oldIndex = layoutConfig.hiddenAppIds?.indexOf(activeId) ?? -1
+                const newIndex = layoutConfig.hiddenAppIds?.indexOf(overId) ?? -1
+
+                if (oldIndex !== -1 && newIndex !== -1) {
+                    setLayoutConfig(prev => ({
+                        ...prev,
+                        hiddenAppIds: arrayMove(prev.hiddenAppIds || [], oldIndex, newIndex)
+                    }))
+                }
+                return
+            }
+        }
+
+        if (active.id !== over.id) {
             setApps((items) => {
                 const oldIndex = items.findIndex(item => item.id === active.id)
                 const newIndex = items.findIndex(item => item.id === over.id)
+                if (oldIndex === -1 || newIndex === -1) return items
+
                 const newOrder = arrayMove(items, oldIndex, newIndex)
 
                 // Update customOrder in layoutConfig
@@ -664,6 +928,41 @@ function App() {
 
         const activeContainer = findContainerId(activeAppId);
         const overContainer = findContainerId(overId);
+
+        // Check for Folder Drop first
+        let targetFolderId: string | null = null
+        if (overId.startsWith('folder-drop-')) {
+            targetFolderId = overId.replace('folder-drop-', '')
+        } else {
+            const potentialFolder = apps.find(a => a.id === overId)
+            if (potentialFolder?.type === 'folder') {
+                targetFolderId = overId
+            }
+        }
+
+        if (targetFolderId) {
+            const folder = apps.find(a => a.id === targetFolderId)
+            const activeApp = apps.find(a => a.id === activeAppId)
+
+            if (folder && activeApp && activeApp.id !== folder.id) {
+                if (activeApp.type === 'folder') {
+                    alert("Nested folders are not supported yet.")
+                    return
+                }
+                moveAppToFolder(activeApp, folder)
+
+                // Cleanup from layout config
+                setLayoutConfig(prev => {
+                    const newCategories = prev.categories.map(c => ({
+                        ...c,
+                        app_ids: c.app_ids.filter(id => id !== activeAppId)
+                    }));
+                    const newHiddenAppIds = prev.hiddenAppIds ? prev.hiddenAppIds.filter(id => id !== activeAppId) : [];
+                    return { ...prev, categories: newCategories, hiddenAppIds: newHiddenAppIds }
+                })
+                return
+            }
+        }
 
         const overCategory = layoutConfig.categories.find(c => c.id === overId);
         const isOverHidden = overId === 'hidden-apps';
@@ -850,8 +1149,13 @@ function App() {
                                             tileClass={tileClass}
                                             style={getIconStyle()}
                                             onClick={(e: React.MouseEvent) => {
+                                                if (app.type === 'folder') {
+                                                    e.preventDefault();
+                                                    setOpenFolder(app);
+                                                    return;
+                                                }
                                                 if (isEditMode) e.preventDefault();
-                                                else window.location.href = app.url;
+                                                else if (app.url) window.location.href = app.url;
                                             }}
                                             onDelete={handleDeleteApp}
                                         >
@@ -885,6 +1189,10 @@ function App() {
                                     {(layoutConfig.hiddenAppIds || []).map((id) => {
                                         const app = apps.find(a => a.id === id);
                                         if (!app) return null;
+                                        // Filter by search query
+                                        if (searchQuery && !app.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+                                            return null;
+                                        }
                                         return (
                                             <SortableAppTile
                                                 key={app.id}
@@ -894,7 +1202,8 @@ function App() {
                                                 style={getIconStyle()}
                                                 onClick={(e: React.MouseEvent) => {
                                                     if (isEditMode) e.preventDefault();
-                                                    else window.location.href = app.url;
+                                                    else if (app.type === 'folder') setOpenFolder(app);
+                                                    else if (app.url) window.location.href = app.url;
                                                 }}
                                                 onDelete={handleDeleteApp}
                                             >
@@ -938,7 +1247,8 @@ function App() {
                                             style={getIconStyle()}
                                             onClick={(e: React.MouseEvent) => {
                                                 if (isEditMode) e.preventDefault();
-                                                else window.location.href = app.url;
+                                                else if (app.type === 'folder') setOpenFolder(app);
+                                                else if (app.url) window.location.href = app.url;
                                             }}
                                             onDelete={handleDeleteApp}
                                         >
@@ -959,10 +1269,13 @@ function App() {
         // Default Grid/List View
         return (
             <SortableContext items={displayApps.map(app => app.id)} strategy={rectSortingStrategy}>
-                <div className={`p-6 pb-24 gap-6 ${layoutConfig.mode === 'list'
-                    ? 'flex flex-col max-w-3xl mx-auto'
-                    : 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6'
-                    }`}>
+                <DroppableContainer
+                    id="uncategorized"
+                    className={`p-6 pb-24 gap-6 ${layoutConfig.mode === 'list'
+                        ? 'flex flex-col max-w-3xl mx-auto'
+                        : 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6'
+                        }`}
+                >
                     {displayApps.map((app) => (
                         <SortableAppTile
                             key={app.id}
@@ -973,8 +1286,13 @@ function App() {
                                 : tileClass}
                             style={getIconStyle()}
                             onClick={(e: React.MouseEvent) => {
+                                if (app.type === 'folder') {
+                                    e.preventDefault();
+                                    setOpenFolder(app);
+                                    return;
+                                }
                                 if (isEditMode) e.preventDefault();
-                                else window.location.href = app.url;
+                                else if (app.url) window.location.href = app.url;
                             }}
                             onDelete={handleDeleteApp}
                         >
@@ -1008,6 +1326,10 @@ function App() {
                                     {(layoutConfig.hiddenAppIds || []).map((id) => {
                                         const app = apps.find(a => a.id === id);
                                         if (!app) return null;
+                                        // Filter by search query
+                                        if (searchQuery && !app.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+                                            return null;
+                                        }
                                         return (
                                             <SortableAppTile
                                                 key={app.id}
@@ -1016,8 +1338,13 @@ function App() {
                                                 tileClass={tileClass}
                                                 style={getIconStyle()}
                                                 onClick={(e: React.MouseEvent) => {
+                                                    if (app.type === 'folder') {
+                                                        e.preventDefault();
+                                                        setOpenFolder(app);
+                                                        return;
+                                                    }
                                                     if (isEditMode) e.preventDefault();
-                                                    else window.location.href = app.url;
+                                                    else if (app.url) window.location.href = app.url;
                                                 }}
                                                 onDelete={handleDeleteApp}
                                             >
@@ -1037,7 +1364,7 @@ function App() {
                             </SortableContext>
                         </div>
                     )}
-                </div>
+                </DroppableContainer>
             </SortableContext>
         )
     }
@@ -1079,6 +1406,8 @@ function App() {
                 onLogoChange={setLogoConfig}
                 iconConfig={iconConfig}
                 onIconConfigChange={setIconConfig}
+                titleConfig={titleConfig}
+                onTitleConfigChange={setTitleConfig}
             />
 
             {!isSetup && (
@@ -1112,12 +1441,61 @@ function App() {
                 />
             )}
 
+
+
+            {openFolder && (
+                <FolderModal
+                    folder={openFolder}
+                    isOpen={!!openFolder}
+                    onClose={() => setOpenFolder(null)}
+                    onRequestAdd={() => {
+                        setTargetFolderId(openFolder.id)
+                        handleProtectedAction('add_app')
+                    }}
+                    isEditMode={isEditMode}
+                    onDelete={(appId) => handleDeleteFromFolder(openFolder.id, appId)}
+                    onMoveToRoot={(app) => handleMoveFromFolderToRoot(openFolder.id, app)}
+                />
+            )}
+
             <AddAppModal
                 isOpen={isAddAppOpen}
                 onClose={() => setIsAddAppOpen(false)}
-                onAdded={async (isHidden, appId) => {
-                    await fetchApps()
-                    if (isHidden && appId) {
+                onAdded={async (isHidden, appId, newApp) => {
+                    await fetchApps() // Refresh first to get the new app in state (eventually)
+
+                    if (targetFolderId && newApp) {
+                        try {
+                            // 1. Fetch current apps to get fresh folder data
+                            const allApps = await fetch('/api/v1/apps').then(r => r.json())
+                            const folder = allApps.find((a: AppData) => a.id === targetFolderId)
+
+                            if (folder) {
+                                // 2. Add new app to folder contents
+                                const updatedContents = [...(folder.contents || []), newApp]
+
+                                await fetch(`/api/v1/apps/${targetFolderId}`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ contents: updatedContents })
+                                })
+
+                                // 3. Delete the app from root (since it's now in folder)
+                                // Only if it's not the folder itself (obv)
+                                if (appId) {
+                                    await fetch(`/api/v1/apps/${appId}`, { method: 'DELETE' })
+                                }
+
+                                // 4. Update UI
+                                setOpenFolder({ ...folder, contents: updatedContents })
+                                await fetchApps()
+                            }
+                        } catch (e) {
+                            console.error("Failed to move app to folder", e)
+                            alert("Failed to move app to folder")
+                        }
+                        setTargetFolderId(null)
+                    } else if (isHidden && appId) {
                         // Immediately hide the app
                         setLayoutConfig(prev => {
                             const newHidden = [...(prev.hiddenAppIds || []), appId]
@@ -1138,8 +1516,12 @@ function App() {
                     ) : (
                         <AnimatedLogo className="w-12 h-12" />
                     )}
-                    <h1 className="text-xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-purple leading-none ml-0"
-                        style={{ textShadow: '0 0 10px rgba(6, 182, 212, 0.4)' }}>
+                    <h1 className={`text-xl font-bold tracking-tighter transition-all ml-0 ${titleConfig.style === 'default' ? 'text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-purple' : ''} ${titleConfig.style === 'gradient' ? 'text-transparent bg-clip-text' : titleConfig.style === 'solid' ? 'text-white' : ''}`}
+                        style={{
+                            textShadow: '0 0 10px rgba(6, 182, 212, 0.4)',
+                            color: titleConfig.style === 'solid' ? titleConfig.color : undefined,
+                            backgroundImage: titleConfig.style === 'gradient' ? `linear-gradient(to right, ${titleConfig.gradientColors?.[0]}, ${titleConfig.gradientColors?.[1]})` : undefined
+                        }}>
                         {pageTitle}
                     </h1>
                 </div>
@@ -1185,9 +1567,12 @@ function App() {
                         <AnimatedLogo />
                     )}
                     <h1
-                        className={`text-5xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-purple text-center transition-all ${logoConfig.type === 'image' && logoConfig.value ? 'mt-2' : '-mt-16'
-                            }`}
-                        style={{ textShadow: '0 0 15px rgba(6, 182, 212, 0.4)' }}
+                        className={`text-5xl font-bold tracking-tighter text-center transition-all ${logoConfig.type === 'image' && logoConfig.value ? 'mt-2' : '-mt-16'} ${titleConfig.style === 'default' ? 'text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-purple' : ''} ${titleConfig.style === 'gradient' ? 'text-transparent bg-clip-text' : titleConfig.style === 'solid' ? 'text-white' : ''}`}
+                        style={{
+                            textShadow: '0 0 15px rgba(6, 182, 212, 0.4)',
+                            color: titleConfig.style === 'solid' ? titleConfig.color : undefined,
+                            backgroundImage: titleConfig.style === 'gradient' ? `linear-gradient(to right, ${titleConfig.gradientColors?.[0]}, ${titleConfig.gradientColors?.[1]})` : undefined
+                        }}
                     >
                         {pageTitle}
                     </h1>
@@ -1257,8 +1642,8 @@ function App() {
     )
 }
 
-function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: () => void, onAdded: (isHidden?: boolean, appId?: string) => void }) {
-    const [activeTab, setActiveTab] = useState<'custom' | 'store'>('custom')
+function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: () => void, onAdded: (isHidden?: boolean, appId?: string, newApp?: AppData) => void }) {
+    const [activeTab, setActiveTab] = useState<'custom' | 'store' | 'folder'>('custom')
     const [premiumApps, setPremiumApps] = useState<AppData[]>([])
     const [selectedPremiumApp, setSelectedPremiumApp] = useState<AppData | null>(null)
 
@@ -1289,16 +1674,27 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
         e.preventDefault()
         setLoading(true)
 
-        // Basic URL validation/fix
         let finalUrl = url
-        if (!/^https?:\/\//i.test(finalUrl)) {
-            finalUrl = 'https://' + finalUrl
+        // Validate URL only for links
+        if (activeTab !== 'folder') {
+            if (!/^https?:\/\//i.test(finalUrl)) {
+                finalUrl = 'https://' + finalUrl
+            }
         }
 
         try {
-            const body: { name: string; url: string; premium_id?: string } = { name, url: finalUrl }
-            if (activeTab === 'store' && selectedPremiumApp) {
-                body.premium_id = selectedPremiumApp.id
+            const body: any = {
+                name,
+                type: activeTab === 'folder' ? 'folder' : 'link'
+            }
+
+            if (activeTab !== 'folder') {
+                body.url = finalUrl
+                if (activeTab === 'store' && selectedPremiumApp) {
+                    body.premium_id = selectedPremiumApp.id
+                }
+            } else {
+                body.contents = []
             }
 
             const res = await fetch('/api/v1/apps', {
@@ -1308,7 +1704,7 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
             })
             if (res.ok) {
                 const newApp = await res.json()
-                onAdded(hideApp, newApp.id)
+                onAdded(hideApp, newApp.id, newApp)
                 onClose()
                 // Reset form
                 setName('')
@@ -1370,39 +1766,49 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
                 )}
 
                 <div className="space-y-2">
-                    <label className="text-sm text-gray-400">App Name</label>
+                    <label className="text-sm font-medium text-gray-300">Name</label>
                     <input
                         type="text"
                         required
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="e.g. Google"
-                        className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-neon-cyan outline-none transition"
-                    />
-                </div>
-                <div className="space-y-2">
-                    <label className="text-sm text-gray-400">URL</label>
-                    <input
-                        type="text"
-                        required
-                        value={url}
-                        onChange={(e) => setUrl(e.target.value)}
-                        placeholder="https://..."
-                        className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:ring-1 focus:ring-neon-cyan outline-none transition"
+                        className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-neon-cyan transition-colors"
+                        placeholder={activeTab === 'folder' ? "Folder Name" : "App Name"}
                     />
                 </div>
 
-                <div className="flex items-center gap-2 pt-2">
-                    <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-400 hover:text-white transition group relative">
+                {activeTab !== 'folder' && (
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-300">URL</label>
                         <input
-                            type="checkbox"
-                            checked={hideApp}
-                            onChange={(e) => setHideApp(e.target.checked)}
-                            className="w-4 h-4 rounded border-gray-600 bg-black/40 text-neon-cyan focus:ring-neon-cyan/50"
+                            type="text"
+                            required={!selectedPremiumApp}
+                            value={url}
+                            onChange={(e) => setUrl(e.target.value)}
+                            className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-neon-cyan transition-colors"
+                            placeholder="https://example.com"
                         />
-                        <span>Hide this app immediately</span>
-                    </label>
+                    </div>
+                )}
+
+                <div className="flex items-center gap-2 pt-2">
+                    <button
+                        type="button"
+                        onClick={() => setHideApp(!hideApp)}
+                        className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${hideApp ? 'bg-neon-cyan border-neon-cyan text-black' : 'border-gray-500 text-transparent'}`}
+                    >
+                        <Check className="w-3 h-3" />
+                    </button>
+                    <span className="text-sm text-gray-400" onClick={() => setHideApp(!hideApp)}>Initially Hidden (can be changed in Layout)</span>
                 </div>
+
+                <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-gradient-to-r from-neon-cyan to-neon-purple text-white font-medium py-2.5 rounded-lg hover:opacity-90 transition disabled:opacity-50"
+                >
+                    {loading ? "Adding..." : activeTab === 'folder' ? "Create Folder" : "Add App"}
+                </button>
             </div>
         )
     }
@@ -1412,48 +1818,116 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
             <div className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden glass-panel">
                 <div className="flex flex-col border-b border-white/10">
                     <div className="flex justify-between items-center px-6 py-4">
-                        <h2 className="text-lg font-semibold text-white">Add New App</h2>
+                        <h2 className="text-lg font-semibold text-white">Add New Item</h2>
                         <button onClick={onClose} className="text-gray-400 hover:text-white transition">
                             <Plus className="w-5 h-5 rotate-45" />
                         </button>
                     </div>
                     {/* Tabs */}
                     <div className="flex px-6 gap-6">
-                        <button
-                            onClick={() => { setActiveTab('custom'); setSelectedPremiumApp(null); }}
-                            className={`pb-3 text-sm font-medium transition-colors relative ${activeTab === 'custom' ? 'text-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
-                        >
-                            Custom URL
-                            {activeTab === 'custom' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-neon-cyan shadow-[0_0_10px_#00f3ff]" />}
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('store')}
-                            className={`pb-3 text-sm font-medium transition-colors relative ${activeTab === 'store' ? 'text-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
-                        >
-                            App Store
-                            {activeTab === 'store' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-neon-cyan shadow-[0_0_10px_#00f3ff]" />}
-                        </button>
+                        {(['custom', 'store', 'folder'] as const).map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => { setActiveTab(tab); setSelectedPremiumApp(null); }}
+                                className={`pb-3 text-sm font-medium transition-colors relative ${activeTab === tab ? 'text-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                            >
+                                {tab === 'custom' ? 'Custom App' : tab === 'store' ? 'App Store' : 'Folder'}
+                                {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-neon-cyan shadow-[0_0_10px_#00f3ff]" />}
+                            </button>
+                        ))}
                     </div>
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6">
                     {renderFormContent()}
 
-                    {(activeTab === 'custom' || selectedPremiumApp) && (
-                        <div className="pt-6">
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full bg-gradient-to-r from-neon-cyan to-neon-purple text-white font-medium py-2.5 rounded-lg hover:opacity-90 transition disabled:opacity-50"
-                            >
-                                {loading ? 'Adding...' : 'Add App'}
-                            </button>
-                        </div>
-                    )}
+
                 </form>
             </div>
         </div>
     )
 }
+
+function FolderModal({ folder, isOpen, onClose, onRequestAdd, isEditMode, onDelete, onMoveToRoot }: { folder: AppData, isOpen: boolean, onClose: () => void, onRequestAdd: () => void, isEditMode: boolean, onDelete: (appId: string) => void, onMoveToRoot: (app: AppData) => void }) {
+    if (!isOpen) return null
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+            <div className="relative w-full max-w-4xl bg-[#0a0a0a]/90 border border-white/10 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[80vh]">
+                <div className="flex items-center justify-between p-6 border-b border-white/10">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-white/5 rounded-lg">
+                            <Folder className="w-6 h-6 text-neon-cyan" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-white">{folder.name}</h2>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                        <X className="w-6 h-6 text-gray-400" />
+                    </button>
+                </div>
+
+                <div className="p-6 overflow-y-auto custom-scrollbar bg-black/20 min-h-[300px]">
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                        {folder.contents?.map(app => (
+                            <div key={app.id} className="group relative">
+                                <a
+                                    href={app.url}
+                                    onClick={(e) => { if (isEditMode) e.preventDefault(); }}
+                                    className={`flex flex-col items-center gap-3 p-4 rounded-xl hover:bg-white/5 transition-all group-hover:scale-105 ${isEditMode ? 'cursor-default' : ''}`}
+                                >
+                                    <div className="w-16 h-16 bg-black/40 rounded-2xl p-2 shadow-lg group-hover:shadow-neon-cyan/20 transition-all border border-white/5 group-hover:border-neon-cyan/30">
+                                        <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain drop-shadow-md" />
+                                    </div>
+                                    <span className="text-sm font-medium text-gray-200 group-hover:text-white text-center line-clamp-2">
+                                        {app.name}
+                                    </span>
+                                </a>
+                                {isEditMode && (
+                                    <div className="absolute -top-3 -right-3 z-20 flex gap-2">
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                onMoveToRoot(app);
+                                            }}
+                                            className="bg-blue-500 text-white p-1.5 rounded-full hover:bg-blue-600 transition shadow-lg shrink-0 flex items-center justify-center transform hover:scale-110"
+                                            title="Move to Main Grid"
+                                        >
+                                            <ArrowUpFromLine className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                onDelete(app.id);
+                                            }}
+                                            className="bg-red-500 text-white p-1.5 rounded-full hover:bg-red-600 transition shadow-lg shrink-0 flex items-center justify-center transform hover:scale-110"
+                                            title="Delete"
+                                        >
+                                            <Trash className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+
+                        {/* Add App Button */}
+                        <button
+                            onClick={onRequestAdd}
+                            className="flex flex-col items-center gap-3 p-4 rounded-xl hover:bg-white/5 transition-all group border-2 border-dashed border-white/10 hover:border-neon-cyan/50"
+                        >
+                            <div className="w-16 h-16 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                                <Plus className="w-8 h-8 text-gray-500 group-hover:text-neon-cyan" />
+                            </div>
+                            <span className="text-sm font-medium text-gray-500 group-hover:text-neon-cyan">Add App</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 
 export default App

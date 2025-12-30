@@ -22,7 +22,9 @@ class AppService:
     async def create(self, app_in: AppCreate) -> App:
         # 1. Determine Icon Logic
         icon_url = app_in.icon_url
-        if not icon_url:
+        
+        # Only fetch icon if it's a link and has a URL
+        if app_in.type == 'link' and app_in.url and not icon_url:
             # Check premium default
             if app_in.premium_id:
                 premium_app = AppRegistry.get(app_in.premium_id)
@@ -45,6 +47,8 @@ class AppService:
             url=app_in.url,
             icon_url=icon_url,
             premium_id=app_in.premium_id,
+            type=app_in.type,
+            contents=app_in.contents,
             created_at=datetime.utcnow().isoformat(),
         )
 
@@ -57,6 +61,12 @@ class AppService:
         success = await self.repo.delete(app_id)
         if not success:
             raise NotFoundException(f"App {app_id}")
+
+    async def update(self, app_id: str, app_in: dict) -> App:
+        updated = await self.repo.update(app_id, app_in)
+        if not updated:
+            raise NotFoundException(f"App {app_id}")
+        return updated
 
     # --- Helper Logic (Refactored from old endpoint) ---
     async def _fetch_best_icon(self, url: str) -> Optional[str]:

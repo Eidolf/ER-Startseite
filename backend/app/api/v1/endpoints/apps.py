@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict, Any
 
 from fastapi import APIRouter, Depends
 
@@ -27,6 +27,13 @@ async def list_premium_apps():
 @router.post("", response_model=App)
 async def create_app(app_in: AppCreate, service: AppService = Depends(get_service)):
     return await service.create(app_in)
+
+
+@router.put("/{app_id}", response_model=App)
+async def update_app(
+    app_id: str, app_update: Dict[str, Any], service: AppService = Depends(get_service)
+):
+    return await service.update(app_id, app_update)
 
 
 @router.delete("/{app_id}")
