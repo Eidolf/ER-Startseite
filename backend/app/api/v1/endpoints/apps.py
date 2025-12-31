@@ -35,8 +35,11 @@ async def update_app(
 ):
     return await service.update(app_id, app_update)
 
+
+@router.delete("/{app_id}")
+async def delete_app(app_id: str, service: AppService = Depends(get_service)):
     await service.delete(app_id)
-    return {"status": "success"}  # Could be empty 204
+    return {"status": "success"}
 
 
 @router.post("/preview", response_model=AppPreviewResponse)

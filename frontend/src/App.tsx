@@ -1840,6 +1840,7 @@ function AppFormModal({ isOpen, onClose, onComplete, editApp, categories }: { is
         setSelectedPremiumApp(app)
         setName(app.name)
         setUrl('')
+        setDescription(app.description || '')
     }
 
     if (!isOpen) return null

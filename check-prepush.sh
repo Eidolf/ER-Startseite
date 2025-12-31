@@ -58,7 +58,7 @@ if command -v act >/dev/null 2>&1; then
        # Run actual build. NOTE: This might take time.
        # We restrict to a specific job if possible to be faster, e.g. "build".
        # If uncertain of job names, run all for push event.
-       run_step "GitHub Actions (act)" "act push -j build --container-architecture linux/amd64" "optional"
+       run_step "GitHub Actions (act)" "act push -j validate --container-architecture linux/amd64" "optional"
     else
        echo -e "${RED}❌ act dry-run failed. Check workflow syntax.${NC}"
        ((fail_count++))
