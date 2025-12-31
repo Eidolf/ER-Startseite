@@ -14,6 +14,41 @@ class AppRepository(JsonRepository[App]):
     def __init__(self):
         super().__init__("data/apps.json", App)
 
+    async def update(
+        self, item_id: str, update_data: dict, id_field: str = "id"
+    ) -> App | None:
+        items = await self.read_all()
+        updated_item = None
+
+        # Recursive function to find and update
+        def update_recursive(app_list):
+            nonlocal updated_item
+            for i, app in enumerate(app_list):
+                if getattr(app, id_field) == item_id:
+                    # Found it! Update logic similar to Base Repo
+                    curr_data = app.model_dump(mode="json")
+                    curr_data.update(update_data)
+                    new_app = self.model(**curr_data)
+                    app_list[i] = new_app
+                    updated_item = new_app
+                    return True
+
+                # Check contents if folder
+                # Check contents if folder
+                if (
+                    app.type == "folder"
+                    and app.contents
+                    and update_recursive(app.contents)
+                ):
+                    return True
+            return False
+
+        if update_recursive(items):
+            await self.save_all(items)
+            return updated_item
+
+        return None
+
 
 # Config Repo manages a SINGLE Config Object (stored as a JSON object, not list)
 # We need to override read/save for single object

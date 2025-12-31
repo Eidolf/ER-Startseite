@@ -38,6 +38,7 @@ class LayoutConfig(BaseModel):
 
 class AppConfig(BaseModel):
     pageTitle: str = "ER-Startseite"
+    openInNewTab: bool = False
     bgConfig: BackgroundConfig
     logoConfig: LogoConfig
     iconConfig: IconConfig

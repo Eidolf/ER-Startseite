@@ -3,7 +3,7 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, Depends
 
 from app.core.premium_apps import AppRegistry, PremiumAppDefinition
-from app.schemas.app import App, AppCreate
+from app.schemas.app import App, AppCreate, AppPreviewRequest, AppPreviewResponse
 from app.services.app_service import AppService
 
 router = APIRouter()
@@ -35,8 +35,17 @@ async def update_app(
 ):
     return await service.update(app_id, app_update)
 
-
-@router.delete("/{app_id}")
-async def delete_app(app_id: str, service: AppService = Depends(get_service)):
     await service.delete(app_id)
     return {"status": "success"}  # Could be empty 204
+
+
+@router.post("/preview", response_model=AppPreviewResponse)
+async def preview_app(
+    preview_in: AppPreviewRequest, service: AppService = Depends(get_service)
+):
+    meta = await service.fetch_metadata(str(preview_in.url))
+    return AppPreviewResponse(
+        title=meta.get("title"),
+        icon=meta.get("icon"),
+        description=meta.get("description"),
+    )

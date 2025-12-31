@@ -8,6 +8,8 @@ class AppBase(BaseModel):
     id: Optional[str] = None
     url: Optional[HttpUrl] = None
     icon_url: Optional[str] = None
+    custom_icon_url: Optional[str] = None
+    description: Optional[str] = None
     premium_id: Optional[str] = None
     type: Literal["link", "folder"] = "link"
     contents: List["AppBase"] = []
@@ -20,6 +22,17 @@ class AppCreate(AppBase):
 class App(AppBase):
     id: str
     created_at: str
+    contents: List["App"] = []  # type: ignore
+
+
+class AppPreviewRequest(BaseModel):
+    url: HttpUrl
+
+
+class AppPreviewResponse(BaseModel):
+    title: Optional[str] = None
+    icon: Optional[str] = None
+    description: Optional[str] = None
 
 
 App.model_rebuild()

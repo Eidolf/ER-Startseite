@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { AppIcon } from './components/AppIcon'
 import { AnimatedLogo } from './components/AnimatedLogo'
-import { Plus, Search, Settings, LayoutGrid, X, Trash, EyeOff, Folder, Pencil, PlusCircle, Check, UserCheck, ArrowUpFromLine } from 'lucide-react'
+import { Plus, Search, Settings, LayoutGrid, X, Trash, EyeOff, Folder, Pencil, PlusCircle, Check, UserCheck, ArrowUpFromLine, Upload, RefreshCw } from 'lucide-react'
 import { SettingsModal } from './components/SettingsModal'
+import { AppDetailsModal } from './components/AppDetailsModal'
 import { LayoutMenu, LayoutMode } from './components/LayoutMenu'
 import { DndContext, pointerWithin, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, useDroppable } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from '@dnd-kit/sortable'
@@ -43,6 +44,15 @@ export interface LayoutConfig {
     customOrder: string[] // App IDs
     categories: Category[]
     hiddenAppIds: string[]
+}
+
+export interface AppConfig {
+    pageTitle: string
+    openInNewTab: boolean
+    bgConfig: BackgroundConfig
+    logoConfig: LogoConfig
+    iconConfig: IconConfig
+    layoutConfig: LayoutConfig
 }
 
 const DEFAULT_BG: BackgroundConfig = {
@@ -90,6 +100,7 @@ export interface AppData {
     name: string
     url?: string
     icon_url?: string
+    custom_icon_url?: string
     description?: string
     default_icon?: string // For premium apps
     type?: 'link' | 'folder'
@@ -104,9 +115,11 @@ interface SortableAppTileProps {
     children: React.ReactNode
     onClick: (e: React.MouseEvent) => void
     onDelete: (e: React.MouseEvent, id: string) => void
+    onEdit?: (e: React.MouseEvent, app: AppData) => void
+    onContextMenu?: (e: React.MouseEvent, app: AppData) => void
 }
 
-function SortableAppTile({ app, isEditMode, tileClass, style, children, onClick, onDelete }: SortableAppTileProps) {
+function SortableAppTile({ app, isEditMode, tileClass, style, children, onClick, onDelete, onEdit, onContextMenu }: SortableAppTileProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: app.id, disabled: !isEditMode });
 
     // Enable drop for folders
@@ -141,16 +154,34 @@ function SortableAppTile({ app, isEditMode, tileClass, style, children, onClick,
             {...listeners}
             className={`${tileClass} ${isEditMode ? 'cursor-grab active:cursor-grabbing animate-pulse' : ''}`}
             onClick={onClick}
+            onContextMenu={(e) => {
+                if (onContextMenu) {
+                    e.preventDefault();
+                    onContextMenu(e, app);
+                }
+            }}
         >
             {children}
             {isEditMode && (
-                <button
-                    onClick={(e) => onDelete(e, app.id)}
-                    className="absolute -top-2 -right-2 z-20 bg-red-500 text-white p-1.5 rounded-full hover:bg-red-600 transition shadow-lg shrink-0 flex items-center justify-center"
-                    onPointerDown={(e) => e.stopPropagation()} // Prevent drag start on delete button
-                >
-                    <Trash className="w-4 h-4" />
-                </button>
+                <>
+                    <button
+                        onClick={(e) => onDelete(e, app.id)}
+                        className="absolute -top-2 -right-2 z-20 bg-red-500 text-white p-1.5 rounded-full hover:bg-red-600 transition shadow-lg shrink-0 flex items-center justify-center"
+                        onPointerDown={(e) => e.stopPropagation()} // Prevent drag start
+                    >
+                        <Trash className="w-4 h-4" />
+                    </button>
+                    {onEdit && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onEdit(e, app); }}
+                            className="absolute -top-2 -right-10 z-20 bg-blue-500 text-white p-1.5 rounded-full hover:bg-blue-600 transition shadow-lg shrink-0 flex items-center justify-center"
+                            onPointerDown={(e) => e.stopPropagation()}
+                            style={{ right: '2rem' }} // Offset from trash
+                        >
+                            <Pencil className="w-4 h-4" />
+                        </button>
+                    )}
+                </>
             )}
         </div>
     )
@@ -356,6 +387,7 @@ function App() {
     const [iconConfig, setIconConfig] = useState<IconConfig>(DEFAULT_ICON_CONFIG)
     const [layoutConfig, setLayoutConfig] = useState<LayoutConfig>(DEFAULT_LAYOUT_CONFIG)
     const [pageTitle, setPageTitle] = useState('ER-Startseite')
+    const [openInNewTab, setOpenInNewTab] = useState(false)
 
     const [configLoaded, setConfigLoaded] = useState(false)
 
@@ -368,7 +400,9 @@ function App() {
     const [showHiddenApps, setShowHiddenApps] = useState(false)
 
     const [apps, setApps] = useState<AppData[]>([])
-    const [isAddAppOpen, setIsAddAppOpen] = useState(false)
+    const [isAppFormOpen, setIsAppFormOpen] = useState(false)
+    const [editingApp, setEditingApp] = useState<AppData | null>(null)
+    const [detailsApp, setDetailsApp] = useState<AppData | null>(null)
 
     // Auth State
     const [titleConfig, setTitleConfig] = useState<TitleConfig>(() => {
@@ -383,6 +417,8 @@ function App() {
     const [targetFolderId, setTargetFolderId] = useState<string | null>(null)
     const [pendingAction, setPendingAction] = useState<'settings' | 'layout_menu' | 'add_app' | 'edit_mode' | 'show_hidden' | null>(null)
 
+    const [isLoadingAuth, setIsLoadingAuth] = useState(true)
+
     // Check Auth Status
     useEffect(() => {
         fetch('/api/v1/auth/status')
@@ -391,13 +427,14 @@ function App() {
                 setIsSetup(data.is_setup)
             })
             .catch(e => console.error("Auth status check failed", e))
+            .finally(() => setIsLoadingAuth(false))
     }, [])
 
     const handleUnlockSuccess = () => {
         setIsAuthenticated(true)
         if (pendingAction === 'settings') setIsSettingsOpen(true)
         if (pendingAction === 'layout_menu') setIsLayoutMenuOpen(true)
-        if (pendingAction === 'add_app') setIsAddAppOpen(true)
+        if (pendingAction === 'add_app') { setIsAppFormOpen(true); setEditingApp(null); }
         if (pendingAction === 'edit_mode') setIsEditMode(prev => !prev)
         if (pendingAction === 'show_hidden') setShowHiddenApps(prev => !prev)
         setPendingAction(null)
@@ -407,7 +444,7 @@ function App() {
         if (isAuthenticated) {
             if (action === 'settings') setIsSettingsOpen(true)
             if (action === 'layout_menu') setIsLayoutMenuOpen(true)
-            if (action === 'add_app') setIsAddAppOpen(true)
+            if (action === 'add_app') { setIsAppFormOpen(true); setEditingApp(null); }
             if (action === 'edit_mode') setIsEditMode(prev => !prev)
             if (action === 'show_hidden') setShowHiddenApps(prev => !prev)
             return
@@ -439,6 +476,7 @@ function App() {
             .then(data => {
                 if (data) {
                     setPageTitle(data.pageTitle || 'ER-Startseite')
+                    setOpenInNewTab(data.openInNewTab || false)
                     setBgConfig(data.bgConfig || DEFAULT_BG)
                     setLogoConfig(data.logoConfig || DEFAULT_LOGO_CONFIG)
                     setIconConfig(data.iconConfig || DEFAULT_ICON_CONFIG)
@@ -459,6 +497,7 @@ function App() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     pageTitle,
+                    openInNewTab,
                     bgConfig,
                     logoConfig,
                     iconConfig,
@@ -469,7 +508,7 @@ function App() {
         }, 500) // Debounce 500ms
 
         return () => clearTimeout(timer)
-    }, [pageTitle, bgConfig, logoConfig, iconConfig, layoutConfig, titleConfig, configLoaded])
+    }, [pageTitle, openInNewTab, bgConfig, logoConfig, iconConfig, layoutConfig, titleConfig, configLoaded])
 
     // Helper to generate icon style
     const getIconStyle = () => {
@@ -1078,6 +1117,13 @@ function App() {
         }
     }, [apps, layoutConfig.customOrder])
 
+    const handleContextMenu = (e: React.MouseEvent, app: AppData) => {
+        if (!isEditMode) {
+            e.preventDefault()
+            setDetailsApp(app)
+        }
+    }
+
     const renderContent = () => {
         if (layoutConfig.mode === 'categories') {
             const hasSearch = searchQuery.length > 0;
@@ -1155,9 +1201,17 @@ function App() {
                                                     return;
                                                 }
                                                 if (isEditMode) e.preventDefault();
-                                                else if (app.url) window.location.href = app.url;
+                                                else if (app.url) {
+                                                    if (openInNewTab) window.open(app.url, '_blank', 'noopener,noreferrer');
+                                                    else window.location.href = app.url;
+                                                }
                                             }}
                                             onDelete={handleDeleteApp}
+                                            onEdit={(_e, app) => {
+                                                setEditingApp(app);
+                                                setIsAppFormOpen(true);
+                                            }}
+                                            onContextMenu={handleContextMenu}
                                         >
                                             <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0">
                                                 <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain" />
@@ -1203,9 +1257,17 @@ function App() {
                                                 onClick={(e: React.MouseEvent) => {
                                                     if (isEditMode) e.preventDefault();
                                                     else if (app.type === 'folder') setOpenFolder(app);
-                                                    else if (app.url) window.location.href = app.url;
+                                                    else if (app.url) {
+                                                        if (openInNewTab) window.open(app.url, '_blank', 'noopener,noreferrer');
+                                                        else window.location.href = app.url;
+                                                    }
                                                 }}
                                                 onDelete={handleDeleteApp}
+                                                onEdit={(_e, app) => {
+                                                    setEditingApp(app);
+                                                    setIsAppFormOpen(true);
+                                                }}
+                                                onContextMenu={handleContextMenu}
                                             >
                                                 <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0 opacity-70">
                                                     <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain grayscale" />
@@ -1248,9 +1310,17 @@ function App() {
                                             onClick={(e: React.MouseEvent) => {
                                                 if (isEditMode) e.preventDefault();
                                                 else if (app.type === 'folder') setOpenFolder(app);
-                                                else if (app.url) window.location.href = app.url;
+                                                else if (app.url) {
+                                                    if (openInNewTab) window.open(app.url, '_blank', 'noopener,noreferrer');
+                                                    else window.location.href = app.url;
+                                                }
                                             }}
                                             onDelete={handleDeleteApp}
+                                            onEdit={(_e, app) => {
+                                                setEditingApp(app);
+                                                setIsAppFormOpen(true);
+                                            }}
+                                            onContextMenu={handleContextMenu}
                                         >
                                             <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0">
                                                 <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain" />
@@ -1292,9 +1362,17 @@ function App() {
                                     return;
                                 }
                                 if (isEditMode) e.preventDefault();
-                                else if (app.url) window.location.href = app.url;
+                                else if (app.url) {
+                                    if (openInNewTab) window.open(app.url, '_blank', 'noopener,noreferrer');
+                                    else window.location.href = app.url;
+                                }
                             }}
                             onDelete={handleDeleteApp}
+                            onEdit={(_e, app) => {
+                                setEditingApp(app);
+                                setIsAppFormOpen(true);
+                            }}
+                            onContextMenu={handleContextMenu}
                         >
                             <div className={`${layoutConfig.mode === 'list' ? 'w-12 h-12' : 'w-16 h-16'} rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0`}>
                                 <AppIcon
@@ -1303,9 +1381,16 @@ function App() {
                                     className="w-full h-full object-contain"
                                 />
                             </div>
-                            <span className={`font-medium text-gray-200 group-hover:text-white ${layoutConfig.mode === 'list' ? 'text-lg text-left' : 'text-center text-sm'} truncate w-full px-2`}>
-                                {app.name}
-                            </span>
+                            <div className={`flex flex-col min-w-0 ${layoutConfig.mode === 'list' ? 'flex-1 items-start' : 'items-center w-full'}`}>
+                                <span className={`font-medium text-gray-200 group-hover:text-white ${layoutConfig.mode === 'list' ? 'text-lg text-left' : 'text-center text-sm'} truncate w-full px-2`}>
+                                    {app.name}
+                                </span>
+                                {layoutConfig.mode === 'list' && app.description && (
+                                    <span className="text-sm text-gray-400 truncate w-full px-2 text-left">
+                                        {app.description}
+                                    </span>
+                                )}
+                            </div>
                         </SortableAppTile>
                     ))}
 
@@ -1344,9 +1429,17 @@ function App() {
                                                         return;
                                                     }
                                                     if (isEditMode) e.preventDefault();
-                                                    else if (app.url) window.location.href = app.url;
+                                                    else if (app.url) {
+                                                        if (openInNewTab) window.open(app.url, '_blank', 'noopener,noreferrer');
+                                                        else window.location.href = app.url;
+                                                    }
                                                 }}
                                                 onDelete={handleDeleteApp}
+                                                onEdit={(_e, app) => {
+                                                    setEditingApp(app);
+                                                    setIsAppFormOpen(true);
+                                                }}
+                                                onContextMenu={handleContextMenu}
                                             >
                                                 <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0 opacity-70">
                                                     <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain grayscale" />
@@ -1367,6 +1460,18 @@ function App() {
                 </DroppableContainer>
             </SortableContext>
         )
+    }
+
+    if (isLoadingAuth) {
+        return (
+            <div className="min-h-screen bg-black flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-neon-cyan"></div>
+            </div>
+        )
+    }
+
+    if (!isSetup) {
+        return <SetupModal onSetupComplete={() => { setIsSetup(true); setIsAuthenticated(true); }} />
     }
 
     return (
@@ -1408,11 +1513,9 @@ function App() {
                 onIconConfigChange={setIconConfig}
                 titleConfig={titleConfig}
                 onTitleConfigChange={setTitleConfig}
+                openInNewTab={openInNewTab}
+                onOpenInNewTabChange={setOpenInNewTab}
             />
-
-            {!isSetup && (
-                <SetupModal onSetupComplete={() => { setIsSetup(true); setIsAuthenticated(true); }} />
-            )}
 
             <UnlockModal
                 isOpen={showUnlockModal}
@@ -1455,14 +1558,49 @@ function App() {
                     isEditMode={isEditMode}
                     onDelete={(appId) => handleDeleteFromFolder(openFolder.id, appId)}
                     onMoveToRoot={(app) => handleMoveFromFolderToRoot(openFolder.id, app)}
+                    onEdit={(_e, app) => {
+                        setEditingApp(app);
+                        setIsAppFormOpen(true);
+                    }}
+                    onContextMenu={handleContextMenu}
+                    openInNewTab={openInNewTab}
                 />
             )}
 
-            <AddAppModal
-                isOpen={isAddAppOpen}
-                onClose={() => setIsAddAppOpen(false)}
-                onAdded={async (isHidden, appId, newApp) => {
+            <AppFormModal
+                isOpen={isAppFormOpen}
+                onClose={() => { setIsAppFormOpen(false); setEditingApp(null); }}
+                editApp={editingApp}
+                categories={layoutConfig.categories}
+                onComplete={async (isHidden, appId, newApp, newCategoryId) => {
                     await fetchApps() // Refresh first to get the new app in state (eventually)
+
+                    // Handle Category Logic
+                    if (appId && newCategoryId !== undefined) {
+                        try {
+                            setLayoutConfig(prev => {
+                                // 1. Remove from all categories
+                                let newCategories = prev.categories.map(c => ({
+                                    ...c,
+                                    app_ids: c.app_ids.filter(id => id !== appId)
+                                }))
+
+                                // 2. Add to new category if specified
+                                if (newCategoryId && newCategoryId !== '') {
+                                    newCategories = newCategories.map(c => {
+                                        if (c.id === newCategoryId && !c.app_ids.includes(appId)) {
+                                            return { ...c, app_ids: [...c.app_ids, appId] }
+                                        }
+                                        return c
+                                    })
+                                }
+
+                                return { ...prev, categories: newCategories }
+                            })
+                        } catch (e) {
+                            console.error("Failed to update category", e)
+                        }
+                    }
 
                     if (targetFolderId && newApp) {
                         try {
@@ -1503,6 +1641,12 @@ function App() {
                         })
                     }
                 }}
+            />
+
+            <AppDetailsModal
+                app={detailsApp}
+                isOpen={!!detailsApp}
+                onClose={() => setDetailsApp(null)}
             />
 
             {/* ================= MOBILE HEADER (Visible only on mobile) ================= */}
@@ -1642,25 +1786,55 @@ function App() {
     )
 }
 
-function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: () => void, onAdded: (isHidden?: boolean, appId?: string, newApp?: AppData) => void }) {
+function AppFormModal({ isOpen, onClose, onComplete, editApp, categories }: { isOpen: boolean, onClose: () => void, onComplete: (isHidden?: boolean, appId?: string, newApp?: AppData, categoryId?: string) => void, editApp: AppData | null, categories?: Category[] }) {
     const [activeTab, setActiveTab] = useState<'custom' | 'store' | 'folder'>('custom')
+    const [categoryId, setCategoryId] = useState<string>('')
     const [premiumApps, setPremiumApps] = useState<AppData[]>([])
     const [selectedPremiumApp, setSelectedPremiumApp] = useState<AppData | null>(null)
 
     // Form State
     const [name, setName] = useState('')
     const [url, setUrl] = useState('')
+    const [description, setDescription] = useState('')
+    const [customIconUrl, setCustomIconUrl] = useState('')
     const [hideApp, setHideApp] = useState(false)
     const [loading, setLoading] = useState(false)
+    const [uploadingIcon, setUploadingIcon] = useState(false)
 
     useEffect(() => {
-        if (isOpen && activeTab === 'store') {
+        if (editApp) {
+            setName(editApp.name)
+            setUrl(editApp.url || '')
+            setDescription(editApp.description || '')
+            setCustomIconUrl(editApp.custom_icon_url || '')
+            setActiveTab(editApp.type === 'folder' ? 'folder' : 'custom')
+
+            // Find current category
+            if (categories) {
+                const currentCat = categories.find(c => c.app_ids.includes(editApp.id))
+                setCategoryId(currentCat ? currentCat.id : '')
+            }
+        } else if (isOpen) {
+            // Reset
+            setName('')
+            setUrl('')
+            setDescription('')
+            setCustomIconUrl('')
+            setHideApp(false)
+            setActiveTab('custom')
+            setSelectedPremiumApp(null)
+            setCategoryId('')
+        }
+    }, [isOpen, editApp, categories])
+
+    useEffect(() => {
+        if (isOpen && activeTab === 'store' && !editApp) {
             fetch('/api/v1/apps/premium')
                 .then(res => res.json())
                 .then(data => setPremiumApps(data))
                 .catch(e => console.error("Failed to load premium apps", e))
         }
-    }, [isOpen, activeTab])
+    }, [isOpen, activeTab, editApp])
 
     const handleSelectPremium = (app: AppData) => {
         setSelectedPremiumApp(app)
@@ -1669,6 +1843,60 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
     }
 
     if (!isOpen) return null
+
+    const handleRefreshMetadata = async () => {
+        if (!url) return
+        setLoading(true)
+        let targetUrl = url
+        if (!/^https?:\/\//i.test(targetUrl)) {
+            targetUrl = 'https://' + targetUrl
+        }
+
+        try {
+            const res = await fetch('/api/v1/apps/preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: targetUrl })
+            })
+            if (res.ok) {
+                const data = await res.json()
+                if (data.description) setDescription(data.description)
+                if (data.icon) setCustomIconUrl(data.icon)
+                if (data.title && !name) setName(data.title) // Auto-fill name if empty
+            }
+        } catch (error) {
+            console.error('Preview failed', error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        setUploadingIcon(true)
+        const formData = new FormData()
+        formData.append('file', file)
+
+        try {
+            const res = await fetch('/api/v1/media/upload', {
+                method: 'POST',
+                body: formData
+            })
+            if (res.ok) {
+                const data = await res.json()
+                setCustomIconUrl(data.url)
+            } else {
+                alert('Failed to upload image')
+            }
+        } catch (error) {
+            console.error('Upload failed', error)
+            alert('Upload failed')
+        } finally {
+            setUploadingIcon(false)
+        }
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -1683,9 +1911,19 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
         }
 
         try {
-            const body: { name: string; type: 'folder' | 'link'; url?: string; premium_id?: string; contents?: AppData[] } = {
+            const body: {
+                name: string;
+                type: 'folder' | 'link';
+                url?: string;
+                premium_id?: string;
+                contents?: AppData[];
+                description?: string;
+                custom_icon_url?: string;
+            } = {
                 name,
-                type: activeTab === 'folder' ? 'folder' : 'link'
+                type: activeTab === 'folder' ? 'folder' : 'link',
+                description,
+                custom_icon_url: customIconUrl
             }
 
             if (activeTab !== 'folder') {
@@ -1697,21 +1935,36 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
                 body.contents = []
             }
 
-            const res = await fetch('/api/v1/apps', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            })
+            let res;
+            if (editApp) {
+                // UPDATE
+                res = await fetch(`/api/v1/apps/${editApp.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                })
+            } else {
+                // CREATE
+                res = await fetch('/api/v1/apps', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                })
+            }
+
             if (res.ok) {
                 const newApp = await res.json()
-                onAdded(hideApp, newApp.id, newApp)
+                onComplete(hideApp, newApp.id, newApp, categoryId)
                 onClose()
                 // Reset form
                 setName('')
                 setUrl('')
+                setDescription('')
+                setCustomIconUrl('')
                 setHideApp(false)
                 setSelectedPremiumApp(null)
                 setActiveTab('custom')
+                setCategoryId('')
             } else {
                 const errData = await res.json().catch(() => ({}));
                 alert(`Failed to add app: ${res.status} ${errData.detail || errData.message || 'Unknown error'}`);
@@ -1765,6 +2018,28 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
                     </div>
                 )}
 
+                {/* Category Selection */}
+                {categories && categories.length > 0 && activeTab !== 'folder' && (
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-300">Category</label>
+                        <div className="relative">
+                            <select
+                                value={categoryId}
+                                onChange={(e) => setCategoryId(e.target.value)}
+                                className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-neon-cyan transition-colors appearance-none cursor-pointer"
+                            >
+                                <option value="">Uncategorized</option>
+                                {categories.map(cat => (
+                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                ))}
+                            </select>
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                                <ArrowUpFromLine className="w-4 h-4 text-gray-400 rotate-180" />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-gray-300">Name</label>
                     <input
@@ -1779,15 +2054,64 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
 
                 {activeTab !== 'folder' && (
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-gray-300">URL</label>
-                        <input
-                            type="text"
-                            required={!selectedPremiumApp}
-                            value={url}
-                            onChange={(e) => setUrl(e.target.value)}
-                            className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-neon-cyan transition-colors"
-                            placeholder="https://example.com"
-                        />
+                        <label className="block text-xs font-medium text-gray-400 mb-1 ml-1">URL</label>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                value={url}
+                                onChange={(e) => setUrl(e.target.value)}
+                                className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-neon-cyan focus:ring-1 focus:ring-neon-cyan transition-all"
+                                placeholder="https://example.com"
+                                required
+                            />
+                            <button
+                                type="button"
+                                onClick={handleRefreshMetadata}
+                                disabled={loading || !url}
+                                className="px-4 bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-colors disabled:opacity-50"
+                                title="Auto-fetch Description & Icon"
+                            >
+                                <RefreshCw className={`w-5 h-5 text-neon-cyan ${loading ? 'animate-spin' : ''}`} />
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {activeTab !== 'folder' && (
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-300">Custom Logo (Optional)</label>
+                            <div className="flex items-center gap-4">
+                                {customIconUrl && (
+                                    <div className="w-10 h-10 bg-black/40 rounded-lg p-1 shrink-0 border border-white/10">
+                                        <AppIcon src={customIconUrl} alt="Preview" className="w-full h-full object-contain" />
+                                    </div>
+                                )}
+                                <label className="flex-1 cursor-pointer">
+                                    <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={uploadingIcon} />
+                                    <div className={`flex items-center justify-center gap-2 w-full bg-white/5 hover:bg-white/10 border border-dashed border-white/20 hover:border-neon-cyan/50 rounded-lg py-2 transition-colors ${uploadingIcon ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                        <Upload className="w-4 h-4 text-gray-400" />
+                                        <span className="text-sm text-gray-400">{uploadingIcon ? 'Uploading...' : 'Upload Image'}</span>
+                                    </div>
+                                </label>
+                                {customIconUrl && (
+                                    <button type="button" onClick={() => setCustomIconUrl('')} className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-red-400 transition">
+                                        <Trash className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-gray-300">Description (Optional)</label>
+                            <textarea
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-neon-cyan transition-colors text-sm resize-none custom-scrollbar"
+                                rows={3}
+                                placeholder="Short description..."
+                            />
+                        </div>
                     </div>
                 )}
 
@@ -1807,7 +2131,7 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
                     disabled={loading}
                     className="w-full bg-gradient-to-r from-neon-cyan to-neon-purple text-white font-medium py-2.5 rounded-lg hover:opacity-90 transition disabled:opacity-50"
                 >
-                    {loading ? "Adding..." : activeTab === 'folder' ? "Create Folder" : "Add App"}
+                    {loading ? (editApp ? "Updating..." : "Adding...") : (editApp ? "Save Changes" : (activeTab === 'folder' ? "Create Folder" : "Add App"))}
                 </button>
             </div>
         )
@@ -1818,24 +2142,26 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
             <div className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden glass-panel">
                 <div className="flex flex-col border-b border-white/10">
                     <div className="flex justify-between items-center px-6 py-4">
-                        <h2 className="text-lg font-semibold text-white">Add New Item</h2>
+                        <h2 className="text-lg font-semibold text-white">{editApp ? "Edit Item" : "Add New Item"}</h2>
                         <button onClick={onClose} className="text-gray-400 hover:text-white transition">
                             <Plus className="w-5 h-5 rotate-45" />
                         </button>
                     </div>
-                    {/* Tabs */}
-                    <div className="flex px-6 gap-6">
-                        {(['custom', 'store', 'folder'] as const).map(tab => (
-                            <button
-                                key={tab}
-                                onClick={() => { setActiveTab(tab); setSelectedPremiumApp(null); }}
-                                className={`pb-3 text-sm font-medium transition-colors relative ${activeTab === tab ? 'text-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
-                            >
-                                {tab === 'custom' ? 'Custom App' : tab === 'store' ? 'App Store' : 'Folder'}
-                                {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-neon-cyan shadow-[0_0_10px_#00f3ff]" />}
-                            </button>
-                        ))}
-                    </div>
+                    {/* Tabs - Disable when editing */}
+                    {!editApp && (
+                        <div className="flex px-6 gap-6">
+                            {(['custom', 'store', 'folder'] as const).map(tab => (
+                                <button
+                                    key={tab}
+                                    onClick={() => { setActiveTab(tab); setSelectedPremiumApp(null); }}
+                                    className={`pb-3 text-sm font-medium transition-colors relative ${activeTab === tab ? 'text-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                                >
+                                    {tab === 'custom' ? 'Custom App' : tab === 'store' ? 'App Store' : 'Folder'}
+                                    {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-neon-cyan shadow-[0_0_10px_#00f3ff]" />}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6">
@@ -1848,7 +2174,7 @@ function AddAppModal({ isOpen, onClose, onAdded }: { isOpen: boolean, onClose: (
     )
 }
 
-function FolderModal({ folder, isOpen, onClose, onRequestAdd, isEditMode, onDelete, onMoveToRoot }: { folder: AppData, isOpen: boolean, onClose: () => void, onRequestAdd: () => void, isEditMode: boolean, onDelete: (appId: string) => void, onMoveToRoot: (app: AppData) => void }) {
+function FolderModal({ folder, isOpen, onClose, onRequestAdd, isEditMode, onDelete, onMoveToRoot, openInNewTab, onEdit, onContextMenu }: { folder: AppData, isOpen: boolean, onClose: () => void, onRequestAdd: () => void, isEditMode: boolean, onDelete: (appId: string) => void, onMoveToRoot: (app: AppData) => void, openInNewTab: boolean, onEdit: (e: React.MouseEvent, app: AppData) => void, onContextMenu?: (e: React.MouseEvent, app: AppData) => void }) {
     if (!isOpen) return null
 
     return (
@@ -1873,7 +2199,15 @@ function FolderModal({ folder, isOpen, onClose, onRequestAdd, isEditMode, onDele
                             <div key={app.id} className="group relative">
                                 <a
                                     href={app.url}
+                                    target={openInNewTab ? "_blank" : "_self"}
+                                    rel={openInNewTab ? "noopener noreferrer" : undefined}
                                     onClick={(e) => { if (isEditMode) e.preventDefault(); }}
+                                    onContextMenu={(e) => {
+                                        if (onContextMenu) {
+                                            e.preventDefault()
+                                            onContextMenu(e, app)
+                                        }
+                                    }}
                                     className={`flex flex-col items-center gap-3 p-4 rounded-xl hover:bg-white/5 transition-all group-hover:scale-105 ${isEditMode ? 'cursor-default' : ''}`}
                                 >
                                     <div className="w-16 h-16 bg-black/40 rounded-2xl p-2 shadow-lg group-hover:shadow-neon-cyan/20 transition-all border border-white/5 group-hover:border-neon-cyan/30">
@@ -1885,6 +2219,17 @@ function FolderModal({ folder, isOpen, onClose, onRequestAdd, isEditMode, onDele
                                 </a>
                                 {isEditMode && (
                                     <div className="absolute -top-3 -right-3 z-20 flex gap-2">
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                onEdit(e, app);
+                                            }}
+                                            className="bg-zinc-700 text-white p-1.5 rounded-full hover:bg-zinc-600 transition shadow-lg shrink-0 flex items-center justify-center transform hover:scale-110"
+                                            title="Edit App"
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                        </button>
                                         <button
                                             onClick={(e) => {
                                                 e.preventDefault();

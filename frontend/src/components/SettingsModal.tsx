@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor } from 'lucide-react'
+import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink } from 'lucide-react'
 import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig } from '../App'
 
 interface MediaItem {
@@ -209,6 +209,8 @@ interface SettingsModalProps {
     onIconConfigChange: (config: IconConfig) => void
     titleConfig: TitleConfig
     onTitleConfigChange: (config: TitleConfig) => void
+    openInNewTab: boolean
+    onOpenInNewTabChange: (enabled: boolean) => void
 }
 
 export function SettingsModal({
@@ -223,7 +225,9 @@ export function SettingsModal({
     iconConfig,
     onIconConfigChange,
     titleConfig,
-    onTitleConfigChange
+    onTitleConfigChange,
+    openInNewTab,
+    onOpenInNewTabChange
 }: SettingsModalProps) {
     const [activeTab, setActiveTab] = useState<'general' | 'background' | 'logo' | 'effects' | 'security'>('general')
     const [uploading, setUploading] = useState(false)
@@ -339,6 +343,22 @@ export function SettingsModal({
                                     className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-neon-cyan/50 focus:border-transparent outline-none transition-all placeholder:text-gray-600"
                                     placeholder="Enter dashboard title..."
                                 />
+                            </div>
+
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
+                                <div className="flex items-center gap-3">
+                                    <ExternalLink className="w-5 h-5 text-neon-cyan" />
+                                    <div>
+                                        <h3 className="text-sm font-medium text-white">Open Apps in New Tab</h3>
+                                        <p className="text-xs text-gray-400">Launch applications in a new browser tab</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => onOpenInNewTabChange(!openInNewTab)}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${openInNewTab ? 'bg-neon-cyan' : 'bg-gray-700'}`}
+                                >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${openInNewTab ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
                             </div>
 
                             <div className="space-y-3 pt-4 border-t border-white/10">
