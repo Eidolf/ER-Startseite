@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ER-Startseite | The Ultimate Personal Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/svg+xml"
+        href="https://raw.githubusercontent.com/Eidolf/ER-Startseite/main/frontend/public/favicon.svg">
+</head>
+
+<body>
+    <div class="fixed-background"></div>
+
+    <nav class="navbar">
+        <div class="container nav-container">
+            <a href="#" class="logo">
+                <span class="logo-icon">✨</span>
+                ER-Startseite
+            </a>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#tech">Tech Stack</a>
+                <a href="https://github.com/Eidolf/ER-Startseite" target="_blank" class="github-btn">
+                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path
+                            d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22">
+                        </path>
+                    </svg>
+                    GitHub
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="container hero-container">
+            <div class="hero-content">
+                <div class="badge">v1.0.0 Stable Release</div>
+                <h1>Your Personal Cloud <span class="text-gradient">Dashboard</span></h1>
+                <p>A modern, highly customizable start page with a neon aesthetic, video backgrounds, and robust app
+                    integration. Built for homelab enthusiasts.</p>
+                <div class="hero-btns">
+                    <a href="https://github.com/Eidolf/ER-Startseite" class="btn btn-primary">
+                        Get Started
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                            <polyline points="12 5 19 12 12 19"></polyline>
+                        </svg>
+                    </a>
+                    <a href="#features" class="btn btn-secondary">Learn More</a>
+                </div>
+            </div>
+            <div class="hero-image">
+                <div class="image-wrapper glass">
+                    <img src="assets/dashboard.png" alt="Dashboard Preview">
+                    <div class="glow-effect"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <section id="features" class="features">
+        <div class="container">
+            <div class="section-header">
+                <h2>Why Choose <span class="text-gradient">ER-Startseite</span>?</h2>
+                <p>Crafted with attention to detail and performance.</p>
+            </div>
+            <div class="grid features-grid">
+                <div class="card glass">
+                    <div class="icon-box neon-purple">🎨</div>
+                    <h3>Stunning Visuals</h3>
+                    <p>Immersive neon aesthetics with support for dynamic video backgrounds and glassmorphism styling.
+                    </p>
+                </div>
+                <div class="card glass">
+                    <div class="icon-box neon-cyan">⚡</div>
+                    <h3>Tech Stack</h3>
+                    <p>Built with modern technologies: Python FastAPI backend and React + Vite frontend for blazing
+                        speed.</p>
+                </div>
+                <div class="card glass">
+                    <div class="icon-box neon-pink">🔐</div>
+                    <h3>Secure & Private</h3>
+                    <p>Self-hosted solution with strict security practices, no external tracking, and privacy-first
+                        design.</p>
+                </div>
+                <div class="card glass">
+                    <div class="icon-box neon-blue">📦</div>
+                    <h3>Docker Ready</h3>
+                    <p>One-command deployment using Docker Compose. Ready for your homelab in seconds.</p>
+                </div>
+                <div class="card glass">
+                    <div class="icon-box neon-green">🧩</div>
+                    <h3>App Integration</h3>
+                    <p>Seamlessly manage your apps with automatic icon fetching, nested folders, and premium presets.
+                    </p>
+                </div>
+                <div class="card glass">
+                    <div class="icon-box neon-orange">🛠️</div>
+                    <h3>Customizable</h3>
+                    <p>Tailor the layout to your needs. Drag and drop, categorise, and configure every aspect.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="tech" class="tech-stack">
+        <div class="container">
+            <div class="tech-content">
+                <h2>Powered By Modern Tech</h2>
+                <div class="tech-logos">
+                    <span class="tech-pill">Python 3.11</span>
+                    <span class="tech-pill">FastAPI</span>
+                    <span class="tech-pill">React 18</span>
+                    <span class="tech-pill">TypeScript</span>
+                    <span class="tech-pill">Tailwind CSS</span>
+                    <span class="tech-pill">Docker</span>
+                    <span class="tech-pill">Framer Motion</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container footer-container">
+            <p>&copy; 2025 ER-Startseite. Open Source (AGPL).</p>
+            <div class="socials">
+                <a href="https://github.com/Eidolf/ER-Startseite">GitHub</a>
+            </div>
+        </div>
+    </footer>
+</body>
+
+</html>
