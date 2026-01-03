@@ -10,3 +10,7 @@ infrastructure:
 - Dockerfile
 - docker-compose.yml
 - .github/**/*
+
+documentation:
+- docs/**/*
+- "**.md"
