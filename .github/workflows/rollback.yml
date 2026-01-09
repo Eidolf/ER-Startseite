@@ -26,10 +26,10 @@ jobs:
 
       - name: Rollback Images
         run: |
-          REPO=ghcr.io/${{ github.repository }}
+          REPO="ghcr.io/${{ github.repository }}"
           # Convert to lowercase
-          REPO=$(echo $REPO | tr '[:upper:]' '[:lower:]')
-          TARGET=${{ inputs.target_tag }}
+          REPO=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')
+          TARGET="${{ inputs.target_tag }}"
           
           if [[ -z "$TARGET" ]]; then
             echo "Error: Target tag is empty."
@@ -39,11 +39,11 @@ jobs:
           for SERVICE in backend frontend; do
             echo "Restoring $SERVICE:latest to $TARGET"
             # Pull the target version
-            docker pull $REPO/$SERVICE:$TARGET
+            docker pull "$REPO/$SERVICE:$TARGET"
             # Tag it as latest
-            docker tag $REPO/$SERVICE:$TARGET $REPO/$SERVICE:latest
+            docker tag "$REPO/$SERVICE:$TARGET" "$REPO/$SERVICE:latest"
             # Push latest
-            docker push $REPO/$SERVICE:latest
+            docker push "$REPO/$SERVICE:latest"
           done
           
           echo "Rollback of 'latest' tag complete. The 'latest' tag now points to $TARGET."

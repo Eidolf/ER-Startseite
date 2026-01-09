@@ -16,10 +16,10 @@ run_step() {
     echo "👉 Running: $1"
     if eval "$2"; then
         echo -e "${GREEN}✅ PASSED: $1${NC}"
-        ((pass_count++))
+        ((pass_count+=1))
     else
         echo -e "${RED}❌ FAILED: $1${NC}"
-        ((fail_count++))
+        ((fail_count+=1))
         if [ "$3" == "critical" ]; then
             echo "🛑 Critical failure. Aborting."
             exit 1
@@ -41,9 +41,22 @@ run_step "Backend: Mypy Type Check" "(cd backend && poetry run mypy .)" "critica
 run_step "Frontend: ESLint" "(cd frontend && npm run lint)" "critical"
 run_step "Frontend: Build (Dry Run)" "(cd frontend && npm run build)" "critical"
 
-# 3. GitHub Actions Simulation (via act)
+# 3. Workflow Linting (actionlint)
+if command -v actionlint >/dev/null 2>&1; then
+    run_step "Workflow Lint: actionlint (local)" "actionlint" "critical"
+elif command -v docker >/dev/null 2>&1; then
+    # Fallback to docker if actionlint not installed locally
+    echo "🤔 'actionlint' not found locally. Using Docker..."
+    # Using rhysd/actionlint
+    run_step "Workflow Lint: actionlint (docker)" "docker run --rm -v $(pwd):/repo --workdir /repo rhysd/actionlint:latest -color" "critical"
+else
+    echo "⚠️  'actionlint' and 'docker' not found. Skipping workflow linting."
+fi
+
+# 4. GitHub Actions Simulation (via act)
 # Only if act is available
 if command -v act >/dev/null 2>&1; then
+
     echo "---------------------------------------------------"
     echo "🎬 Running GitHub Actions Simulation (act)..."
     # We run the 'build' job from ci-orchestrator.yml if it exists, or just default.

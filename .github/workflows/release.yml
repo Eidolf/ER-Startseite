@@ -8,6 +8,10 @@ permissions:
   contents: write
   packages: write
 
+env:
+  DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
 jobs:
   release:
     name: Build & Push Release
@@ -31,7 +35,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log in to Docker Hub
-        if: secrets.DOCKER_USERNAME != '' && secrets.DOCKER_PASSWORD != ''
+        if: env.DOCKER_USERNAME != '' && env.DOCKER_PASSWORD != ''
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -39,20 +43,16 @@ jobs:
 
       - name: Build and Push Images
         run: |
-          VERSION=${{ github.event.release.tag_name }}
-          # Remove 'v' prefix if present for cleaner tagging if desired, or keep it.
-          # Usually docker tags don't strictly require 'v', but let's keep it consistent with the git tag for now unless specified otherwise.
-          # Actually, standard practice often strips 'v' for docker tags, but let's stick to the git tag exactly to match the release.
+          VERSION="${{ github.event.release.tag_name }}"
           
           # Lowercase repository name for docker
-          REPO_GHCR="ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')"
+          REPO_GHCR="ghcr.io/$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
           
-          # Optional Docker Hub Repo (assuming same name as github repo name part, or configurable? 
-          # We'll use the repo name from the github context.
-          REPO_NAME=$(echo ${{ github.repository }} | cut -d'/' -f2 | tr '[:upper:]' '[:lower:]')
+          # Optional Docker Hub Repo 
+          REPO_NAME="$(echo "${{ github.repository }}" | cut -d'/' -f2 | tr '[:upper:]' '[:lower:]')"
           REPO_DH=""
-          if [[ "${{ secrets.DOCKER_USERNAME }}" != "" ]]; then
-             REPO_DH="${{ secrets.DOCKER_USERNAME }}/$REPO_NAME"
+          if [[ "$DOCKER_USERNAME" != "" ]]; then
+             REPO_DH="$DOCKER_USERNAME/$REPO_NAME"
           fi
 
           for SERVICE in backend frontend; do
@@ -71,7 +71,8 @@ jobs:
             docker buildx build \
               --push \
               --platform linux/amd64,linux/arm64 \
-              --tag $TAGS \
+              --tag "$TAGS" \
               ./$SERVICE
           done
+
 

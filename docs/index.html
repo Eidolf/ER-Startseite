@@ -41,7 +41,7 @@
     <header class="hero">
         <div class="container hero-container">
             <div class="hero-content">
-                <div class="badge">v1.0.0 Stable Release</div>
+                <div id="release-badge" class="badge">v1.0.0 Stable Release</div>
                 <h1>Your Personal Cloud <span class="text-gradient">Dashboard</span></h1>
                 <p>A modern, highly customizable start page with a neon aesthetic, video backgrounds, and robust app
                     integration. Built for homelab enthusiasts.</p>
@@ -136,6 +136,34 @@
             </div>
         </div>
     </footer>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const badge = document.getElementById("release-badge");
+            const repo = "Eidolf/ER-Startseite";
+
+            fetch(`https://api.github.com/repos/${repo}/releases/latest`)
+                .then(response => {
+                    if (!response.ok) {
+                        // Fallback to list if no 'latest' release (e.g. only pre-releases)
+                        return fetch(`https://api.github.com/repos/${repo}/releases`)
+                            .then(r => r.json())
+                            .then(data => {
+                                if (data && data.length > 0) {
+                                    return data[0]; // Take the most recent one
+                                }
+                                throw new Error("No releases found");
+                            });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data && data.tag_name) {
+                        badge.textContent = `${data.tag_name} Latest Release`;
+                    }
+                })
+                .catch(err => console.log("Could not fetch release version", err));
+        });
+    </script>
 </body>
 
 </html>
