@@ -3,6 +3,17 @@ name: Release
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release Type'
+        required: true
+        default: 'nightly'
+        type: choice
+        options:
+        - nightly
+        - beta
+        - stable
 
 permissions:
   contents: write
@@ -20,6 +31,67 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      # ---------------------------------------------------------
+      # Logic for Manual Dispatch (Calculate Version & Tag)
+      # ---------------------------------------------------------
+      - name: Setup Python
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Determine Version (Manual)
+        if: github.event_name == 'workflow_dispatch'
+        id: version
+        run: |
+          TYPE="${{ inputs.release_type }}"
+          echo "Calculating version for type: $TYPE"
+          
+          # Using existing script to calculate version
+          # Ensure inputs.release_type is passed correctly
+          NEW_VER=$(python3 scripts/version_manager.py --action calculate --type "$TYPE")
+          echo "New Version: $NEW_VER"
+          echo "new_version=$NEW_VER" >> "$GITHUB_OUTPUT"
+          
+          IS_PRE="true"
+          if [[ "$TYPE" == "stable" ]]; then IS_PRE="false"; fi
+          echo "is_prerelease=$IS_PRE" >> "$GITHUB_OUTPUT"
+          
+          # For Beta/Stable: Commit the new version to the repo
+          if [[ "$TYPE" != "nightly" ]]; then
+            # Write key to file
+            python3 scripts/version_manager.py --action write --version "$NEW_VER"
+            
+            # Commit File Change
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add VERSION
+            git commit -m "chore(release): bump version to $NEW_VER"
+            git push
+          else
+            echo "Nightly release: $NEW_VER (Tagged only)"
+          fi
+
+      - name: Create Tag (Manual)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          TAG="v${{ steps.version.outputs.new_version }}"
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      - name: Generate Release Notes (Manual)
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ steps.version.outputs.new_version }}"
+          prerelease: ${{ steps.version.outputs.is_prerelease }}
+          generate_release_notes: true
+
+      # ---------------------------------------------------------
+      # Common Build Steps
+      # ---------------------------------------------------------
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -43,8 +115,22 @@ jobs:
 
       - name: Build and Push Images
         run: |
-          VERSION="${{ github.event.release.tag_name }}"
+          # Determine Version based on Trigger
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Manual trigger: use calculated version
+            # Note: We strip 'v' if input didn't have it, but here input comes from script which usually returns semver (X.Y.Z)
+            # The tag created above was vX.Y.Z.
+            # Let's match the tag format: vX.Y.Z for images? Or just X.Y.Z? 
+            # Old script used VERSION directly (without v).
+            # Let's use the tag name if possible or recreate it.
+            VERSION="v${{ steps.version.outputs.new_version }}"
+          else
+            # Release trigger: use the tag that triggered the release
+            VERSION="${{ github.event.release.tag_name }}"
+          fi
           
+          echo "Building for Version: $VERSION"
+
           # Lowercase repository name for docker
           REPO_GHCR="ghcr.io/$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')"
           
