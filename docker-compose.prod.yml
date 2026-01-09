@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  backend:
+    image: ghcr.io/${GITHUB_REPOSITORY:-eidolf/er-startseite}/backend:latest
+    restart: unless-stopped
+    ports:
+      - "13000:13000"
+    environment:
+      - PROJECT_NAME=ER-Startseite
+      # SECURITY WARNING: Change this in production!
+      - SECRET_KEY=${SECRET_KEY:-changeme_in_production}
+      - BACKEND_CORS_ORIGINS=["http://localhost:5173", "http://localhost:3000", "http://localhost:13001"]
+      - POSTGRES_SERVER=db
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-er_startseite}
+    depends_on:
+      - db
+    volumes:
+      - ./data/uploads:/app/uploads
+      - ./data/app_data:/app/data
+
+  frontend:
+    image: ghcr.io/${GITHUB_REPOSITORY:-eidolf/er-startseite}/frontend:latest
+    restart: unless-stopped
+    ports:
+      - "13001:80"
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-er_startseite}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+  uploads_data:
+  app_data:

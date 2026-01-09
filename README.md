@@ -44,6 +44,59 @@
    - Frontend: `http://localhost:13001`
    - Backend API: `http://localhost:13000/docs`
 
+## 🐳 Deployment (Production)
+
+To deploy using the pre-built images from GitHub Container Registry (recommended for Portainer/Production):
+
+1. **Create a `docker-compose.yml` file**:
+   ```yaml
+   version: '3.8'
+
+   services:
+     backend:
+       image: ghcr.io/eidolf/er-startseite/backend:latest
+       restart: unless-stopped
+       ports:
+         - "13000:13000"
+       environment:
+         - PROJECT_NAME=ER-Startseite
+         - SECRET_KEY=changeme_in_production # ⚠️ CHANGE THIS
+         - BACKEND_CORS_ORIGINS=["http://localhost:5173", "http://localhost:3000", "http://localhost:13001"]
+         - POSTGRES_SERVER=db
+         - POSTGRES_USER=postgres
+         - POSTGRES_PASSWORD=postgres # ⚠️ CHANGE THIS
+         - POSTGRES_DB=er_startseite
+       depends_on:
+         - db
+       volumes:
+         - ./data/uploads:/app/uploads
+         - ./data/app_data:/app/data
+
+     frontend:
+       image: ghcr.io/eidolf/er-startseite/frontend:latest
+       restart: unless-stopped
+       ports:
+         - "13001:80"
+       depends_on:
+         - backend
+
+     db:
+       image: postgres:15-alpine
+       restart: unless-stopped
+       environment:
+         - POSTGRES_USER=postgres
+         - POSTGRES_PASSWORD=postgres # ⚠️ CHANGE THIS
+         - POSTGRES_DB=er_startseite
+       volumes:
+         - ./data/postgres:/var/lib/postgresql/data
+   ```
+
+2. **Start the stack**:
+   ```bash
+   docker-compose up -d
+   ```
+
+
 ## 📦 Project Structure
 
 ```
