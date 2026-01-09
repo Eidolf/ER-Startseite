@@ -142,22 +142,25 @@ jobs:
           fi
 
           for SERVICE in backend frontend; do
-            TAGS=""
+            # Construct tag arguments array
+            TAG_ARGS=()
             
             # GHCR Tags
-            TAGS="$REPO_GHCR/$SERVICE:$VERSION,$REPO_GHCR/$SERVICE:latest"
+            TAG_ARGS+=("--tag" "$REPO_GHCR/$SERVICE:$VERSION")
+            TAG_ARGS+=("--tag" "$REPO_GHCR/$SERVICE:latest")
             
             # Docker Hub Tags (if enabled)
             if [[ -n "$REPO_DH" ]]; then
-               TAGS="$TAGS,$REPO_DH/$SERVICE:$VERSION,$REPO_DH/$SERVICE:latest"
+               TAG_ARGS+=("--tag" "$REPO_DH/$SERVICE:$VERSION")
+               TAG_ARGS+=("--tag" "$REPO_DH/$SERVICE:latest")
             fi
             
-            echo "Building $SERVICE with tags: $TAGS"
+            echo "Building $SERVICE with tags: ${TAG_ARGS[*]}"
             
             docker buildx build \
               --push \
               --platform linux/amd64,linux/arm64 \
-              --tag "$TAGS" \
+              "${TAG_ARGS[@]}" \
               ./$SERVICE
           done
 
