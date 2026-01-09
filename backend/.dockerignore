@@ -1,0 +1,18 @@
+# Backend
+__pycache__
+*.py[cod]
+*$py.class
+.env
+.env.*
+.venv
+venv
+.git
+.gitignore
+.dockerignore
+tests
+pytest.ini
+.coverage
+htmlcov
+.mypy_cache
+.pytest_cache
+.ruff_cache

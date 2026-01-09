@@ -96,6 +96,17 @@ To deploy using the pre-built images from GitHub Container Registry (recommended
    docker-compose up -d
    ```
 
+### ⚠️ Troubleshooting: "Unauthorized" / "Pull Access Denied"
+If you get an error pulling images from **Portainer** or **Docker**, it's likely because the package is **Private** by default on GitHub.
+
+**Solution:**
+1. Go to your GitHub Repository -> main page.
+2. Look for the **"Packages"** section (sidebar) -> Click on the package (e.g., `backend`).
+3. Click **"Package Settings"** (right sidebar).
+4. Scroll to **"Danger Zone"** -> **"Change visibility"**.
+5. Switch it to **Public**.
+6. Repeat for the `frontend` package.
+
 
 ## 📦 Project Structure
 
