@@ -45,12 +45,18 @@ COPY . .
 RUN addgroup --system --gid 1001 appuser && \
     adduser --system --uid 1001 --gid 1001 appuser
 
+# Install gosu (for easy step-down from root)
+RUN apt-get update && apt-get install -y --no-install-recommends gosu && rm -rf /var/lib/apt/lists/*
+
 # Create uploads directory and set permissions
 WORKDIR /app
 RUN mkdir -p /app/uploads /app/data && chown -R appuser:appuser /app/uploads /app/data
 
-USER appuser
+# Copy entrypoint script
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
 
 EXPOSE 13000
 
+ENTRYPOINT ["./entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "13000"]

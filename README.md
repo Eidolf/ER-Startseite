@@ -96,6 +96,16 @@ To deploy using the pre-built images from GitHub Container Registry (recommended
    docker-compose up -d
    ```
 
+### ⚠️ Troubleshooting: "Set Password" Flickers / Fail
+If you click "Set Password" and it just flickers or does nothing (but works locally):
+1.  **Check CORS**: If you access the site via IP (e.g., `http://192.168.1.50:13001`), the backend might block the request because it only trusts `localhost` by default.
+    - **Fix**: Add your IP to the environment variable in `docker-compose.prod.yml`:
+      ```yaml
+      - BACKEND_CORS_ORIGINS=["http://localhost:5173", "http://YOUR_SERVER_IP:13001"]
+      ```
+2.  **Check Permissions**: The backend tries to save the password to `data/app_data/auth.json`. If the folder permissions on your host are wrong (e.g. owned by root), it fails.
+    - **Fix**: Check logs (`docker logs er-startseite-backend-1`). If you see "Permission denied", fix folder ownership: `chown -R 1001:1001 ./data`.
+
 ### ⚠️ Troubleshooting: "Unauthorized" / "Pull Access Denied"
 If you get an error pulling images from **Portainer** or **Docker**, it's likely because the package is **Private** by default on GitHub.
 
@@ -106,6 +116,7 @@ If you get an error pulling images from **Portainer** or **Docker**, it's likely
 4. Scroll to **"Danger Zone"** -> **"Change visibility"**.
 5. Switch it to **Public**.
 6. Repeat for the `frontend` package.
+
 
 
 ## 📦 Project Structure
