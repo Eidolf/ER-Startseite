@@ -300,3 +300,369 @@ AppRegistry.register(
         fields=[URL_FIELD],
     )
 )
+
+# --- FaserF/hassio-addons ---
+
+# 20. AegisBot
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_aegisbot",
+        name="AegisBot",
+        description=(
+            "A discord bot that can moderate your server, and also has some fun commands."
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/AegisBot/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# 21. ShieldDNS
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_shielddns",
+        name="ShieldDNS",
+        description=(
+            "A DNS server that blocks ads and trackers."
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/ShieldDNS/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# 22. ShieldFile
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_shieldfile",
+        name="ShieldFile",
+        description=(
+            "A simple file sharing service."
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/ShieldFile/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# 23. antigravity-server
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_antigravity-server",
+        name="antigravity-server",
+        description=(
+            "Antigravity Server"
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/antigravity-server/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# Apache2 Minimal MariaDB
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_apache2-minimal-mariadb",
+        name="Apache2 Minimal MariaDB",
+        description=(
+            "Open Source Webserver with PHP and MariaDB."
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/apache2-minimal-mariadb/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# Apache2 Minimal
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_apache2-minimal",
+        name="Apache2 Minimal",
+        description=(
+            "Open Source Webserver with PHP and MariaDB."
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/apache2-minimal/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# Apache2
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_apache2",
+        name="Apache2",
+        description=(
+            "Open Source Webserver with PHP and MariaDB."
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/apache2/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# Bash Script Executer
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_bash_script_executer",
+        name="Bash Script Executer",
+        description=(
+            "Execute your own bash scripts inside this Homeassistant Addon environment."
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/bash_script_executer/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# BentoPDF
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_bentopdf",
+        name="BentoPDF",
+        description=(
+            "Self-hosted, privacy-first PDF toolkit"
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/bentopdf/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# ER-Startseite (Dashboard)
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_er-dashboard",
+        name="ER-Startseite (Dashboard)",
+        description=(
+            "A modern, highly customizable dashboard with a neon aesthetic."
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/er-dashboard/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# Home Assistant Test Instance
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_homeassistant-test-instance",
+        name="Home Assistant Test Instance",
+        description=(
+            "A standalone Home Assistant Core instance for testing purposes."
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/homeassistant-test-instance/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# N8n
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_n8n",
+        name="N8n",
+        description=(
+            "Workflow automation tool. N8n extends your Home Assistant with powerful workflow automation."
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/n8n/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# Netboot.xyz
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_netboot-xyz",
+        name="Netboot.xyz",
+        description=(
+            "PXE-Server to deploy a OS inside your local network"
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/netboot-xyz/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# NGINX
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_nginx",
+        name="NGINX",
+        description=(
+            "Open Source Webserver with PHP and MariaDB."
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/nginx/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# OpenSSL
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_openssl",
+        name="OpenSSL",
+        description=(
+            "Generate self-signed certificates"
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/openssl/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# Planka
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_planka",
+        name="Planka",
+        description=(
+            "The elegant open source project tracking tool"
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/planka/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# pterodactyl Panel Gameserver
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_pterodactyl-panel",
+        name="pterodactyl Panel Gameserver",
+        description=(
+            "Open-Source Gameserver Management Panel"
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/pterodactyl-panel/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# pterodactyl Wings Gameserver
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_pterodactyl-wings",
+        name="pterodactyl Wings Gameserver",
+        description=(
+            "Open Source Gameserver"
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/pterodactyl-wings/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# SAP ABAP Cloud Developer Trial
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_sap-abap-cloud-dev",
+        name="SAP ABAP Cloud Developer Trial",
+        description=(
+            "SAP ABAP Platform Trial for local ABAP development"
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/sap-abap-cloud-dev/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# Solumati
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_solumati",
+        name="Solumati",
+        description=(
+            "The Anti-Swipe Revolution - Self-hosted dating platform focused on meaningful matches."
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/solumati/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# Switch LAN Play Client
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_switch_lan_play",
+        name="Switch LAN Play Client",
+        description=(
+            "Nintendo Switch Lan Play -Client"
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/switch_lan_play/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# Switch LAN Play Server
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_switch_lan_play_server",
+        name="Switch LAN Play Server",
+        description=(
+            "Nintendo Switch Lan Play -Server"
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/switch_lan_play_server/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# Tado Auto Assist
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_tado_aa",
+        name="Tado Auto Assist",
+        description=(
+            "Tado Auto-Assist for Geofencing and open Window detection"
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/tado_aa/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# Tiny Tiny RSS
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_tt-rss",
+        name="Tiny Tiny RSS",
+        description=(
+            "A web-based news feed (RSS/Atom) reader and aggregator"
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/tt-rss/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# WhatsApp
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_whatsapp",
+        name="WhatsApp",
+        description=(
+            "Home Assistant WhatsApp Backend (Baileys/Node.js)"
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/whatsapp/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# Wiki.JS
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_wiki.js",
+        name="Wiki.JS",
+        description=(
+            "The most powerful and extensible open source Wiki software"
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/wiki.js/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# Wiki.JS V3 (Beta)
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_wiki.js3",
+        name="Wiki.JS V3 (Beta)",
+        description=(
+            "The most powerful and extensible open source Wiki software (Version 3 - Beta)"
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/wiki.js3/icon.png",
+        fields=[URL_FIELD],
+    )
+)
+
+# Wordpress
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="hassio_wordpress",
+        name="Wordpress",
+        description=(
+            "The most popular publication platform on the Web."
+        ),
+        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/wordpress/icon.png",
+        fields=[URL_FIELD],
+    )
+)
