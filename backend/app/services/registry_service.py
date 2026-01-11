@@ -1,12 +1,10 @@
-from typing import List
-
 import httpx
 
 from app.core.premium_apps import AppRegistry, PremiumAppDefinition
 
 
 class RegistryService:
-    async def fetch_registry(self, url: str) -> List[PremiumAppDefinition]:
+    async def fetch_registry(self, url: str) -> list[PremiumAppDefinition]:
         """
         Fetches a registry from a given URL and validates its content.
         """
@@ -22,7 +20,10 @@ class RegistryService:
                 apps = []
                 for item in data:
                     # Validate basic structure
-                    if not all(key in item for key in ["id", "name", "description", "default_icon"]):
+                    if not all(
+                        key in item
+                        for key in ["id", "name", "description", "default_icon"]
+                    ):
                         continue
                     apps.append(PremiumAppDefinition(**item))
                 return apps
@@ -44,7 +45,9 @@ class RegistryService:
         except Exception:
             return False
 
-    async def get_all_premium_apps(self, registry_urls: List[str]) -> List[PremiumAppDefinition]:
+    async def get_all_premium_apps(
+        self, registry_urls: list[str]
+    ) -> list[PremiumAppDefinition]:
         """
         Combines the built-in apps with apps from custom registries.
         """

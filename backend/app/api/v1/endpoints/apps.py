@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi import APIRouter, Depends
 
@@ -7,7 +7,6 @@ from app.schemas.app import App, AppCreate, AppPreviewRequest, AppPreviewRespons
 from app.services.app_service import AppService
 from app.services.config_service import ConfigService
 from app.services.registry_service import RegistryService
-
 
 router = APIRouter()
 registry_service = RegistryService()
@@ -19,16 +18,15 @@ def get_service():
     return AppService()
 
 
-@router.get("", response_model=List[App])
+@router.get("", response_model=list[App])
 async def list_apps(service: AppService = Depends(get_service)):
     return await service.get_all()
 
 
-@router.get("/premium", response_model=List[PremiumAppDefinition])
+@router.get("/premium", response_model=list[PremiumAppDefinition])
 async def list_premium_apps():
     config = await config_service.get_config()
     return await registry_service.get_all_premium_apps(config.registry_urls)
-
 
 
 @router.post("", response_model=App)
@@ -38,7 +36,7 @@ async def create_app(app_in: AppCreate, service: AppService = Depends(get_servic
 
 @router.put("/{app_id}", response_model=App)
 async def update_app(
-    app_id: str, app_update: Dict[str, Any], service: AppService = Depends(get_service)
+    app_id: str, app_update: dict[str, Any], service: AppService = Depends(get_service)
 ):
     return await service.update(app_id, app_update)
 

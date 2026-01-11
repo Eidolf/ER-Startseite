@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 from pydantic import BaseModel
 
 
@@ -10,30 +8,30 @@ class BackgroundConfig(BaseModel):
 
 class LogoConfig(BaseModel):
     type: str
-    value: Optional[str] = None
+    value: str | None = None
 
 
 class IconConfig(BaseModel):
     showBorder: bool
     borderStyle: str
     borderColor: str
-    borderGradientColors: List[str]
+    borderGradientColors: list[str]
     backgroundStyle: str
     backgroundColor: str
-    gradientColors: List[str]
+    gradientColors: list[str]
 
 
 class Category(BaseModel):
     id: str
     name: str
-    app_ids: List[str] = []
+    app_ids: list[str] = []
 
 
 class LayoutConfig(BaseModel):
     mode: str = "grid"
-    customOrder: List[str] = []
-    categories: List[Category] = []
-    hiddenAppIds: List[str] = []
+    customOrder: list[str] = []
+    categories: list[Category] = []
+    hiddenAppIds: list[str] = []
 
 
 class AppConfig(BaseModel):
@@ -43,4 +41,4 @@ class AppConfig(BaseModel):
     logoConfig: LogoConfig
     iconConfig: IconConfig
     layoutConfig: LayoutConfig
-    registry_urls: List[str] = []
+    registry_urls: list[str] = []
