@@ -19,6 +19,15 @@ on:
       - '.github/ISSUE_TEMPLATE/**'
       - '.github/pull_request_template.md'
       - '.github/labeler.yml'
+  pull_request_target:
+    branches: [ "main", "master" ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/pull_request_template.md'
+      - '.github/labeler.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -26,12 +35,19 @@ concurrency:
 
 jobs:
   validate:
+    if: |
+      github.event_name != 'pull_request_target' ||
+      github.actor == 'FaserF' ||
+      github.actor == github.repository_owner
     runs-on: ubuntu-latest
     strategy:
       matrix:
         service: [backend, frontend]
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || '' }}
 
       # Backend Steps
       - name: Setup Python
