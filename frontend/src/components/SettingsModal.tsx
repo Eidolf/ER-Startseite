@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink } from 'lucide-react'
+import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github } from 'lucide-react'
 import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig } from '../App'
 
 interface MediaItem {
@@ -229,7 +229,7 @@ export function SettingsModal({
     openInNewTab,
     onOpenInNewTabChange
 }: SettingsModalProps) {
-    const [activeTab, setActiveTab] = useState<'general' | 'background' | 'logo' | 'effects' | 'security'>('general')
+    const [activeTab, setActiveTab] = useState<'general' | 'background' | 'logo' | 'effects' | 'security' | 'about'>('general')
     const [uploading, setUploading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const logoFileInputRef = useRef<HTMLInputElement>(null)
@@ -327,6 +327,12 @@ export function SettingsModal({
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'security' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
                             Security
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('about')}
+                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'about' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            About
                         </button>
                     </div>
                 </div>
@@ -755,6 +761,31 @@ export function SettingsModal({
                                     Change Password
                                 </h3>
                                 <ChangePasswordForm />
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'about' && (
+                        <div className="space-y-6">
+                            <div className="p-6 rounded-xl bg-white/5 border border-white/10 flex flex-col items-center text-center space-y-4">
+                                <div className="w-16 h-16 bg-neon-cyan/20 rounded-full flex items-center justify-center mb-2">
+                                    <Sparkles className="w-8 h-8 text-neon-cyan" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-white">ER-Startseite</h3>
+                                    <p className="text-gray-400 text-sm">A modern, highly customizable dashboard.</p>
+                                </div>
+                                <div className="flex gap-4 pt-4">
+                                    <a
+                                        href="https://github.com/Eidolf/ER-Startseite"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 px-4 py-2 bg-[#2b3137] hover:bg-[#24292e] text-white rounded-lg transition-colors border border-white/10"
+                                    >
+                                        <Github className="w-4 h-4" />
+                                        <span>Source Code</span>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     )}
