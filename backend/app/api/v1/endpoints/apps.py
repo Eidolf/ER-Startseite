@@ -6,7 +6,12 @@ from app.core.premium_apps import AppRegistry, PremiumAppDefinition
 from app.schemas.app import App, AppCreate, AppPreviewRequest, AppPreviewResponse
 from app.services.app_service import AppService
 
+from app.services.config_service import ConfigService
+from app.services.registry_service import RegistryService
+
 router = APIRouter()
+registry_service = RegistryService()
+config_service = ConfigService()
 
 
 # Dependency Injection (Simple for now)
@@ -21,7 +26,9 @@ async def list_apps(service: AppService = Depends(get_service)):
 
 @router.get("/premium", response_model=List[PremiumAppDefinition])
 async def list_premium_apps():
-    return AppRegistry.get_all()
+    config = await config_service.get_config()
+    return await registry_service.get_all_premium_apps(config.registry_urls)
+
 
 
 @router.post("", response_model=App)

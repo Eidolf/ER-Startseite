@@ -53,6 +53,7 @@ export interface AppConfig {
     logoConfig: LogoConfig
     iconConfig: IconConfig
     layoutConfig: LayoutConfig
+    registry_urls: string[]
 }
 
 const DEFAULT_BG: BackgroundConfig = {
@@ -388,6 +389,7 @@ function App() {
     const [layoutConfig, setLayoutConfig] = useState<LayoutConfig>(DEFAULT_LAYOUT_CONFIG)
     const [pageTitle, setPageTitle] = useState('ER-Startseite')
     const [openInNewTab, setOpenInNewTab] = useState(false)
+    const [registryUrls, setRegistryUrls] = useState<string[]>([])
 
     const [configLoaded, setConfigLoaded] = useState(false)
 
@@ -481,6 +483,7 @@ function App() {
                     setLogoConfig(data.logoConfig || DEFAULT_LOGO_CONFIG)
                     setIconConfig(data.iconConfig || DEFAULT_ICON_CONFIG)
                     setLayoutConfig(data.layoutConfig || DEFAULT_LAYOUT_CONFIG)
+                    setRegistryUrls(data.registry_urls || [])
                 }
             })
             .catch(e => console.error("Failed to load config", e))
@@ -502,13 +505,14 @@ function App() {
                     logoConfig,
                     iconConfig,
                     layoutConfig,
-                    titleConfig // Added titleConfig
+                    titleConfig, // Added titleConfig
+                    registry_urls: registryUrls
                 })
             }).catch(e => console.error("Failed to save config", e))
         }, 500) // Debounce 500ms
 
         return () => clearTimeout(timer)
-    }, [pageTitle, openInNewTab, bgConfig, logoConfig, iconConfig, layoutConfig, titleConfig, configLoaded])
+    }, [pageTitle, openInNewTab, bgConfig, logoConfig, iconConfig, layoutConfig, titleConfig, registryUrls, configLoaded])
 
     // Dynamic Page Title
     useEffect(() => {
@@ -1522,6 +1526,8 @@ function App() {
                 onTitleConfigChange={setTitleConfig}
                 openInNewTab={openInNewTab}
                 onOpenInNewTabChange={setOpenInNewTab}
+                registryUrls={registryUrls}
+                onRegistryUrlsChange={setRegistryUrls}
             />
 
             <UnlockModal
@@ -1659,7 +1665,7 @@ function App() {
             {/* ================= MOBILE HEADER (Visible only on mobile) ================= */}
             <div className="md:hidden fixed top-0 left-0 w-full z-50 h-14 pointer-events-none">
                 {/* Left: Logo & Title */}
-                <div className="absolute top-1 left-2 flex items-center pointer-events-auto gap-2">
+                <div className="absolute top-2 left-2 flex items-center pointer-events-auto gap-2">
                     {logoConfig.type === 'image' && logoConfig.value ? (
                         <div className="h-10 w-auto flex items-center justify-center">
                             <img src={logoConfig.value} alt="Logo" className="max-h-full w-auto max-w-[100px] object-contain drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]" />
@@ -1678,7 +1684,7 @@ function App() {
                 </div>
 
                 {/* Right: Settings Icons */}
-                <div className="absolute top-1 right-2 flex gap-2 pointer-events-auto items-center">
+                <div className="absolute top-2 right-2 flex gap-2 pointer-events-auto items-center">
                     <button
                         onClick={() => handleProtectedAction('add_app')}
                         className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
@@ -1718,7 +1724,7 @@ function App() {
                 <div className="w-40"></div>
 
                 {/* Center: Logo & Title */}
-                <div className="flex flex-col items-center pointer-events-auto -mt-8">
+                <div className="flex flex-col items-center pointer-events-auto -mt-4">
                     {logoConfig.type === 'image' && logoConfig.value ? (
                         <div className="h-32 w-auto flex items-end justify-center pb-2">
                             <img
@@ -1827,6 +1833,8 @@ function AppFormModal({ isOpen, onClose, onComplete, editApp, categories }: { is
     const [categoryId, setCategoryId] = useState<string>('')
     const [premiumApps, setPremiumApps] = useState<AppData[]>([])
     const [selectedPremiumApp, setSelectedPremiumApp] = useState<AppData | null>(null)
+    const [storeSearchQuery, setStoreSearchQuery] = useState('')
+    const [storeSortOrder, setStoreSortOrder] = useState<'default' | 'alpha'>('default')
 
     // Form State
     const [name, setName] = useState('')
@@ -1860,6 +1868,8 @@ function AppFormModal({ isOpen, onClose, onComplete, editApp, categories }: { is
             setActiveTab('custom')
             setSelectedPremiumApp(null)
             setCategoryId('')
+            setStoreSearchQuery('')
+            setStoreSortOrder('default')
         }
     }, [isOpen, editApp, categories])
 
@@ -2019,24 +2029,69 @@ function AppFormModal({ isOpen, onClose, onComplete, editApp, categories }: { is
     // Determine what form content to show
     const renderFormContent = () => {
         if (activeTab === 'store' && !selectedPremiumApp) {
-            // Store Grid
+            // Filter and Sort Premium Apps
+            const filteredApps = premiumApps
+                .filter(app =>
+                    app.name.toLowerCase().includes(storeSearchQuery.toLowerCase()) ||
+                    (app.description || '').toLowerCase().includes(storeSearchQuery.toLowerCase())
+                )
+                .sort((a, b) => {
+                    if (storeSortOrder === 'alpha') {
+                        return a.name.localeCompare(b.name)
+                    }
+                    return 0 // Keep default order
+                })
+
             return (
-                <div className="grid grid-cols-2 gap-4 max-h-[400px] overflow-y-auto custom-scrollbar p-1">
-                    {premiumApps.map(app => (
-                        <div
-                            key={app.id}
-                            onClick={() => handleSelectPremium(app)}
-                            className="bg-white/5 hover:bg-white/10 border border-white/5 hover:border-neon-cyan/50 rounded-xl p-4 flex flex-col items-center gap-3 cursor-pointer transition-all group"
-                        >
-                            <div className="w-12 h-12 bg-black/20 rounded-lg p-2 group-hover:scale-110 transition-transform">
-                                <AppIcon src={app.default_icon} alt={app.name} className="w-full h-full object-contain" />
-                            </div>
-                            <div className="text-center">
-                                <h3 className="font-medium text-white text-sm">{app.name}</h3>
-                                <p className="text-xs text-gray-400 line-clamp-2 mt-1">{app.description}</p>
-                            </div>
+                <div className="space-y-4">
+                    {/* Store Search & Sort Controls */}
+                    <div className="flex gap-2">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                            <input
+                                type="text"
+                                placeholder="Search apps..."
+                                value={storeSearchQuery}
+                                onChange={(e) => setStoreSearchQuery(e.target.value)}
+                                className="w-full bg-black/40 border border-white/10 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:border-neon-cyan transition-colors"
+                            />
                         </div>
-                    ))}
+                        <button
+                            type="button"
+                            onClick={() => setStoreSortOrder(prev => prev === 'default' ? 'alpha' : 'default')}
+                            className={`px-3 py-2 rounded-lg border text-sm font-medium transition-all flex items-center gap-2 ${storeSortOrder === 'alpha'
+                                ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan'
+                                : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                }`}
+                            title={storeSortOrder === 'alpha' ? "Sorting Alphabetically" : "Default Sorting"}
+                        >
+                            <LayoutGrid className="w-4 h-4" />
+                            {storeSortOrder === 'alpha' ? 'A-Z' : 'Default'}
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 max-h-[350px] overflow-y-auto custom-scrollbar p-1">
+                        {filteredApps.map(app => (
+                            <div
+                                key={app.id}
+                                onClick={() => handleSelectPremium(app)}
+                                className="bg-white/5 hover:bg-white/10 border border-white/5 hover:border-neon-cyan/50 rounded-xl p-4 flex flex-col items-center gap-3 cursor-pointer transition-all group"
+                            >
+                                <div className="w-12 h-12 bg-black/20 rounded-lg p-2 group-hover:scale-110 transition-transform">
+                                    <AppIcon src={app.default_icon} alt={app.name} className="w-full h-full object-contain" />
+                                </div>
+                                <div className="text-center">
+                                    <h3 className="font-medium text-white text-sm">{app.name}</h3>
+                                    <p className="text-xs text-gray-400 line-clamp-2 mt-1">{app.description}</p>
+                                </div>
+                            </div>
+                        ))}
+                        {filteredApps.length === 0 && (
+                            <div className="col-span-2 py-8 text-center text-gray-500 text-sm italic">
+                                No apps found matching "{storeSearchQuery}"
+                            </div>
+                        )}
+                    </div>
                 </div>
             )
         }

@@ -43,3 +43,4 @@ class AppConfig(BaseModel):
     logoConfig: LogoConfig
     iconConfig: IconConfig
     layoutConfig: LayoutConfig
+    registry_urls: List[str] = []
