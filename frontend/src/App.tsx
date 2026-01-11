@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { AppIcon } from './components/AppIcon'
 import { AnimatedLogo } from './components/AnimatedLogo'
-import { Plus, Search, Settings, LayoutGrid, X, Trash, EyeOff, Folder, Pencil, PlusCircle, Check, UserCheck, ArrowUpFromLine, Upload, RefreshCw } from 'lucide-react'
+import { Plus, Search, Settings, LayoutGrid, X, Trash, EyeOff, Folder, Pencil, PlusCircle, Check, UserCheck, ArrowUpFromLine, Upload, RefreshCw, Github } from 'lucide-react'
 import { SettingsModal } from './components/SettingsModal'
 import { AppDetailsModal } from './components/AppDetailsModal'
 import { LayoutMenu, LayoutMode } from './components/LayoutMenu'
@@ -509,6 +509,13 @@ function App() {
 
         return () => clearTimeout(timer)
     }, [pageTitle, openInNewTab, bgConfig, logoConfig, iconConfig, layoutConfig, titleConfig, configLoaded])
+
+    // Dynamic Page Title
+    useEffect(() => {
+        document.title = pageTitle || 'ER-Startseite'
+    }, [pageTitle])
+
+    // Helper to generate icon style
 
     // Helper to generate icon style
     const getIconStyle = () => {
@@ -1140,7 +1147,7 @@ function App() {
             }
 
             // Filter Categories
-            // Show category if: 
+            // Show category if:
             // 1. It has apps that match the search
             // 2. OR (optional) if the category name matches? The user asked for "Kategorien... die... beinhalten", so maybe just apps.
             // Let's stick to apps for now as requested: "show categories which contain the searched apps"
@@ -1686,6 +1693,15 @@ function App() {
                     >
                         <LayoutGrid className="w-5 h-5" />
                     </button>
+                    <a
+                        href="https://github.com/Eidolf/ER-Startseite"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 rounded-full glass-panel hover:bg-white/10 transition text-gray-400 hover:text-white"
+                        title="View Source on GitHub"
+                    >
+                        <Github className="w-5 h-5" />
+                    </a>
                     <button
                         onClick={() => handleProtectedAction('settings')}
                         className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
@@ -1705,7 +1721,18 @@ function App() {
                 <div className="flex flex-col items-center pointer-events-auto -mt-8">
                     {logoConfig.type === 'image' && logoConfig.value ? (
                         <div className="h-32 w-auto flex items-end justify-center pb-2">
-                            <img src={logoConfig.value} alt="Logo" className="max-h-full w-auto max-w-[250px] object-contain drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]" />
+                            <img
+                                src={logoConfig.value}
+                                alt="Logo"
+                                className="max-h-full w-auto max-w-[250px] object-contain drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]"
+                                onError={(e) => {
+                                    console.error("Failed to load logo:", logoConfig.value);
+                                    e.currentTarget.style.display = 'none';
+                                    // Optionally fallback to text or leave empty, but preventing the broken image icon is good.
+                                    // Better yet, set a state to show AnimatedLogo?
+                                    // For now, hiding the broken image is better than alt text.
+                                }}
+                            />
                         </div>
                     ) : (
                         <AnimatedLogo />
@@ -1738,6 +1765,15 @@ function App() {
                     >
                         <LayoutGrid className="w-6 h-6" />
                     </button>
+                    <a
+                        href="https://github.com/Eidolf/ER-Startseite"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 rounded-full glass-panel hover:bg-white/10 transition text-gray-400 hover:text-white"
+                        title="View Source on GitHub"
+                    >
+                        <Github className="w-6 h-6" />
+                    </a>
                     <button
                         onClick={() => handleProtectedAction('settings')}
                         className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
@@ -1749,10 +1785,10 @@ function App() {
             </div>
 
             {/* Main Content (Padded) */}
-            <div className="relative z-10 container mx-auto px-4 pt-[110px] md:pt-[220px] pb-4 flex flex-col h-screen overflow-hidden">
+            <div className="relative z-10 container mx-auto px-4 pt-[120px] md:pt-[250px] pb-4 flex flex-col h-screen overflow-hidden">
 
                 {/* Search Field */}
-                <div className="max-w-2xl w-full mx-auto mb-4 relative group shrink-0">
+                <div className="max-w-2xl w-full mx-auto mb-8 relative group shrink-0">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Search className="h-5 w-5 text-gray-400 group-focus-within:text-neon-cyan transition-colors" />
                     </div>

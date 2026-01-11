@@ -1,16 +1,22 @@
 backend:
-- backend/**/*
-- backend/**/*
+  - changed-files:
+      - any-glob-to-any-file:
+          - backend/**/*
 
 frontend:
-- frontend/**/*
-- frontend/**/*
+  - changed-files:
+      - any-glob-to-any-file:
+          - frontend/**/*
 
 infrastructure:
-- Dockerfile
-- docker-compose.yml
-- .github/**/*
+  - changed-files:
+      - any-glob-to-any-file:
+          - Dockerfile
+          - docker-compose.yml
+          - .github/**/*
 
 documentation:
-- docs/**/*
-- "**.md"
+  - changed-files:
+      - any-glob-to-any-file:
+          - docs/**/*
+          - "**.md"
