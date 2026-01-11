@@ -57,7 +57,7 @@ async def upload_file(file: UploadFile = File(...)):
     return JSONResponse(
         {
             "filename": filename,
-            "url": f"/uploads/{filename}",
+            "url": f"uploads/{filename}",
             "type": file_type,
         }
     )
@@ -85,7 +85,7 @@ async def list_media():
 
             if file_type:
                 files.append(
-                    {"name": filename, "url": f"/uploads/{filename}", "type": file_type}
+                    {"name": filename, "url": f"uploads/{filename}", "type": file_type}
                 )
 
         # Sort by name or modification time if needed, for now just name
