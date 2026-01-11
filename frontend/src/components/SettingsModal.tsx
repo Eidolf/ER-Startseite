@@ -267,7 +267,7 @@ export function SettingsModal({
             if (isLogo) {
                 onLogoChange({
                     type: 'image',
-                    value: data.url
+                    value: `${data.url}?v=${Date.now()}`
                 })
             } else {
                 onBgChange({

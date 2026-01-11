@@ -1721,7 +1721,18 @@ function App() {
                 <div className="flex flex-col items-center pointer-events-auto -mt-8">
                     {logoConfig.type === 'image' && logoConfig.value ? (
                         <div className="h-32 w-auto flex items-end justify-center pb-2">
-                            <img src={logoConfig.value} alt="Logo" className="max-h-full w-auto max-w-[250px] object-contain drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]" />
+                            <img
+                                src={logoConfig.value}
+                                alt="Logo"
+                                className="max-h-full w-auto max-w-[250px] object-contain drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]"
+                                onError={(e) => {
+                                    console.error("Failed to load logo:", logoConfig.value);
+                                    e.currentTarget.style.display = 'none';
+                                    // Optionally fallback to text or leave empty, but preventing the broken image icon is good.
+                                    // Better yet, set a state to show AnimatedLogo?
+                                    // For now, hiding the broken image is better than alt text.
+                                }}
+                            />
                         </div>
                     ) : (
                         <AnimatedLogo />
