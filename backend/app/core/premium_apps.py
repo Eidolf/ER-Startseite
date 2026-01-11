@@ -301,9 +301,6 @@ AppRegistry.register(
     )
 )
 
-# --- FaserF/hassio-addons ---
-
-
 # 21. ShieldDNS
 AppRegistry.register(
     PremiumAppDefinition(
@@ -339,19 +336,6 @@ AppRegistry.register(
     )
 )
 
-
-# Apache2
-AppRegistry.register(
-    PremiumAppDefinition(
-        id="hassio_apache2",
-        name="Apache2",
-        description=("Open Source Webserver with PHP and MariaDB."),
-        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/apache2/icon.png",
-        fields=[URL_FIELD],
-    )
-)
-
-
 # BentoPDF
 AppRegistry.register(
     PremiumAppDefinition(
@@ -359,28 +343,6 @@ AppRegistry.register(
         name="BentoPDF",
         description=("Self-hosted, privacy-first PDF toolkit"),
         default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/bentopdf/icon.png",
-        fields=[URL_FIELD],
-    )
-)
-
-# ER-Startseite (Dashboard)
-AppRegistry.register(
-    PremiumAppDefinition(
-        id="hassio_er-dashboard",
-        name="ER-Startseite (Dashboard)",
-        description=("A modern, highly customizable dashboard with a neon aesthetic."),
-        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/er-dashboard/icon.png",
-        fields=[URL_FIELD],
-    )
-)
-
-# Home Assistant Test Instance
-AppRegistry.register(
-    PremiumAppDefinition(
-        id="hassio_homeassistant-test-instance",
-        name="Home Assistant Test Instance",
-        description=("A standalone Home Assistant Core instance for testing purposes."),
-        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/homeassistant-test-instance/icon.png",
         fields=[URL_FIELD],
     )
 )
@@ -409,18 +371,6 @@ AppRegistry.register(
     )
 )
 
-# NGINX
-AppRegistry.register(
-    PremiumAppDefinition(
-        id="hassio_nginx",
-        name="NGINX",
-        description=("Open Source Webserver with PHP and MariaDB."),
-        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/nginx/icon.png",
-        fields=[URL_FIELD],
-    )
-)
-
-
 # Planka
 AppRegistry.register(
     PremiumAppDefinition(
@@ -439,17 +389,6 @@ AppRegistry.register(
         name="pterodactyl Panel Gameserver",
         description=("Open-Source Gameserver Management Panel"),
         default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/pterodactyl-panel/icon.png",
-        fields=[URL_FIELD],
-    )
-)
-
-# pterodactyl Wings Gameserver
-AppRegistry.register(
-    PremiumAppDefinition(
-        id="hassio_pterodactyl-wings",
-        name="pterodactyl Wings Gameserver",
-        description=("Open Source Gameserver"),
-        default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/pterodactyl-wings/icon.png",
         fields=[URL_FIELD],
     )
 )
@@ -478,7 +417,6 @@ AppRegistry.register(
     )
 )
 
-
 # Tiny Tiny RSS
 AppRegistry.register(
     PremiumAppDefinition(
@@ -490,7 +428,6 @@ AppRegistry.register(
     )
 )
 
-
 # Wiki.JS
 AppRegistry.register(
     PremiumAppDefinition(
@@ -501,7 +438,6 @@ AppRegistry.register(
         fields=[URL_FIELD],
     )
 )
-
 
 # Wordpress
 AppRegistry.register(
