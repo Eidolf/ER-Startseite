@@ -2,12 +2,12 @@ from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends
 
-from app.core.premium_apps import AppRegistry, PremiumAppDefinition
+from app.core.premium_apps import PremiumAppDefinition
 from app.schemas.app import App, AppCreate, AppPreviewRequest, AppPreviewResponse
 from app.services.app_service import AppService
-
 from app.services.config_service import ConfigService
 from app.services.registry_service import RegistryService
+
 
 router = APIRouter()
 registry_service = RegistryService()

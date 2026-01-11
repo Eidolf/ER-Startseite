@@ -1,5 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
+
 from app.services.registry_service import RegistryService
+
 
 router = APIRouter()
 service = RegistryService()

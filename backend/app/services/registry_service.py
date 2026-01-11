@@ -1,7 +1,9 @@
-import json
+from typing import List
+
 import httpx
-from typing import List, Optional
-from app.core.premium_apps import PremiumAppDefinition, AppRegistry
+
+from app.core.premium_apps import AppRegistry, PremiumAppDefinition
+
 
 class RegistryService:
     async def fetch_registry(self, url: str) -> List[PremiumAppDefinition]:
