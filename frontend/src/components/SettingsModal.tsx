@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Info, Github } from 'lucide-react'
+import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github } from 'lucide-react'
 import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig } from '../App'
 
 interface MediaItem {
