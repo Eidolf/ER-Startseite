@@ -1,4 +1,4 @@
-from typing import Any, List, Union
+from typing import Any
 
 from pydantic import validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     # CORS
     # CORS
-    BACKEND_CORS_ORIGINS: List[str] = [
+    BACKEND_CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://localhost:4173",
         "http://localhost:3000",
@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     ]
 
     @validator("BACKEND_CORS_ORIGINS", pre=True)
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
+    def assemble_cors_origins(cls, v: str | list[str]) -> list[str] | str:
         if isinstance(v, str) and not v.startswith("["):
             return [i.strip() for i in v.split(",")]
         elif isinstance(v, (list, str)):

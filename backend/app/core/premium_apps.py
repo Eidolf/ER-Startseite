@@ -1,5 +1,3 @@
-from typing import Dict, List, Optional
-
 from pydantic import BaseModel
 
 
@@ -8,8 +6,8 @@ class PremiumAppField(BaseModel):
     label: str
     type: str = "text"  # text, password, url
     required: bool = True
-    default: Optional[str] = None
-    placeholder: Optional[str] = None
+    default: str | None = None
+    placeholder: str | None = None
 
 
 class PremiumAppDefinition(BaseModel):
@@ -17,22 +15,22 @@ class PremiumAppDefinition(BaseModel):
     name: str
     description: str
     default_icon: str
-    fields: List[PremiumAppField] = []
+    fields: list[PremiumAppField] = []
 
 
 class AppRegistry:
-    _apps: Dict[str, PremiumAppDefinition] = {}
+    _apps: dict[str, PremiumAppDefinition] = {}
 
     @classmethod
     def register(cls, app: PremiumAppDefinition):
         cls._apps[app.id] = app
 
     @classmethod
-    def get_all(cls) -> List[PremiumAppDefinition]:
+    def get_all(cls) -> list[PremiumAppDefinition]:
         return list(cls._apps.values())
 
     @classmethod
-    def get(cls, app_id: str) -> Optional[PremiumAppDefinition]:
+    def get(cls, app_id: str) -> PremiumAppDefinition | None:
         return cls._apps.get(app_id)
 
 

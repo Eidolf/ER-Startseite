@@ -1,18 +1,18 @@
-from typing import List, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, HttpUrl
 
 
 class AppBase(BaseModel):
     name: str
-    id: Optional[str] = None
-    url: Optional[HttpUrl] = None
-    icon_url: Optional[str] = None
-    custom_icon_url: Optional[str] = None
-    description: Optional[str] = None
-    premium_id: Optional[str] = None
+    id: str | None = None
+    url: HttpUrl | None = None
+    icon_url: str | None = None
+    custom_icon_url: str | None = None
+    description: str | None = None
+    premium_id: str | None = None
     type: Literal["link", "folder"] = "link"
-    contents: List["AppBase"] = []
+    contents: list["AppBase"] = []
 
 
 class AppCreate(AppBase):
@@ -22,7 +22,7 @@ class AppCreate(AppBase):
 class App(AppBase):
     id: str
     created_at: str
-    contents: List["App"] = []  # type: ignore
+    contents: list["App"] = []  # type: ignore
 
 
 class AppPreviewRequest(BaseModel):
@@ -30,9 +30,9 @@ class AppPreviewRequest(BaseModel):
 
 
 class AppPreviewResponse(BaseModel):
-    title: Optional[str] = None
-    icon: Optional[str] = None
-    description: Optional[str] = None
+    title: str | None = None
+    icon: str | None = None
+    description: str | None = None
 
 
 App.model_rebuild()

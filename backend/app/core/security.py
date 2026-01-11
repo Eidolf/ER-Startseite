@@ -2,12 +2,11 @@ import hashlib
 import json
 import os
 import secrets
-from typing import Optional
 
 SECURITY_FILE = "/app/data/security.json"
 
 
-def get_password_hash(password: str, salt: Optional[str] = None) -> str:
+def get_password_hash(password: str, salt: str | None = None) -> str:
     if not salt:
         salt = secrets.token_hex(16)
     # Simple SHA256 with salt
