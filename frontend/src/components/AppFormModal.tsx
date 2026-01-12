@@ -96,7 +96,6 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
         else setIntegration('')
     }
 
-    if (!isOpen) return null
 
     const handleRefreshMetadata = async () => {
         if (!url) return
@@ -152,6 +151,17 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
         }
     }
 
+    const [urlError, setUrlError] = useState('')
+
+    const validateUrl = (str: string) => {
+        if (!str) return false
+        // Allow localhost, IPs, and domains with at least one dot
+        const pattern = /^(https?:\/\/)?((([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})|localhost|(\d{1,3}\.){3}\d{1,3})(:\d+)?(\/.*)?$/
+        return pattern.test(str)
+    }
+
+    if (!isOpen) return null
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
@@ -159,6 +169,11 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
         let finalUrl = url
         // Validate URL only for links
         if (activeTab !== 'folder') {
+            if (!validateUrl(finalUrl)) {
+                setUrlError('Please enter a valid URL (e.g., example.com, localhost, or 192.168.x.x)')
+                setLoading(false)
+                return
+            }
             if (!/^https?:\/\//i.test(finalUrl)) {
                 finalUrl = 'https://' + finalUrl
             }
@@ -378,7 +393,10 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
                             <input
                                 type="text"
                                 value={url}
-                                onChange={(e) => setUrl(e.target.value)}
+                                onChange={(e) => {
+                                    setUrl(e.target.value)
+                                    if (urlError) setUrlError('')
+                                }}
                                 className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-neon-cyan focus:ring-1 focus:ring-neon-cyan transition-all"
                                 placeholder="https://example.com"
                                 required
@@ -393,322 +411,178 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
                                 <RefreshCw className={`w-5 h-5 text-neon-cyan ${loading ? 'animate-spin' : ''}`} />
                             </button>
                         </div>
+                        {urlError && <p className="text-xs text-red-400 ml-1">{urlError}</p>}
                     </div>
-                )}
+                )
+                }
 
-                {activeTab !== 'folder' && (
-                    <div className="space-y-4">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-300">Custom Logo (Optional)</label>
-                            <div className="flex items-center gap-4">
-                                {customIconUrl && (
-                                    <div className="w-10 h-10 bg-black/40 rounded-lg p-1 shrink-0 border border-white/10">
-                                        <AppIcon src={customIconUrl} alt="Preview" className="w-full h-full object-contain" />
-                                    </div>
-                                )}
-                                <label className="flex-1 cursor-pointer">
-                                    <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={uploadingIcon} />
-                                    <div className={`flex items-center justify-center gap-2 w-full bg-white/5 hover:bg-white/10 border border-dashed border-white/20 hover:border-neon-cyan/50 rounded-lg py-2 transition-colors ${uploadingIcon ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                        <Upload className="w-4 h-4 text-gray-400" />
-                                        <span className="text-sm text-gray-400">{uploadingIcon ? 'Uploading...' : 'Upload Image'}</span>
-                                    </div>
-                                </label>
-                                {customIconUrl && (
-                                    <button type="button" onClick={() => setCustomIconUrl('')} className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-red-400 transition">
-                                        <Trash className="w-4 h-4" />
-                                    </button>
-                                )}
+                {
+                    activeTab !== 'folder' && (
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-300">Custom Logo (Optional)</label>
+                                <div className="flex items-center gap-4">
+                                    {customIconUrl && (
+                                        <div className="w-10 h-10 bg-black/40 rounded-lg p-1 shrink-0 border border-white/10">
+                                            <AppIcon src={customIconUrl} alt="Preview" className="w-full h-full object-contain" />
+                                        </div>
+                                    )}
+                                    <label className="flex-1 cursor-pointer">
+                                        <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} disabled={uploadingIcon} />
+                                        <div className={`flex items-center justify-center gap-2 w-full bg-white/5 hover:bg-white/10 border border-dashed border-white/20 hover:border-neon-cyan/50 rounded-lg py-2 transition-colors ${uploadingIcon ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                            <Upload className="w-4 h-4 text-gray-400" />
+                                            <span className="text-sm text-gray-400">{uploadingIcon ? 'Uploading...' : 'Upload Image'}</span>
+                                        </div>
+                                    </label>
+                                    {customIconUrl && (
+                                        <button type="button" onClick={() => setCustomIconUrl('')} className="p-2 hover:bg-white/10 rounded-lg text-gray-400 hover:text-red-400 transition">
+                                            <Trash className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-gray-300">Description (Optional)</label>
+                                <textarea
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-neon-cyan transition-colors text-sm resize-none custom-scrollbar"
+                                    rows={3}
+                                    placeholder="Short description..."
+                                />
                             </div>
                         </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-gray-300">Description (Optional)</label>
-                            <textarea
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-neon-cyan transition-colors text-sm resize-none custom-scrollbar"
-                                rows={3}
-                                placeholder="Short description..."
-                            />
-                        </div>
-                    </div>
-                )}
+                    )
+                }
 
                 {/* Integration / Premium Settings */}
-                {activeTab !== 'folder' && (
-                    <div className="space-y-4 pt-4 border-t border-white/10">
-                        {/* Hide selection if auto-determined */}
-                        {!isAutoIntegration && (
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-300">Integration (Optional)</label>
-                                <select
-                                    value={integration}
-                                    onChange={(e) => setIntegration(e.target.value)}
-                                    className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-neon-cyan transition-colors appearance-none cursor-pointer"
-                                >
-                                    <option value="lidarr">Lidarr</option>
-                                </select>
-                            </div>
-                        )}
-
-                        {isAutoIntegration && (
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-300">API Connection (Optional)</label>
-                                <div className="text-xs text-gray-500">
-                                    Configuring {integration === 'lidarr' ? 'Lidarr' : 'Ombi'} integration.
-                                </div>
-                            </div>
-                        )}
-
-                        {integration === 'ombi' && (
-                            <div className="space-y-3 p-3 bg-neon-cyan/5 border border-neon-cyan/10 rounded-xl animate-in fade-in slide-in-from-top-2">
+                {
+                    activeTab !== 'folder' && (
+                        <div className="space-y-4 pt-4 border-t border-white/10">
+                            {/* Hide selection if auto-determined */}
+                            {!isAutoIntegration && (
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-neon-cyan uppercase tracking-wider">API URL (Optional)</label>
-                                    <input
-                                        type="text"
-                                        value={apiUrl}
-                                        onChange={(e) => setApiUrl(e.target.value)}
-                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-neon-cyan/50"
-                                        placeholder="https://ombi.example.com (Leave empty to use App URL)"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-medium text-neon-cyan uppercase tracking-wider">API Key</label>
-                                    <input
-                                        type="password"
-                                        value={apiKey}
-                                        onChange={(e) => setApiKey(e.target.value)}
-                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-neon-cyan/50"
-                                        placeholder="Ombi API Key"
-                                    />
-                                </div>
-
-                                {/* Feature Toggles */}
-                                <div className="pt-2 border-t border-white/5 space-y-2">
-                                    <div className="flex justify-between items-center px-1">
-                                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Features</label>
-                                        <span className="text-[10px] text-gray-500">Visible / Protected</span>
-                                    </div>
-
-                                    {/* Movies */}
-                                    <div className="flex items-center justify-between bg-black/20 p-2 rounded-lg">
-                                        <span className="text-sm text-white flex items-center gap-2">
-                                            <Film className="w-4 h-4 text-purple-400" />
-                                            Movies
-                                        </span>
-                                        <div className="flex gap-2">
-                                            {/* Visibility Toggle */}
-                                            <button
-                                                type="button"
-                                                onClick={() => setApiConfig(prev => {
-                                                    const current = prev.movies || { enabled: true, protected: false };
-                                                    return { ...prev, movies: { ...current, enabled: !current.enabled } };
-                                                })}
-                                                className={`px-2 py-1.5 rounded text-xs transition-colors border ${(apiConfig.movies?.enabled ?? true) ? 'bg-neon-cyan/20 border-neon-cyan/30 text-neon-cyan hover:bg-neon-cyan/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'}`}
-                                                title={(apiConfig.movies?.enabled ?? true) ? "Visible on card" : "Hidden from card"}
-                                            >
-                                                {(apiConfig.movies?.enabled ?? true) ? 'Show' : 'Hide'}
-                                            </button>
-
-                                            {/* Protection Toggle */}
-                                            <button
-                                                type="button"
-                                                onClick={() => setApiConfig(prev => {
-                                                    const current = prev.movies || { enabled: true, protected: false };
-                                                    return { ...prev, movies: { ...current, protected: !current.protected } };
-                                                })}
-                                                disabled={!(apiConfig.movies?.enabled ?? true)}
-                                                className={`p-1.5 rounded border transition-colors ${(apiConfig.movies?.protected ?? false) ? 'bg-red-500/20 border-red-500/30 text-red-500 hover:bg-red-500/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'} disabled:opacity-30 disabled:cursor-not-allowed`}
-                                                title={(apiConfig.movies?.protected ?? false) ? "Requires Admin PIN" : "Publicly Visible"}
-                                            >
-                                                <Lock className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* TV */}
-                                    <div className="flex items-center justify-between bg-black/20 p-2 rounded-lg">
-                                        <span className="text-sm text-white flex items-center gap-2">
-                                            <Tv className="w-4 h-4 text-blue-400" />
-                                            TV Series
-                                        </span>
-                                        <div className="flex gap-2">
-                                            {/* Visibility Toggle */}
-                                            <button
-                                                type="button"
-                                                onClick={() => setApiConfig(prev => {
-                                                    const current = prev.tv || { enabled: true, protected: false };
-                                                    return { ...prev, tv: { ...current, enabled: !current.enabled } };
-                                                })}
-                                                className={`px-2 py-1.5 rounded text-xs transition-colors border ${(apiConfig.tv?.enabled ?? true) ? 'bg-neon-cyan/20 border-neon-cyan/30 text-neon-cyan hover:bg-neon-cyan/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'}`}
-                                            >
-                                                {(apiConfig.tv?.enabled ?? true) ? 'Show' : 'Hide'}
-                                            </button>
-
-                                            {/* Protection Toggle */}
-                                            <button
-                                                type="button"
-                                                onClick={() => setApiConfig(prev => {
-                                                    const current = prev.tv || { enabled: true, protected: false };
-                                                    return { ...prev, tv: { ...current, protected: !current.protected } };
-                                                })}
-                                                disabled={!(apiConfig.tv?.enabled ?? true)}
-                                                className={`p-1.5 rounded border transition-colors ${(apiConfig.tv?.protected ?? false) ? 'bg-red-500/20 border-red-500/30 text-red-500 hover:bg-red-500/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'} disabled:opacity-30 disabled:cursor-not-allowed`}
-                                                title={(apiConfig.tv?.protected ?? false) ? "Requires Admin PIN" : "Publicly Visible"}
-                                            >
-                                                <Lock className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-2 pt-2 border-t border-white/5">
-                                    <button
-                                        type="button"
-                                        onClick={() => setApiProtected(!apiProtected)}
-                                        className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${apiProtected ? 'bg-neon-cyan border-neon-cyan text-black' : 'border-gray-500 text-transparent'}`}
+                                    <label className="text-sm font-medium text-gray-300">Integration (Optional)</label>
+                                    <select
+                                        value={integration}
+                                        onChange={(e) => setIntegration(e.target.value)}
+                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-neon-cyan transition-colors appearance-none cursor-pointer"
                                     >
-                                        <Check className="w-3 h-3" />
-                                    </button>
-                                    <span className="text-xs text-gray-400 cursor-pointer" onClick={() => setApiProtected(!apiProtected)}>
-                                        Hide All behind Admin PIN
-                                    </span>
+                                        <option value="">None</option>
+                                        <option value="lidarr">Lidarr</option>
+                                    </select>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        {integration === 'lidarr' && (
-                            <div className="space-y-3 p-3 bg-neon-cyan/5 border border-neon-cyan/10 rounded-xl animate-in fade-in slide-in-from-top-2">
+                            {isAutoIntegration && (
                                 <div className="space-y-2">
-                                    <label className="text-xs font-medium text-neon-cyan uppercase tracking-wider">Lidarr API URL (Optional)</label>
-                                    <input
-                                        type="text"
-                                        value={apiUrl}
-                                        onChange={(e) => setApiUrl(e.target.value)}
-                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-neon-cyan/50"
-                                        placeholder="http://localhost:8686 (Leave empty to use App URL)"
-                                    />
+                                    <label className="text-sm font-medium text-gray-300">API Connection (Optional)</label>
+                                    <div className="text-xs text-gray-500">
+                                        Configuring {integration === 'lidarr' ? 'Lidarr' : 'Ombi'} integration.
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-medium text-neon-cyan uppercase tracking-wider">API Key</label>
-                                    <input
-                                        type="password"
-                                        value={apiKey}
-                                        onChange={(e) => setApiKey(e.target.value)}
-                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-neon-cyan/50"
-                                        placeholder="Lidarr API Key"
-                                    />
-                                </div>
+                            )}
 
-                                {/* Feature Toggles */}
-                                <div className="pt-2 border-t border-white/5 space-y-2">
-                                    <div className="flex justify-between items-center px-1">
-                                        <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Features</label>
-                                        <span className="text-[10px] text-gray-500">Visible / Protected</span>
+                            {integration === 'ombi' && (
+                                <div className="space-y-3 p-3 bg-neon-cyan/5 border border-neon-cyan/10 rounded-xl animate-in fade-in slide-in-from-top-2">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium text-neon-cyan uppercase tracking-wider">API URL (Optional)</label>
+                                        <input
+                                            type="text"
+                                            value={apiUrl}
+                                            onChange={(e) => setApiUrl(e.target.value)}
+                                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-neon-cyan/50"
+                                            placeholder="https://ombi.example.com (Leave empty to use App URL)"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium text-neon-cyan uppercase tracking-wider">API Key</label>
+                                        <input
+                                            type="password"
+                                            value={apiKey}
+                                            onChange={(e) => setApiKey(e.target.value)}
+                                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-neon-cyan/50"
+                                            placeholder="Ombi API Key"
+                                        />
                                     </div>
 
-                                    {/* Library Stats */}
-                                    <div className="flex items-center justify-between bg-black/20 p-2 rounded-lg">
-                                        <span className="text-sm text-white flex items-center gap-2">
-                                            <Disc className="w-4 h-4 text-neon-purple" />
-                                            Library Stats
-                                        </span>
-                                        <div className="flex gap-2">
-                                            {/* Visibility Toggle */}
-                                            <button
-                                                type="button"
-                                                onClick={() => setApiConfig(prev => {
-                                                    const current = prev.stats || { enabled: true, protected: false };
-                                                    return { ...prev, stats: { ...current, enabled: !current.enabled } };
-                                                })}
-                                                className={`px-2 py-1.5 rounded text-xs transition-colors border ${(apiConfig.stats?.enabled ?? true) ? 'bg-neon-cyan/20 border-neon-cyan/30 text-neon-cyan hover:bg-neon-cyan/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'}`}
-                                            >
-                                                {(apiConfig.stats?.enabled ?? true) ? 'Show' : 'Hide'}
-                                            </button>
-
-                                            {/* Protection Toggle */}
-                                            <button
-                                                type="button"
-                                                onClick={() => setApiConfig(prev => {
-                                                    const current = prev.stats || { enabled: true, protected: false };
-                                                    return { ...prev, stats: { ...current, protected: !current.protected } };
-                                                })}
-                                                disabled={!(apiConfig.stats?.enabled ?? true)}
-                                                className={`p-1.5 rounded border transition-colors ${(apiConfig.stats?.protected ?? false) ? 'bg-red-500/20 border-red-500/30 text-red-500 hover:bg-red-500/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'} disabled:opacity-30 disabled:cursor-not-allowed`}
-                                                title={(apiConfig.stats?.protected ?? false) ? "Requires Admin PIN" : "Publicly Visible"}
-                                            >
-                                                <Lock className="w-4 h-4" />
-                                            </button>
+                                    {/* Feature Toggles */}
+                                    <div className="pt-2 border-t border-white/5 space-y-2">
+                                        <div className="flex justify-between items-center px-1">
+                                            <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Features</label>
+                                            <span className="text-[10px] text-gray-500">Visible / Protected</span>
                                         </div>
-                                    </div>
 
-                                    {/* Queue Stats */}
-                                    <div className="flex items-center justify-between bg-black/20 p-2 rounded-lg">
-                                        <span className="text-sm text-white flex items-center gap-2">
-                                            <ArrowUpFromLine className="w-4 h-4 text-orange-400" />
-                                            Queue
-                                        </span>
-                                        <div className="flex gap-2">
-                                            {/* Visibility Toggle */}
-                                            <button
-                                                type="button"
-                                                onClick={() => setApiConfig(prev => {
-                                                    const current = prev.queue || { enabled: true, protected: false };
-                                                    return { ...prev, queue: { ...current, enabled: !current.enabled } };
-                                                })}
-                                                className={`px-2 py-1.5 rounded text-xs transition-colors border ${(apiConfig.queue?.enabled ?? true) ? 'bg-neon-cyan/20 border-neon-cyan/30 text-neon-cyan hover:bg-neon-cyan/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'}`}
-                                            >
-                                                {(apiConfig.queue?.enabled ?? true) ? 'Show' : 'Hide'}
-                                            </button>
+                                        {/* Movies */}
+                                        <div className="flex items-center justify-between bg-black/20 p-2 rounded-lg">
+                                            <span className="text-sm text-white flex items-center gap-2">
+                                                <Film className="w-4 h-4 text-purple-400" />
+                                                Movies
+                                            </span>
+                                            <div className="flex gap-2">
+                                                {/* Visibility Toggle */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setApiConfig(prev => {
+                                                        const current = prev.movies || { enabled: true, protected: false };
+                                                        return { ...prev, movies: { ...current, enabled: !current.enabled } };
+                                                    })}
+                                                    className={`px-2 py-1.5 rounded text-xs transition-colors border ${(apiConfig.movies?.enabled ?? true) ? 'bg-neon-cyan/20 border-neon-cyan/30 text-neon-cyan hover:bg-neon-cyan/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'}`}
+                                                    title={(apiConfig.movies?.enabled ?? true) ? "Visible on card" : "Hidden from card"}
+                                                >
+                                                    {(apiConfig.movies?.enabled ?? true) ? 'Show' : 'Hide'}
+                                                </button>
 
-                                            {/* Protection Toggle */}
-                                            <button
-                                                type="button"
-                                                onClick={() => setApiConfig(prev => {
-                                                    const current = prev.queue || { enabled: true, protected: false };
-                                                    return { ...prev, queue: { ...current, protected: !current.protected } };
-                                                })}
-                                                disabled={!(apiConfig.queue?.enabled ?? true)}
-                                                className={`p-1.5 rounded border transition-colors ${(apiConfig.queue?.protected ?? false) ? 'bg-red-500/20 border-red-500/30 text-red-500 hover:bg-red-500/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'} disabled:opacity-30 disabled:cursor-not-allowed`}
-                                                title={(apiConfig.queue?.protected ?? false) ? "Requires Admin PIN" : "Publicly Visible"}
-                                            >
-                                                <Lock className="w-4 h-4" />
-                                            </button>
+                                                {/* Protection Toggle */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setApiConfig(prev => {
+                                                        const current = prev.movies || { enabled: true, protected: false };
+                                                        return { ...prev, movies: { ...current, protected: !current.protected } };
+                                                    })}
+                                                    disabled={!(apiConfig.movies?.enabled ?? true)}
+                                                    className={`p-1.5 rounded border transition-colors ${(apiConfig.movies?.protected ?? false) ? 'bg-red-500/20 border-red-500/30 text-red-500 hover:bg-red-500/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'} disabled:opacity-30 disabled:cursor-not-allowed`}
+                                                    title={(apiConfig.movies?.protected ?? false) ? "Requires Admin PIN" : "Publicly Visible"}
+                                                >
+                                                    <Lock className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    {/* Calendar */}
-                                    <div className="flex items-center justify-between bg-black/20 p-2 rounded-lg">
-                                        <span className="text-sm text-white flex items-center gap-2">
-                                            <Calendar className="w-4 h-4 text-gray-400" />
-                                            Calendar
-                                        </span>
-                                        <div className="flex gap-2">
-                                            {/* Visibility Toggle */}
-                                            <button
-                                                type="button"
-                                                onClick={() => setApiConfig(prev => {
-                                                    const current = prev.calendar || { enabled: true, protected: false };
-                                                    return { ...prev, calendar: { ...current, enabled: !current.enabled } };
-                                                })}
-                                                className={`px-2 py-1.5 rounded text-xs transition-colors border ${(apiConfig.calendar?.enabled ?? true) ? 'bg-neon-cyan/20 border-neon-cyan/30 text-neon-cyan hover:bg-neon-cyan/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'}`}
-                                            >
-                                                {(apiConfig.calendar?.enabled ?? true) ? 'Show' : 'Hide'}
-                                            </button>
+                                        {/* TV */}
+                                        <div className="flex items-center justify-between bg-black/20 p-2 rounded-lg">
+                                            <span className="text-sm text-white flex items-center gap-2">
+                                                <Tv className="w-4 h-4 text-blue-400" />
+                                                TV Series
+                                            </span>
+                                            <div className="flex gap-2">
+                                                {/* Visibility Toggle */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setApiConfig(prev => {
+                                                        const current = prev.tv || { enabled: true, protected: false };
+                                                        return { ...prev, tv: { ...current, enabled: !current.enabled } };
+                                                    })}
+                                                    className={`px-2 py-1.5 rounded text-xs transition-colors border ${(apiConfig.tv?.enabled ?? true) ? 'bg-neon-cyan/20 border-neon-cyan/30 text-neon-cyan hover:bg-neon-cyan/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'}`}
+                                                >
+                                                    {(apiConfig.tv?.enabled ?? true) ? 'Show' : 'Hide'}
+                                                </button>
 
-                                            {/* Protection Toggle */}
-                                            <button
-                                                type="button"
-                                                onClick={() => setApiConfig(prev => {
-                                                    const current = prev.calendar || { enabled: true, protected: false };
-                                                    return { ...prev, calendar: { ...current, protected: !current.protected } };
-                                                })}
-                                                disabled={!(apiConfig.calendar?.enabled ?? true)}
-                                                className={`p-1.5 rounded border transition-colors ${(apiConfig.calendar?.protected ?? false) ? 'bg-red-500/20 border-red-500/30 text-red-500 hover:bg-red-500/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'} disabled:opacity-30 disabled:cursor-not-allowed`}
-                                                title={(apiConfig.calendar?.protected ?? false) ? "Requires Admin PIN" : "Publicly Visible"}
-                                            >
-                                                <Lock className="w-4 h-4" />
-                                            </button>
+                                                {/* Protection Toggle */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setApiConfig(prev => {
+                                                        const current = prev.tv || { enabled: true, protected: false };
+                                                        return { ...prev, tv: { ...current, protected: !current.protected } };
+                                                    })}
+                                                    disabled={!(apiConfig.tv?.enabled ?? true)}
+                                                    className={`p-1.5 rounded border transition-colors ${(apiConfig.tv?.protected ?? false) ? 'bg-red-500/20 border-red-500/30 text-red-500 hover:bg-red-500/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'} disabled:opacity-30 disabled:cursor-not-allowed`}
+                                                    title={(apiConfig.tv?.protected ?? false) ? "Requires Admin PIN" : "Publicly Visible"}
+                                                >
+                                                    <Lock className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -725,10 +599,161 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
                                         </span>
                                     </div>
                                 </div>
-                            </div>
-                        )}
-                    </div>
-                )}
+                            )}
+
+                            {integration === 'lidarr' && (
+                                <div className="space-y-3 p-3 bg-neon-cyan/5 border border-neon-cyan/10 rounded-xl animate-in fade-in slide-in-from-top-2">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium text-neon-cyan uppercase tracking-wider">Lidarr API URL (Optional)</label>
+                                        <input
+                                            type="text"
+                                            value={apiUrl}
+                                            onChange={(e) => setApiUrl(e.target.value)}
+                                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-neon-cyan/50"
+                                            placeholder="http://localhost:8686 (Leave empty to use App URL)"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium text-neon-cyan uppercase tracking-wider">API Key</label>
+                                        <input
+                                            type="password"
+                                            value={apiKey}
+                                            onChange={(e) => setApiKey(e.target.value)}
+                                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-neon-cyan/50"
+                                            placeholder="Lidarr API Key"
+                                        />
+                                    </div>
+
+                                    {/* Feature Toggles */}
+                                    <div className="pt-2 border-t border-white/5 space-y-2">
+                                        <div className="flex justify-between items-center px-1">
+                                            <label className="text-xs font-medium text-gray-400 uppercase tracking-wider">Features</label>
+                                            <span className="text-[10px] text-gray-500">Visible / Protected</span>
+                                        </div>
+
+                                        {/* Library Stats */}
+                                        <div className="flex items-center justify-between bg-black/20 p-2 rounded-lg">
+                                            <span className="text-sm text-white flex items-center gap-2">
+                                                <Disc className="w-4 h-4 text-neon-purple" />
+                                                Library Stats
+                                            </span>
+                                            <div className="flex gap-2">
+                                                {/* Visibility Toggle */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setApiConfig(prev => {
+                                                        const current = prev.stats || { enabled: true, protected: false };
+                                                        return { ...prev, stats: { ...current, enabled: !current.enabled } };
+                                                    })}
+                                                    className={`px-2 py-1.5 rounded text-xs transition-colors border ${(apiConfig.stats?.enabled ?? true) ? 'bg-neon-cyan/20 border-neon-cyan/30 text-neon-cyan hover:bg-neon-cyan/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'}`}
+                                                >
+                                                    {(apiConfig.stats?.enabled ?? true) ? 'Show' : 'Hide'}
+                                                </button>
+
+                                                {/* Protection Toggle */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setApiConfig(prev => {
+                                                        const current = prev.stats || { enabled: true, protected: false };
+                                                        return { ...prev, stats: { ...current, protected: !current.protected } };
+                                                    })}
+                                                    disabled={!(apiConfig.stats?.enabled ?? true)}
+                                                    className={`p-1.5 rounded border transition-colors ${(apiConfig.stats?.protected ?? false) ? 'bg-red-500/20 border-red-500/30 text-red-500 hover:bg-red-500/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'} disabled:opacity-30 disabled:cursor-not-allowed`}
+                                                    title={(apiConfig.stats?.protected ?? false) ? "Requires Admin PIN" : "Publicly Visible"}
+                                                >
+                                                    <Lock className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Queue Stats */}
+                                        <div className="flex items-center justify-between bg-black/20 p-2 rounded-lg">
+                                            <span className="text-sm text-white flex items-center gap-2">
+                                                <ArrowUpFromLine className="w-4 h-4 text-orange-400" />
+                                                Queue
+                                            </span>
+                                            <div className="flex gap-2">
+                                                {/* Visibility Toggle */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setApiConfig(prev => {
+                                                        const current = prev.queue || { enabled: true, protected: false };
+                                                        return { ...prev, queue: { ...current, enabled: !current.enabled } };
+                                                    })}
+                                                    className={`px-2 py-1.5 rounded text-xs transition-colors border ${(apiConfig.queue?.enabled ?? true) ? 'bg-neon-cyan/20 border-neon-cyan/30 text-neon-cyan hover:bg-neon-cyan/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'}`}
+                                                >
+                                                    {(apiConfig.queue?.enabled ?? true) ? 'Show' : 'Hide'}
+                                                </button>
+
+                                                {/* Protection Toggle */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setApiConfig(prev => {
+                                                        const current = prev.queue || { enabled: true, protected: false };
+                                                        return { ...prev, queue: { ...current, protected: !current.protected } };
+                                                    })}
+                                                    disabled={!(apiConfig.queue?.enabled ?? true)}
+                                                    className={`p-1.5 rounded border transition-colors ${(apiConfig.queue?.protected ?? false) ? 'bg-red-500/20 border-red-500/30 text-red-500 hover:bg-red-500/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'} disabled:opacity-30 disabled:cursor-not-allowed`}
+                                                    title={(apiConfig.queue?.protected ?? false) ? "Requires Admin PIN" : "Publicly Visible"}
+                                                >
+                                                    <Lock className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Calendar */}
+                                        <div className="flex items-center justify-between bg-black/20 p-2 rounded-lg">
+                                            <span className="text-sm text-white flex items-center gap-2">
+                                                <Calendar className="w-4 h-4 text-gray-400" />
+                                                Calendar
+                                            </span>
+                                            <div className="flex gap-2">
+                                                {/* Visibility Toggle */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setApiConfig(prev => {
+                                                        const current = prev.calendar || { enabled: true, protected: false };
+                                                        return { ...prev, calendar: { ...current, enabled: !current.enabled } };
+                                                    })}
+                                                    className={`px-2 py-1.5 rounded text-xs transition-colors border ${(apiConfig.calendar?.enabled ?? true) ? 'bg-neon-cyan/20 border-neon-cyan/30 text-neon-cyan hover:bg-neon-cyan/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'}`}
+                                                >
+                                                    {(apiConfig.calendar?.enabled ?? true) ? 'Show' : 'Hide'}
+                                                </button>
+
+                                                {/* Protection Toggle */}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setApiConfig(prev => {
+                                                        const current = prev.calendar || { enabled: true, protected: false };
+                                                        return { ...prev, calendar: { ...current, protected: !current.protected } };
+                                                    })}
+                                                    disabled={!(apiConfig.calendar?.enabled ?? true)}
+                                                    className={`p-1.5 rounded border transition-colors ${(apiConfig.calendar?.protected ?? false) ? 'bg-red-500/20 border-red-500/30 text-red-500 hover:bg-red-500/30' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'} disabled:opacity-30 disabled:cursor-not-allowed`}
+                                                    title={(apiConfig.calendar?.protected ?? false) ? "Requires Admin PIN" : "Publicly Visible"}
+                                                >
+                                                    <Lock className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 pt-2 border-t border-white/5">
+                                            <button
+                                                type="button"
+                                                onClick={() => setApiProtected(!apiProtected)}
+                                                className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${apiProtected ? 'bg-neon-cyan border-neon-cyan text-black' : 'border-gray-500 text-transparent'}`}
+                                            >
+                                                <Check className="w-3 h-3" />
+                                            </button>
+                                            <span className="text-xs text-gray-400 cursor-pointer" onClick={() => setApiProtected(!apiProtected)}>
+                                                Hide All behind Admin PIN
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )
+                }
 
 
                 <div className="flex items-center gap-2 pt-2">

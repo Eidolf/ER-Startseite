@@ -17,4 +17,5 @@ DEFAULT_LAYOUT_CONFIG = {
     "customOrder": [],
     "categories": [],
     "hiddenAppIds": [],
+    "widgets": [],
 }

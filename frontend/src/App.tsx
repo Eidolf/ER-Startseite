@@ -12,6 +12,11 @@ import { CSS } from '@dnd-kit/utilities'
 import { AppData, BackgroundConfig, LogoConfig, IconConfig, LayoutConfig, TitleConfig } from './types'
 import { DEFAULT_BG, DEFAULT_LOGO_CONFIG, DEFAULT_TITLE_CONFIG, DEFAULT_ICON_CONFIG, DEFAULT_LAYOUT_CONFIG } from './defaults'
 import { AppFormModal } from './components/AppFormModal'
+import { WidgetTile } from './components/WidgetTile'
+import { WeatherWidget } from './components/widgets/WeatherWidget'
+import { ClockWidget } from './components/widgets/ClockWidget'
+import { CalendarWidget } from './components/widgets/CalendarWidget'
+import { WidgetContextModal } from './components/WidgetContextModal'
 
 interface SortableAppTileProps {
     app: AppData
@@ -310,6 +315,7 @@ function App() {
     const [isAppFormOpen, setIsAppFormOpen] = useState(false)
     const [editingApp, setEditingApp] = useState<AppData | null>(null)
     const [detailsApp, setDetailsApp] = useState<AppData | null>(null)
+    const [contextWidget, setContextWidget] = useState<WidgetData | null>(null)
 
     // Auth State
     const [titleConfig, setTitleConfig] = useState<TitleConfig>(() => {
@@ -1036,8 +1042,29 @@ function App() {
     const handleContextMenu = (e: React.MouseEvent, app: AppData) => {
         if (!isEditMode) {
             e.preventDefault()
+            e.stopPropagation() // Ensure no bubble up
             setDetailsApp(app)
         }
+    }
+
+    const handleAddWidget = (type: 'weather' | 'clock' | 'search' | 'calendar' | 'text') => {
+        const newWidget: WidgetData = {
+            id: `widget-${type}-${generateUUID()}`,
+            type,
+            x: 0, y: 0, w: 1, h: 1 // Default size
+        }
+        setLayoutConfig(prev => ({
+            ...prev,
+            widgets: [...(prev.widgets || []), newWidget]
+        }))
+    }
+
+    const handleDeleteWidget = (id: string) => {
+        if (!confirm("Remove this widget?")) return
+        setLayoutConfig(prev => ({
+            ...prev,
+            widgets: prev.widgets.filter(w => w.id !== id)
+        }))
     }
 
     const renderContent = () => {
@@ -1244,6 +1271,23 @@ function App() {
                                             <span className="font-medium text-gray-200 text-center text-sm truncate w-full px-2">{app.name}</span>
                                         </SortableAppTile>
                                     ))}
+                                    {/* Widgets in Category Mode (Uncategorized Area) */}
+                                    {layoutConfig.widgets && layoutConfig.widgets.map(widget => (
+                                        <WidgetTile
+                                            key={widget.id}
+                                            widget={widget}
+                                            isEditMode={isEditMode}
+                                            onDelete={handleDeleteWidget}
+                                            onContextMenu={(e) => {
+                                                e.preventDefault()
+                                                setContextWidget(widget)
+                                            }}
+                                        >
+                                            {widget.type === 'weather' && <WeatherWidget />}
+                                            {widget.type === 'clock' && <ClockWidget />}
+                                            {widget.type === 'calendar' && <CalendarWidget />}
+                                        </WidgetTile>
+                                    ))}
                                 </DroppableContainer>
                             </SortableContext>
                         </div>
@@ -1308,6 +1352,24 @@ function App() {
                                 )}
                             </div>
                         </SortableAppTile>
+                    ))}
+
+                    {/* Widgets in Grid Mode */}
+                    {layoutConfig.widgets?.map(widget => (
+                        <WidgetTile
+                            key={widget.id}
+                            widget={widget}
+                            isEditMode={isEditMode}
+                            onDelete={handleDeleteWidget}
+                            onContextMenu={(e) => {
+                                e.preventDefault()
+                                setContextWidget(widget)
+                            }}
+                        >
+                            {widget.type === 'weather' && <WeatherWidget />}
+                            {widget.type === 'clock' && <ClockWidget />}
+                            {widget.type === 'calendar' && <CalendarWidget />}
+                        </WidgetTile>
                     ))}
 
                     {/* Hidden Apps Area */}
@@ -1416,6 +1478,13 @@ function App() {
                 <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
             </div>
 
+            {/* Widget Context Modal */}
+            <WidgetContextModal
+                widget={contextWidget}
+                onClose={() => setContextWidget(null)}
+                onDelete={handleDeleteWidget}
+            />
+
             <SettingsModal
                 isOpen={isSettingsOpen}
                 onClose={() => setIsSettingsOpen(false)}
@@ -1433,6 +1502,7 @@ function App() {
                 onOpenInNewTabChange={setOpenInNewTab}
                 registryUrls={registryUrls}
                 onRegistryUrlsChange={setRegistryUrls}
+                onAddWidget={handleAddWidget}
             />
 
             <UnlockModal

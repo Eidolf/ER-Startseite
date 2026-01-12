@@ -1,4 +1,4 @@
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Literal
 
 from pydantic import BaseModel, HttpUrl
 
@@ -15,11 +15,11 @@ class AppBase(BaseModel):
     contents: list["AppBase"] = []
 
     # Integration / Premium features
-    integration: Optional[str] = None  # e.g. "ombi"
-    api_key: Optional[str] = None
-    api_url: Optional[str] = None
+    integration: str | None = None  # e.g. "ombi"
+    api_key: str | None = None
+    api_url: str | None = None
     api_protected: bool = False
-    api_config: Optional[Dict[str, Any]] = None  # Flexible config for specific features
+    api_config: dict[str, Any] | None = None  # Flexible config for specific features
 
 
 class AppCreate(AppBase):

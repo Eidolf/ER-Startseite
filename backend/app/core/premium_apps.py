@@ -327,8 +327,8 @@ AppRegistry.register(
 AppRegistry.register(
     PremiumAppDefinition(
         id="hassio_antigravity-server",
-        name="antigravity-server",
-        description=("Antigravity Server"),
+        name="Antigravity VNC Server",
+        description=("Antigravity Server for remote Access in Web via VNC"),
         default_icon="https://raw.githubusercontent.com/FaserF/hassio-addons/master/antigravity-server/icon.png",
         fields=[URL_FIELD],
     )
