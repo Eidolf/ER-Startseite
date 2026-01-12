@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import tomllib
 
 import structlog
 from fastapi import FastAPI, Request
@@ -67,7 +68,6 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 
-import tomllib
 
 def get_project_version():
     try:
