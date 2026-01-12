@@ -34,7 +34,7 @@ export function AppDetailsModal({ app, isOpen, onClose, isAuthenticated, onUnloc
 
         if (isHttpUrl && isHttpsPage) {
             // Route through backend proxy to avoid Mixed Content
-            const proxyRes = await fetch('/api/v1/proxy', {
+            const proxyRes = await fetch('/api/v1/proxy/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

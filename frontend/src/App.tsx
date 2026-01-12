@@ -9,7 +9,8 @@ import { DndContext, pointerWithin, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-import { AppData, BackgroundConfig, LogoConfig, IconConfig, LayoutConfig, TitleConfig } from './types'
+import { RichAppTile } from './components/RichAppTile'
+import { AppData, BackgroundConfig, LogoConfig, IconConfig, LayoutConfig, TitleConfig, WidgetData } from './types'
 import { DEFAULT_BG, DEFAULT_LOGO_CONFIG, DEFAULT_TITLE_CONFIG, DEFAULT_ICON_CONFIG, DEFAULT_LAYOUT_CONFIG } from './defaults'
 import { AppFormModal } from './components/AppFormModal'
 import { WidgetTile } from './components/WidgetTile'
@@ -63,7 +64,7 @@ function SortableAppTile({ app, isEditMode, tileClass, style, children, onClick,
             style={combinedStyle}
             {...attributes}
             {...listeners}
-            className={`${tileClass} ${isEditMode ? 'cursor-grab active:cursor-grabbing animate-pulse' : ''}`}
+            className={`relative ${tileClass} ${isEditMode ? 'cursor-grab active:cursor-grabbing animate-pulse' : ''}`}
             onClick={onClick}
             onContextMenu={(e) => {
                 if (onContextMenu) {
@@ -225,11 +226,13 @@ function UnlockModal({ isOpen, onClose, onUnlock }: { isOpen: boolean, onClose: 
     const [password, setPassword] = useState('')
     const [error, setError] = useState(false)
     const [loading, setLoading] = useState(false)
+    const [remember, setRemember] = useState(false)
 
     useEffect(() => {
         if (isOpen) {
             setPassword('')
             setError(false)
+            setRemember(false)
         }
     }, [isOpen])
 
@@ -243,7 +246,7 @@ function UnlockModal({ isOpen, onClose, onUnlock }: { isOpen: boolean, onClose: 
             const res = await fetch('/api/v1/auth/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ password })
+                body: JSON.stringify({ password, remember })
             })
             if (res.ok) {
                 onUnlock()
@@ -276,6 +279,22 @@ function UnlockModal({ isOpen, onClose, onUnlock }: { isOpen: boolean, onClose: 
                         className={`w-full bg-black/50 border ${error ? 'border-red-500 animate-pulse' : 'border-white/10'} rounded-xl px-4 py-3 text-center text-xl tracking-[0.2em] text-white focus:ring-2 focus:ring-neon-cyan outline-none`}
                         autoFocus
                     />
+
+                    <label className="flex items-center justify-center gap-2 cursor-pointer group">
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${remember ? 'bg-neon-cyan border-neon-cyan' : 'border-gray-500 group-hover:border-gray-300'}`}>
+                            {remember && <UserCheck className="w-3 h-3 text-black" />}
+                        </div>
+                        <input
+                            type="checkbox"
+                            checked={remember}
+                            onChange={(e) => setRemember(e.target.checked)}
+                            className="hidden"
+                        />
+                        <span className={`text-sm ${remember ? 'text-neon-cyan' : 'text-gray-400 group-hover:text-gray-300'}`}>
+                            Trust this device (30 days)
+                        </span>
+                    </label>
+
                     <button
                         type="submit"
                         disabled={loading}
@@ -300,6 +319,25 @@ function App() {
     const [pageTitle, setPageTitle] = useState('ER-Startseite')
     const [openInNewTab, setOpenInNewTab] = useState(false)
     const [registryUrls, setRegistryUrls] = useState<string[]>([])
+
+    // Client-Side View Persistence
+    // 'localMode' overrides 'layoutConfig.mode' (Server Default) on this specific device
+    const [localMode, setLocalMode] = useState<'grid' | 'list' | 'compact' | 'categories' | 'rich-grid' | null>(() => {
+        return (localStorage.getItem('layoutMode') as 'grid' | 'list' | 'compact' | 'categories' | 'rich-grid' | null) || null
+    })
+
+    // The actual mode to display: Local Override > Server Default
+    const activeLayoutMode = localMode || layoutConfig.mode
+
+    const handleLocalModeChange = (mode: 'grid' | 'list' | 'compact' | 'categories' | 'rich-grid') => {
+        setLocalMode(mode)
+        localStorage.setItem('layoutMode', mode)
+    }
+
+    const handleSaveServerDefault = () => {
+        setLayoutConfig(prev => ({ ...prev, mode: activeLayoutMode }))
+        // Auto-save useEffect will pick this up
+    }
 
     const [configLoaded, setConfigLoaded] = useState(false)
 
@@ -332,16 +370,32 @@ function App() {
 
     const [isLoadingAuth, setIsLoadingAuth] = useState(true)
 
-    // Check Auth Status
+    // Check Auth Status (Persistent)
     useEffect(() => {
         fetch('/api/v1/auth/status')
             .then(res => res.json())
             .then(data => {
                 setIsSetup(data.is_setup)
+                if (data.is_authenticated) {
+                    setIsAuthenticated(true)
+                }
             })
             .catch(e => console.error("Auth status check failed", e))
             .finally(() => setIsLoadingAuth(false))
     }, [])
+
+    const handleLogout = async () => {
+        if (!confirm("Are you sure you want to log out?")) return
+
+        try {
+            await fetch('/api/v1/auth/logout', { method: 'POST' })
+            setIsAuthenticated(false)
+            setIsSettingsOpen(false)
+            window.location.reload()
+        } catch (e) {
+            console.error("Logout failed", e)
+        }
+    }
 
     const handleUnlockSuccess = () => {
         setIsAuthenticated(true)
@@ -1136,7 +1190,7 @@ function App() {
                                             app={app}
                                             isEditMode={isEditMode}
                                             tileClass={tileClass}
-                                            style={getIconStyle()}
+                                            style={layoutConfig.mode === 'rich-grid' ? {} : getIconStyle()}
                                             onClick={(e: React.MouseEvent) => {
                                                 if (app.type === 'folder') {
                                                     e.preventDefault();
@@ -1301,7 +1355,7 @@ function App() {
             <SortableContext items={displayApps.map(app => app.id)} strategy={rectSortingStrategy}>
                 <DroppableContainer
                     id="uncategorized"
-                    className={`p-6 pb-24 gap-6 ${layoutConfig.mode === 'list'
+                    className={`p-6 pb-24 gap-6 ${activeLayoutMode === 'list'
                         ? 'flex flex-col max-w-3xl mx-auto'
                         : 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6'
                         }`}
@@ -1311,10 +1365,14 @@ function App() {
                             key={app.id}
                             app={app}
                             isEditMode={isEditMode}
-                            tileClass={layoutConfig.mode === 'list'
+                            tileClass={activeLayoutMode === 'rich-grid' ? '' : (activeLayoutMode === 'list'
                                 ? "relative rounded-xl p-4 flex items-center gap-4 transition-all duration-300 cursor-pointer group hover:bg-white/5 glass-panel w-full"
-                                : tileClass}
-                            style={getIconStyle()}
+                                : tileClass)}
+                            style={activeLayoutMode === 'rich-grid' ? {
+                                backgroundColor: 'transparent',
+                                boxShadow: 'none',
+                                border: 'none'
+                            } : getIconStyle()}
                             onClick={(e: React.MouseEvent) => {
                                 if (app.type === 'folder') {
                                     e.preventDefault();
@@ -1334,23 +1392,52 @@ function App() {
                             }}
                             onContextMenu={handleContextMenu}
                         >
-                            <div className={`${layoutConfig.mode === 'list' ? 'w-12 h-12' : 'w-16 h-16'} rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0`}>
-                                <AppIcon
-                                    src={app.icon_url}
-                                    alt={app.name}
-                                    className="w-full h-full object-contain"
+                            {activeLayoutMode === 'rich-grid' ? (
+                                <RichAppTile
+                                    app={app}
+                                    onClick={() => {
+                                        if (app.type === 'folder') {
+                                            setOpenFolder(app);
+                                            return;
+                                        }
+                                        if (!isEditMode && app.url) {
+                                            if (openInNewTab) window.open(app.url, '_blank', 'noopener,noreferrer');
+                                            else window.location.href = app.url;
+                                        }
+                                    }}
+                                    onContextMenu={(e) => { e.preventDefault(); }}
+                                    isEditMode={isEditMode}
+                                    isAuthenticated={isAuthenticated}
+                                    iconConfig={iconConfig}
                                 />
-                            </div>
-                            <div className={`flex flex-col min-w-0 ${layoutConfig.mode === 'list' ? 'flex-1 items-start' : 'items-center w-full'}`}>
-                                <span className={`font-medium text-gray-200 group-hover:text-white ${layoutConfig.mode === 'list' ? 'text-lg text-left' : 'text-center text-sm'} truncate w-full px-2`}>
-                                    {app.name}
-                                </span>
-                                {layoutConfig.mode === 'list' && app.description && (
-                                    <span className="text-sm text-gray-400 truncate w-full px-2 text-left">
-                                        {app.description}
-                                    </span>
-                                )}
-                            </div>
+                            ) : activeLayoutMode === 'compact' ? (
+                                <div className="flex items-center gap-3 w-full h-full p-2">
+                                    <div className="w-8 h-8 rounded-lg bg-white/10 p-1.5 flex-shrink-0">
+                                        <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain" />
+                                    </div>
+                                    <span className="font-medium text-gray-200 text-sm truncate">{app.name}</span>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className={`${activeLayoutMode === 'list' ? 'w-12 h-12' : 'w-16 h-16'} rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0`}>
+                                        <AppIcon
+                                            src={app.icon_url}
+                                            alt={app.name}
+                                            className="w-full h-full object-contain"
+                                        />
+                                    </div>
+                                    <div className={`flex flex-col min-w-0 ${activeLayoutMode === 'list' ? 'flex-1 items-start' : 'items-center w-full'}`}>
+                                        <span className={`font-medium text-gray-200 group-hover:text-white ${activeLayoutMode === 'list' ? 'text-lg text-left' : 'text-center text-sm'} truncate w-full px-2`}>
+                                            {app.name}
+                                        </span>
+                                        {activeLayoutMode === 'list' && app.description && (
+                                            <span className="text-sm text-gray-400 truncate w-full px-2 text-left">
+                                                {app.description}
+                                            </span>
+                                        )}
+                                    </div>
+                                </>
+                            )}
                         </SortableAppTile>
                     ))}
 
@@ -1500,9 +1587,12 @@ function App() {
                 onTitleConfigChange={setTitleConfig}
                 openInNewTab={openInNewTab}
                 onOpenInNewTabChange={setOpenInNewTab}
-                registryUrls={registryUrls}
-                onRegistryUrlsChange={setRegistryUrls}
                 onAddWidget={handleAddWidget}
+                layoutMode={activeLayoutMode}
+                onLayoutModeChange={handleLocalModeChange}
+                onSaveAsDefault={handleSaveServerDefault}
+                serverMode={layoutConfig.mode}
+                onLogout={handleLogout}
             />
 
             <UnlockModal
@@ -1523,8 +1613,8 @@ function App() {
                 <LayoutMenu
                     isOpen={true}
                     onClose={() => setIsLayoutMenuOpen(false)}
-                    currentMode={layoutConfig.mode}
-                    onModeChange={(mode) => setLayoutConfig({ ...layoutConfig, mode })}
+                    currentMode={activeLayoutMode}
+                    onModeChange={handleLocalModeChange}
                     isEditMode={isEditMode}
                     onToggleEditMode={() => handleProtectedAction('edit_mode')}
                     showHidden={showHiddenApps}

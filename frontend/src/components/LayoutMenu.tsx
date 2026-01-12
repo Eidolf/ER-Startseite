@@ -1,7 +1,7 @@
 import { LayoutGrid, List, Check, Move, Folder, Eye, EyeOff } from 'lucide-react'
 import { motion } from 'framer-motion'
 
-export type LayoutMode = 'grid' | 'list' | 'compact' | 'categories'
+export type LayoutMode = 'grid' | 'list' | 'compact' | 'categories' | 'rich-grid'
 
 interface LayoutMenuProps {
     currentMode: LayoutMode
@@ -38,6 +38,15 @@ export function LayoutMenu({ currentMode, onModeChange, isEditMode, onToggleEdit
                         <LayoutGrid className="w-4 h-4" />
                         <span className="flex-1 text-left">Grid View</span>
                         {currentMode === 'grid' && <Check className="w-4 h-4" />}
+                    </button>
+
+                    <button
+                        onClick={() => onModeChange('rich-grid')}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${currentMode === 'rich-grid' ? 'bg-neon-cyan/20 text-neon-cyan' : 'hover:bg-white/5 text-gray-300'}`}
+                    >
+                        <LayoutGrid className="w-4 h-4" />
+                        <span className="flex-1 text-left">Rich Grid</span>
+                        {currentMode === 'rich-grid' && <Check className="w-4 h-4" />}
                     </button>
 
                     <button

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github, LayoutGrid, Clock, CloudSun, Calendar } from 'lucide-react'
+import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github, LayoutGrid, Clock, CloudSun, Calendar, Save, LogOut } from 'lucide-react'
 import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig, WidgetData } from '../types'
 
 interface MediaItem {
@@ -212,6 +212,11 @@ interface SettingsModalProps {
     openInNewTab: boolean
     onOpenInNewTabChange: (enabled: boolean) => void
     onAddWidget: (type: WidgetData['type']) => void
+    layoutMode: 'grid' | 'list' | 'compact' | 'categories' | 'rich-grid'
+    onLayoutModeChange: (mode: 'grid' | 'list' | 'compact' | 'categories' | 'rich-grid') => void
+    onSaveAsDefault?: () => void
+    serverMode?: string
+    onLogout?: () => void
 }
 
 export function SettingsModal({
@@ -229,7 +234,12 @@ export function SettingsModal({
     onTitleConfigChange,
     openInNewTab,
     onOpenInNewTabChange,
-    onAddWidget
+    onAddWidget,
+    layoutMode,
+    onLayoutModeChange,
+    onSaveAsDefault,
+    serverMode,
+    onLogout
 }: SettingsModalProps) {
     const [activeTab, setActiveTab] = useState<'general' | 'widgets' | 'background' | 'logo' | 'effects' | 'security' | 'about'>('general')
     const [uploading, setUploading] = useState(false)
@@ -373,6 +383,66 @@ export function SettingsModal({
                                     className="w-full bg-black/40 border border-white/10 rounded-lg px-4 py-2 text-white focus:ring-2 focus:ring-neon-cyan/50 focus:border-transparent outline-none transition-all placeholder:text-gray-600"
                                     placeholder="Enter dashboard title..."
                                 />
+                            </div>
+
+                            <div className="space-y-3 p-4 rounded-xl border border-white/10 bg-white/5">
+                                <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                                    <LayoutGrid className="w-4 h-4 text-neon-purple" />
+                                    Default Layout
+                                </h3>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <button
+                                        onClick={() => onLayoutModeChange('grid')}
+                                        className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all ${layoutMode === 'grid' ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/10'}`}
+                                    >
+                                        Standard Grid
+                                    </button>
+                                    <button
+                                        onClick={() => onLayoutModeChange('rich-grid')}
+                                        className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all ${layoutMode === 'rich-grid' ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/10'}`}
+                                    >
+                                        Rich Grid
+                                    </button>
+                                    <button
+                                        onClick={() => onLayoutModeChange('compact')}
+                                        className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all ${layoutMode === 'compact' ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/10'}`}
+                                    >
+                                        Compact
+                                    </button>
+                                    <button
+                                        onClick={() => onLayoutModeChange('list')}
+                                        className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all ${layoutMode === 'list' ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/10'}`}
+                                    >
+                                        List View
+                                    </button>
+                                    <button
+                                        onClick={() => onLayoutModeChange('categories')}
+                                        className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all ${layoutMode === 'categories' ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/10'}`}
+                                    >
+                                        Categories
+                                    </button>
+                                </div>
+
+                                {/* Save As Default Button */}
+                                {onSaveAsDefault && layoutMode !== serverMode && (
+                                    <div className="mt-3 pt-3 border-t border-white/10 flex justify-between items-center animate-in fade-in slide-in-from-top-2">
+                                        <div className="text-xs text-yellow-400/80">
+                                            Current view is a local override.
+                                        </div>
+                                        <button
+                                            onClick={onSaveAsDefault}
+                                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-neon-cyan/10 hover:bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30 transition-colors text-xs font-bold"
+                                        >
+                                            <Save className="w-3.5 h-3.5" />
+                                            Set as Server Default
+                                        </button>
+                                    </div>
+                                )}
+                                {onSaveAsDefault && layoutMode === serverMode && (
+                                    <div className="mt-2 text-[10px] text-gray-500 text-center italic">
+                                        Server Default matches your current view.
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
@@ -826,6 +896,22 @@ export function SettingsModal({
                                 </h3>
                                 <ChangePasswordForm />
                             </div>
+
+                            {onLogout && (
+                                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-between">
+                                    <div className="space-y-1">
+                                        <h3 className="text-sm font-medium text-red-400">Log Out</h3>
+                                        <p className="text-xs text-gray-400">Sign out of your session on this device.</p>
+                                    </div>
+                                    <button
+                                        onClick={onLogout}
+                                        className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg transition-colors text-sm font-medium"
+                                    >
+                                        <LogOut className="w-4 h-4" />
+                                        Log Out
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
 
