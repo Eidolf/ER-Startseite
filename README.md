@@ -13,6 +13,7 @@
 - **App Integration**: Add and customize apps, including API-connected widgets.
 - **Production Ready**: Built with DDD, FastAPI, and React + Vite.
 - **Secure**: Strict security practices (Helmet, CORS, Rate Limiting).
+- **PWA Ready**: Installable as an app on Android, iOS, and Desktop (Chrome/Edge).
 
 ## 🛠 Tech Stack
 
