@@ -104,6 +104,12 @@ class AppService:
             type=app_in.type,
             contents=processed_contents,
             created_at=datetime.utcnow().isoformat(),
+            # API / Integration fields
+            integration=app_in.integration,
+            api_key=app_in.api_key,
+            api_url=app_in.api_url,
+            api_protected=app_in.api_protected,
+            api_config=app_in.api_config,
         )
 
         # 3. Save

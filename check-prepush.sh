@@ -6,10 +6,12 @@ echo "🛫 Initiating Pre-Flight Checks..."
 # Colors
 GREEN='\033[0;32m'
 RED='\033[0;31m'
+YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
 pass_count=0
 fail_count=0
+warn_count=0
 
 run_step() {
     echo "---------------------------------------------------"
@@ -18,11 +20,16 @@ run_step() {
         echo -e "${GREEN}✅ PASSED: $1${NC}"
         ((pass_count+=1))
     else
-        echo -e "${RED}❌ FAILED: $1${NC}"
-        ((fail_count+=1))
-        if [ "$3" == "critical" ]; then
-            echo "🛑 Critical failure. Aborting."
-            exit 1
+        if [ "$3" == "optional" ]; then
+            echo -e "${YELLOW}⚠️  WARNING: $1 (optional, not blocking)${NC}"
+            ((warn_count+=1))
+        else
+            echo -e "${RED}❌ FAILED: $1${NC}"
+            ((fail_count+=1))
+            if [ "$3" == "critical" ]; then
+                echo "🛑 Critical failure. Aborting."
+                exit 1
+            fi
         fi
     fi
 }
@@ -83,6 +90,7 @@ fi
 echo "---------------------------------------------------"
 echo "🏁 Pre-Flight Summary"
 echo "Passed: $pass_count"
+echo "Warnings: $warn_count"
 echo "Failed: $fail_count"
 
 if [ $fail_count -eq 0 ]; then
