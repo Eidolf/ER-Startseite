@@ -9,6 +9,7 @@
 
 - **Neon/Dark Theme**: Stunning visual design with glassmorphism and neon accents.
 - **Dynamic Backgrounds**: Support for video and image backgrounds.
+- **App Store**: Built-in library of popular apps with **Search** and **Alphabetical Sorting**.
 - **App Integration**: Add and customize apps, including API-connected widgets.
 - **Production Ready**: Built with DDD, FastAPI, and React + Vite.
 - **Secure**: Strict security practices (Helmet, CORS, Rate Limiting).
@@ -118,6 +119,32 @@ If you get an error pulling images from **Portainer** or **Docker**, it's likely
 6. Repeat for the `frontend` package.
 
 
+
+## 🌍 Custom App Registries
+
+You can extend the App Store by adding your own custom registries. A registry is simply a JSON file hosted on a URL that returns a list of app definitions.
+
+### Example `custom_apps.json`
+You can find a template in `custom_apps_example.json`:
+
+```json
+[
+    {
+        "id": "example-app",
+        "name": "Example App",
+        "description": "An example custom application for the App Store",
+        "default_icon": "https://example.com/icon.png",
+        "default_url": "https://example.com"
+    },
+    {
+        "id": "another-app",
+        "name": "Another App",
+        "description": "Another custom application example",
+        "default_icon": "https://example.com/other-icon.png",
+        "default_url": "https://example.com/app"
+    }
+]
+```
 
 ## 📦 Project Structure
 

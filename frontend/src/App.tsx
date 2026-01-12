@@ -294,6 +294,7 @@ function App() {
     const [layoutConfig, setLayoutConfig] = useState<LayoutConfig>(DEFAULT_LAYOUT_CONFIG)
     const [pageTitle, setPageTitle] = useState('ER-Startseite')
     const [openInNewTab, setOpenInNewTab] = useState(false)
+    const [registryUrls, setRegistryUrls] = useState<string[]>([])
 
     const [configLoaded, setConfigLoaded] = useState(false)
 
@@ -387,6 +388,7 @@ function App() {
                     setLogoConfig(data.logoConfig || DEFAULT_LOGO_CONFIG)
                     setIconConfig(data.iconConfig || DEFAULT_ICON_CONFIG)
                     setLayoutConfig(data.layoutConfig || DEFAULT_LAYOUT_CONFIG)
+                    setRegistryUrls(data.registry_urls || [])
                 }
             })
             .catch(e => console.error("Failed to load config", e))
@@ -408,13 +410,14 @@ function App() {
                     logoConfig,
                     iconConfig,
                     layoutConfig,
-                    titleConfig // Added titleConfig
+                    titleConfig, // Added titleConfig
+                    registry_urls: registryUrls
                 })
             }).catch(e => console.error("Failed to save config", e))
         }, 500) // Debounce 500ms
 
         return () => clearTimeout(timer)
-    }, [pageTitle, openInNewTab, bgConfig, logoConfig, iconConfig, layoutConfig, titleConfig, configLoaded])
+    }, [pageTitle, openInNewTab, bgConfig, logoConfig, iconConfig, layoutConfig, titleConfig, registryUrls, configLoaded])
 
     // Dynamic Page Title
     useEffect(() => {
@@ -1428,6 +1431,8 @@ function App() {
                 onTitleConfigChange={setTitleConfig}
                 openInNewTab={openInNewTab}
                 onOpenInNewTabChange={setOpenInNewTab}
+                registryUrls={registryUrls}
+                onRegistryUrlsChange={setRegistryUrls}
             />
 
             <UnlockModal
@@ -1567,7 +1572,7 @@ function App() {
             {/* ================= MOBILE HEADER (Visible only on mobile) ================= */}
             <div className="md:hidden fixed top-0 left-0 w-full z-50 h-14 pointer-events-none">
                 {/* Left: Logo & Title */}
-                <div className="absolute top-1 left-2 flex items-center pointer-events-auto gap-2">
+                <div className="absolute top-2 left-2 flex items-center pointer-events-auto gap-2">
                     {logoConfig.type === 'image' && logoConfig.value ? (
                         <div className="h-10 w-auto flex items-center justify-center">
                             <img src={logoConfig.value} alt="Logo" className="max-h-full w-auto max-w-[100px] object-contain drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]" />
@@ -1586,7 +1591,7 @@ function App() {
                 </div>
 
                 {/* Right: Settings Icons */}
-                <div className="absolute top-1 right-2 flex gap-2 pointer-events-auto items-center">
+                <div className="absolute top-2 right-2 flex gap-2 pointer-events-auto items-center">
                     <button
                         onClick={() => handleProtectedAction('add_app')}
                         className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
@@ -1618,7 +1623,7 @@ function App() {
                 <div className="w-40"></div>
 
                 {/* Center: Logo & Title */}
-                <div className="flex flex-col items-center pointer-events-auto -mt-8">
+                <div className="flex flex-col items-center pointer-events-auto -mt-4">
                     {logoConfig.type === 'image' && logoConfig.value ? (
                         <div className="h-32 w-auto flex items-end justify-center pb-2">
                             <img
@@ -1713,6 +1718,7 @@ function App() {
         </div>
     )
 }
+
 
 function FolderModal({ folder, isOpen, onClose, onRequestAdd, isEditMode, onDelete, onMoveToRoot, openInNewTab, onEdit, onContextMenu }: { folder: AppData, isOpen: boolean, onClose: () => void, onRequestAdd: () => void, isEditMode: boolean, onDelete: (appId: string) => void, onMoveToRoot: (app: AppData) => void, openInNewTab: boolean, onEdit: (e: React.MouseEvent, app: AppData) => void, onContextMenu?: (e: React.MouseEvent, app: AppData) => void }) {
     if (!isOpen) return null

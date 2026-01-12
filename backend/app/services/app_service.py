@@ -1,7 +1,7 @@
 import re
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -16,7 +16,7 @@ class AppService:
     def __init__(self):
         self.repo = AppRepository()
 
-    async def get_all(self) -> List[App]:
+    async def get_all(self) -> list[App]:
         return await self.repo.read_all()
 
     async def create(self, app_in: AppCreate) -> App:
@@ -66,7 +66,7 @@ class AppService:
             description = fetched_meta["description"]
 
         # Helper to recursively create specific App instances from AppBase/AppCreate
-        def ensure_app_instances(items: List[Any]) -> List[App]:
+        def ensure_app_instances(items: list[Any]) -> list[App]:
             apps = []
             for item in items:
                 # Item is likely AppBase or dict.
@@ -138,7 +138,7 @@ class AppService:
         Fetches metadata (icon, description) from the given URL.
         Returns a dict: {"icon": str | None, "description": str | None}
         """
-        meta: Dict[str, Optional[str]] = {
+        meta: dict[str, str | None] = {
             "icon": None,
             "description": None,
             "title": None,

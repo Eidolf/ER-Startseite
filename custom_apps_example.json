@@ -1,0 +1,16 @@
+[
+    {
+        "id": "example-app",
+        "name": "Example App",
+        "description": "An example custom application for the App Store",
+        "default_icon": "https://example.com/icon.png",
+        "default_url": "https://example.com"
+    },
+    {
+        "id": "another-app",
+        "name": "Another App",
+        "description": "Another custom application example",
+        "default_icon": "https://example.com/other-icon.png",
+        "default_url": "https://example.com/app"
+    }
+]

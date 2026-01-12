@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github } from 'lucide-react'
+import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github, Database, Plus, Loader2 } from 'lucide-react'
 import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig } from '../types'
 
 interface MediaItem {
@@ -125,7 +125,104 @@ function ChangePasswordForm() {
     )
 }
 
+function RegistryManager({ urls, onUrlsChange }: { urls: string[], onUrlsChange: (urls: string[]) => void }) {
+    const [newUrl, setNewUrl] = useState('')
+    const [validating, setValidating] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+
+    const handleAdd = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!newUrl) return
+        if (urls.includes(newUrl)) {
+            setError("URL already added")
+            return
+        }
+
+        setValidating(true)
+        setError(null)
+
+        try {
+            const res = await fetch(`/api/v1/registry/validate?url=${encodeURIComponent(newUrl)}`, {
+                method: 'POST'
+            })
+            const data = await res.json()
+
+            if (res.ok) {
+                onUrlsChange([...urls, newUrl])
+                setNewUrl('')
+            } else {
+                setError(data.detail || "Validation failed")
+            }
+        } catch (err) {
+            setError("Error connecting to server")
+        } finally {
+            setValidating(false)
+        }
+    }
+
+    const handleRemove = (url: string) => {
+        onUrlsChange(urls.filter(u => u !== url))
+    }
+
+    return (
+        <div className="space-y-6">
+            <div className="space-y-2">
+                <h3 className="text-sm font-medium text-white flex items-center gap-2">
+                    <Database className="w-4 h-4 text-neon-cyan" />
+                    Custom Registries
+                </h3>
+                <p className="text-xs text-gray-400">Add GitHub raw URLs to extend the App Store list.</p>
+            </div>
+
+            <form onSubmit={handleAdd} className="space-y-3">
+                <div className="flex gap-2">
+                    <input
+                        type="url"
+                        value={newUrl}
+                        onChange={(e) => {
+                            setNewUrl(e.target.value)
+                            setError(null)
+                        }}
+                        placeholder="https://raw.githubusercontent.com/.../apps.json"
+                        className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:ring-1 focus:ring-neon-cyan outline-none placeholder:text-gray-600"
+                    />
+                    <button
+                        type="submit"
+                        disabled={validating || !newUrl}
+                        className="px-4 py-2 rounded-lg bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/50 hover:bg-neon-cyan/30 transition-colors disabled:opacity-50"
+                    >
+                        {validating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                    </button>
+                </div>
+                {error && <p className="text-red-400 text-[10px] px-1 animate-pulse">{error}</p>}
+            </form>
+
+            <div className="space-y-2">
+                {urls.length === 0 ? (
+                    <p className="text-xs text-gray-500 italic text-center py-4">No custom registries added yet.</p>
+                ) : (
+                    urls.map(url => (
+                        <div key={url} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10 group">
+                            <div className="flex-1 min-w-0 pr-4">
+                                <p className="text-xs text-white truncate font-mono">{url}</p>
+                            </div>
+                            <button
+                                onClick={() => handleRemove(url)}
+                                className="p-1.5 rounded-md hover:bg-red-500/20 text-gray-500 hover:text-red-400 transition-colors"
+                                title="Remove registry"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
+    )
+}
+
 function MediaLibrary({ onSelect }: { onSelect: (url: string, type: string) => void }) {
+
     const [media, setMedia] = useState<MediaItem[]>([])
     const [loading, setLoading] = useState(true)
 
@@ -211,6 +308,8 @@ interface SettingsModalProps {
     onTitleConfigChange: (config: TitleConfig) => void
     openInNewTab: boolean
     onOpenInNewTabChange: (enabled: boolean) => void
+    registryUrls: string[]
+    onRegistryUrlsChange: (urls: string[]) => void
 }
 
 export function SettingsModal({
@@ -227,9 +326,11 @@ export function SettingsModal({
     titleConfig,
     onTitleConfigChange,
     openInNewTab,
-    onOpenInNewTabChange
+    onOpenInNewTabChange,
+    registryUrls,
+    onRegistryUrlsChange
 }: SettingsModalProps) {
-    const [activeTab, setActiveTab] = useState<'general' | 'background' | 'logo' | 'effects' | 'security' | 'about'>('general')
+    const [activeTab, setActiveTab] = useState<'general' | 'background' | 'logo' | 'effects' | 'security' | 'registries' | 'about'>('general')
     const [uploading, setUploading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const logoFileInputRef = useRef<HTMLInputElement>(null)
@@ -328,6 +429,13 @@ export function SettingsModal({
                         >
                             Security
                         </button>
+                        <button
+                            onClick={() => setActiveTab('registries')}
+                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'registries' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            Registries
+                        </button>
+
                         <button
                             onClick={() => setActiveTab('about')}
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'about' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
@@ -763,6 +871,13 @@ export function SettingsModal({
                                 <ChangePasswordForm />
                             </div>
                         </div>
+                    )}
+
+                    {activeTab === 'registries' && (
+                        <RegistryManager
+                            urls={registryUrls}
+                            onUrlsChange={onRegistryUrlsChange}
+                        />
                     )}
 
                     {activeTab === 'about' && (

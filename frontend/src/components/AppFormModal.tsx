@@ -33,6 +33,10 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
     const [apiProtected, setApiProtected] = useState(false)
     const [apiConfig, setApiConfig] = useState<PremiumAppConfig>({})
 
+    // App Store Search & Sort State
+    const [storeSearchQuery, setStoreSearchQuery] = useState('')
+    const [storeSortOrder, setStoreSortOrder] = useState<'default' | 'alpha'>('default')
+
     useEffect(() => {
         if (editApp) {
             setName(editApp.name)
@@ -244,27 +248,73 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
         }
     }
 
+    // Filter and Sort Premium Apps
+    const filteredStoreApps = premiumApps
+        .filter(app =>
+            app.name.toLowerCase().includes(storeSearchQuery.toLowerCase()) ||
+            (app.description || '').toLowerCase().includes(storeSearchQuery.toLowerCase())
+        )
+        .sort((a, b) => {
+            if (storeSortOrder === 'alpha') {
+                return a.name.localeCompare(b.name)
+            }
+            return 0 // Keep default order
+        })
+
     // Determine what form content to show
     const renderFormContent = () => {
         if (activeTab === 'store' && !selectedPremiumApp) {
             // Store Grid
             return (
-                <div className="grid grid-cols-2 gap-4 max-h-[400px] overflow-y-auto custom-scrollbar p-1">
-                    {premiumApps.map(app => (
-                        <div
-                            key={app.id}
-                            onClick={() => handleSelectPremium(app)}
-                            className="bg-white/5 hover:bg-white/10 border border-white/5 hover:border-neon-cyan/50 rounded-xl p-4 flex flex-col items-center gap-3 cursor-pointer transition-all group"
-                        >
-                            <div className="w-12 h-12 bg-black/20 rounded-lg p-2 group-hover:scale-110 transition-transform">
-                                <AppIcon src={app.default_icon} alt={app.name} className="w-full h-full object-contain" />
-                            </div>
-                            <div className="text-center">
-                                <h3 className="font-medium text-white text-sm">{app.name}</h3>
-                                <p className="text-xs text-gray-400 line-clamp-2 mt-1">{app.description}</p>
-                            </div>
+                <div className="space-y-4">
+                    {/* Store Search & Sort Controls */}
+                    <div className="flex gap-2">
+                        <div className="relative flex-1">
+                            <ArrowUpFromLine className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 rotate-90" /> {/* Using ArrowUpFromLine as search icon replacement temporarily if Search is missing, but Lucide usually has Search */}
+                            <input
+                                type="text"
+                                placeholder="Search apps..."
+                                value={storeSearchQuery}
+                                onChange={(e) => setStoreSearchQuery(e.target.value)}
+                                className="w-full bg-black/40 border border-white/10 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:border-neon-cyan transition-colors"
+                            />
                         </div>
-                    ))}
+                        <button
+                            type="button"
+                            onClick={() => setStoreSortOrder(prev => prev === 'default' ? 'alpha' : 'default')}
+                            className={`px-3 py-2 rounded-lg border text-sm font-medium transition-all flex items-center gap-2 ${storeSortOrder === 'alpha'
+                                ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan'
+                                : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                }`}
+                            title={storeSortOrder === 'alpha' ? "Sorting Alphabetically" : "Default Sorting"}
+                        >
+                            <ArrowUpFromLine className={`w-4 h-4 transition-transform ${storeSortOrder === 'alpha' ? '' : 'rotate-180'}`} />
+                            {storeSortOrder === 'alpha' ? 'A-Z' : 'Default'}
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 max-h-[400px] overflow-y-auto custom-scrollbar p-1">
+                        {filteredStoreApps.map(app => (
+                            <div
+                                key={app.id}
+                                onClick={() => handleSelectPremium(app)}
+                                className="bg-white/5 hover:bg-white/10 border border-white/5 hover:border-neon-cyan/50 rounded-xl p-4 flex flex-col items-center gap-3 cursor-pointer transition-all group"
+                            >
+                                <div className="w-12 h-12 bg-black/20 rounded-lg p-2 group-hover:scale-110 transition-transform">
+                                    <AppIcon src={app.default_icon} alt={app.name} className="w-full h-full object-contain" />
+                                </div>
+                                <div className="text-center">
+                                    <h3 className="font-medium text-white text-sm">{app.name}</h3>
+                                    <p className="text-xs text-gray-400 line-clamp-2 mt-1">{app.description}</p>
+                                </div>
+                            </div>
+                        ))}
+                        {filteredStoreApps.length === 0 && (
+                            <div className="col-span-2 py-8 text-center text-gray-500 text-sm italic">
+                                No apps found matching "{storeSearchQuery}"
+                            </div>
+                        )}
+                    </div>
                 </div>
             )
         }
@@ -746,5 +796,3 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
         </div>
     )
 }
-
-
