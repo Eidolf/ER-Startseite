@@ -33,6 +33,10 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
     const [apiProtected, setApiProtected] = useState(false)
     const [apiConfig, setApiConfig] = useState<PremiumAppConfig>({})
 
+    // App Store Search & Sort State
+    const [storeSearchQuery, setStoreSearchQuery] = useState('')
+    const [storeSortOrder, setStoreSortOrder] = useState<'default' | 'alpha'>('default')
+
     useEffect(() => {
         if (editApp) {
             setName(editApp.name)
@@ -243,9 +247,6 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
             setLoading(false)
         }
     }
-
-    const [storeSearchQuery, setStoreSearchQuery] = useState('')
-    const [storeSortOrder, setStoreSortOrder] = useState<'default' | 'alpha'>('default')
 
     // Filter and Sort Premium Apps
     const filteredStoreApps = premiumApps
