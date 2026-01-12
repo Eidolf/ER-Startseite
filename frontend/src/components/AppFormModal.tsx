@@ -96,7 +96,6 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
         else setIntegration('')
     }
 
-    if (!isOpen) return null
 
     const handleRefreshMetadata = async () => {
         if (!url) return
@@ -160,6 +159,8 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
         const pattern = /^(https?:\/\/)?((([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,})|localhost|(\d{1,3}\.){3}\d{1,3})(:\d+)?(\/.*)?$/
         return pattern.test(str)
     }
+
+    if (!isOpen) return null
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()

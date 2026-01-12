@@ -48,7 +48,7 @@ export interface WidgetData {
     y?: number
     w?: number
     h?: number
-    settings?: Record<string, any>
+    settings?: Record<string, unknown>
 }
 
 export interface AppConfig {

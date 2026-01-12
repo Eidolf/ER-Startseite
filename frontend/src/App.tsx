@@ -316,7 +316,6 @@ function App() {
     const [editingApp, setEditingApp] = useState<AppData | null>(null)
     const [detailsApp, setDetailsApp] = useState<AppData | null>(null)
     const [contextWidget, setContextWidget] = useState<WidgetData | null>(null)
-    const [settingsOpen, setSettingsOpen] = useState(false)
 
     // Auth State
     const [titleConfig, setTitleConfig] = useState<TitleConfig>(() => {
@@ -1049,7 +1048,7 @@ function App() {
     }
 
     const handleAddWidget = (type: 'weather' | 'clock' | 'search' | 'calendar' | 'text') => {
-        const newWidget: any = {
+        const newWidget: WidgetData = {
             id: `widget-${type}-${generateUUID()}`,
             type,
             x: 0, y: 0, w: 1, h: 1 // Default size

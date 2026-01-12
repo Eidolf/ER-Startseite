@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { WidgetData } from '../types'
-import { Trash, Pencil } from 'lucide-react'
+import { Trash } from 'lucide-react'
 
 interface WidgetTileProps {
     widget: WidgetData
