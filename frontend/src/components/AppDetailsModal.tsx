@@ -27,6 +27,40 @@ export function AppDetailsModal({ app, isOpen, onClose, isAuthenticated, onUnloc
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
 
+    // Helper to fetch through backend proxy for HTTP URLs on HTTPS pages
+    const proxyFetch = async (url: string, options?: { headers?: Record<string, string>, method?: string, body?: unknown }) => {
+        const isHttpUrl = url.startsWith('http://');
+        const isHttpsPage = typeof window !== 'undefined' && window.location.protocol === 'https:';
+
+        if (isHttpUrl && isHttpsPage) {
+            // Route through backend proxy to avoid Mixed Content
+            const proxyRes = await fetch('/api/v1/proxy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    url,
+                    method: options?.method || 'GET',
+                    headers: options?.headers,
+                    body: options?.body
+                })
+            });
+            const proxyData = await proxyRes.json();
+            if (!proxyRes.ok) {
+                throw new Error(proxyData.detail || `Proxy error: ${proxyRes.status}`);
+            }
+            // Return a mock Response-like object
+            return {
+                ok: proxyData.status_code >= 200 && proxyData.status_code < 300,
+                status: proxyData.status_code,
+                json: async () => proxyData.data,
+                text: async () => typeof proxyData.data === 'string' ? proxyData.data : JSON.stringify(proxyData.data)
+            };
+        } else {
+            // Direct fetch for HTTPS URLs or HTTP pages
+            return fetch(url, { headers: options?.headers });
+        }
+    };
+
     useEffect(() => {
         const fetchStats = async () => {
             if (!app?.api_key || !app.integration) return
@@ -69,7 +103,7 @@ export function AppDetailsModal({ app, isOpen, onClose, isAuthenticated, onUnloc
                         if ((globalProtected || protectMovies) && !isAuthenticated) {
                             moviesResult = 'protected'
                         } else {
-                            const res = await fetch(`${baseUrl}/api/v1/Request/movie`, { headers })
+                            const res = await proxyFetch(`${baseUrl}/api/v1/Request/movie`, { headers })
                             if (!res.ok) throw new Error(`Movies API: ${res.status}`)
                             const data = await res.json()
                             if (Array.isArray(data)) {
@@ -85,7 +119,7 @@ export function AppDetailsModal({ app, isOpen, onClose, isAuthenticated, onUnloc
                         if ((globalProtected || protectTv) && !isAuthenticated) {
                             tvResult = 'protected'
                         } else {
-                            const res = await fetch(`${baseUrl}/api/v1/Request/tv`, { headers })
+                            const res = await proxyFetch(`${baseUrl}/api/v1/Request/tv`, { headers })
                             if (!res.ok) throw new Error(`TV API: ${res.status}`)
                             const data = await res.json()
                             if (Array.isArray(data)) {
@@ -133,8 +167,8 @@ export function AppDetailsModal({ app, isOpen, onClose, isAuthenticated, onUnloc
                             albumsCount = -1
                         } else {
                             const [artistsRes, albumsRes] = await Promise.all([
-                                fetch(appendAuth(`${baseUrl}/api/v1/artist`)),
-                                fetch(appendAuth(`${baseUrl}/api/v1/album`))
+                                proxyFetch(appendAuth(`${baseUrl}/api/v1/artist`)),
+                                proxyFetch(appendAuth(`${baseUrl}/api/v1/album`))
                             ])
 
                             if (artistsRes.ok) {
@@ -153,7 +187,7 @@ export function AppDetailsModal({ app, isOpen, onClose, isAuthenticated, onUnloc
                         if ((globalProtected || protectQueue) && !isAuthenticated) {
                             queueCount = -1 // Indicate protected
                         } else {
-                            const queueRes = await fetch(appendAuth(`${baseUrl}/api/v1/queue?pageSize=1`))
+                            const queueRes = await proxyFetch(appendAuth(`${baseUrl}/api/v1/queue?pageSize=1`))
                             if (queueRes.ok) {
                                 const data = await queueRes.json()
                                 queueCount = data.totalRecords || (Array.isArray(data.records) ? data.records.length : 0)
@@ -166,7 +200,7 @@ export function AppDetailsModal({ app, isOpen, onClose, isAuthenticated, onUnloc
                         if ((globalProtected || protectCalendar) && !isAuthenticated) {
                             upcomingReleases = 'protected'
                         } else {
-                            const calendarRes = await fetch(appendAuth(`${baseUrl}/api/v1/calendar?start=${new Date().toISOString().split('T')[0]}&end=${new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]}`))
+                            const calendarRes = await proxyFetch(appendAuth(`${baseUrl}/api/v1/calendar?start=${new Date().toISOString().split('T')[0]}&end=${new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]}`))
                             if (calendarRes.ok) {
                                 upcomingReleases = await calendarRes.json();
                             }
