@@ -25,9 +25,9 @@ class IconConfig(BaseModel):
 
 
 class TitleConfig(BaseModel):
-    style: str = 'default'
-    color: str = '#ffffff'
-    gradientColors: list[str] = ['#00f3ff', '#9d00ff']
+    style: str = "default"
+    color: str = "#ffffff"
+    gradientColors: list[str] = ["#00f3ff", "#9d00ff"]
 
 
 class Category(BaseModel):
