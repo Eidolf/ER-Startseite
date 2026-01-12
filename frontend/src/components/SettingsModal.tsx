@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github, Database, Plus, Loader2 } from 'lucide-react'
-import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig } from '../App'
+import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig } from '../types'
 
 interface MediaItem {
     name: string
@@ -387,7 +387,7 @@ export function SettingsModal({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-            <div className="w-full max-w-md glass-panel rounded-2xl flex flex-col max-h-[90vh] relative animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-full max-w-3xl glass-panel rounded-2xl flex flex-col max-h-[90vh] relative animate-in fade-in zoom-in-95 duration-200">
 
                 <button
                     onClick={onClose}
