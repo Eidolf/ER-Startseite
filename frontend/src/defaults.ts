@@ -30,6 +30,7 @@ export const DEFAULT_ICON_CONFIG: IconConfig = {
 export const DEFAULT_LAYOUT_CONFIG: LayoutConfig = {
     mode: 'grid',
     customOrder: [],
+    widgets: [],
     categories: [],
     hiddenAppIds: []
 }

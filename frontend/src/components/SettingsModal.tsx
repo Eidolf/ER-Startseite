@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github } from 'lucide-react'
-import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig } from '../types'
+import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github, LayoutGrid, Clock, CloudSun, Calendar, Info } from 'lucide-react'
+import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig, WidgetData } from '../types'
 
 interface MediaItem {
     name: string
@@ -211,6 +211,7 @@ interface SettingsModalProps {
     onTitleConfigChange: (config: TitleConfig) => void
     openInNewTab: boolean
     onOpenInNewTabChange: (enabled: boolean) => void
+    onAddWidget: (type: WidgetData['type']) => void
 }
 
 export function SettingsModal({
@@ -227,12 +228,29 @@ export function SettingsModal({
     titleConfig,
     onTitleConfigChange,
     openInNewTab,
-    onOpenInNewTabChange
+    onOpenInNewTabChange,
+    onAddWidget
 }: SettingsModalProps) {
-    const [activeTab, setActiveTab] = useState<'general' | 'background' | 'logo' | 'effects' | 'security' | 'about'>('general')
+    const [activeTab, setActiveTab] = useState<'general' | 'widgets' | 'background' | 'logo' | 'effects' | 'security' | 'about'>('general')
     const [uploading, setUploading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const logoFileInputRef = useRef<HTMLInputElement>(null)
+
+    // Local state for Media URL to allow typing
+    const [mediaUrlInput, setMediaUrlInput] = useState('')
+
+    // Sync input with bgConfig.value *only* if it's external, otherwise keep what the user types or empty
+    useEffect(() => {
+        if (!bgConfig.value) {
+            setMediaUrlInput('')
+        } else if (bgConfig.value === 'gradient') {
+            setMediaUrlInput('')
+        } else if (bgConfig.value.startsWith('blob:')) {
+            setMediaUrlInput('') // Don't show blob URLs
+        } else {
+            setMediaUrlInput(bgConfig.value)
+        }
+    }, [bgConfig.value])
 
     if (!isOpen) return null
 
@@ -296,13 +314,19 @@ export function SettingsModal({
                 </button>
 
                 <div className="p-6 pb-2 border-b border-white/10">
-                    <h2 className="text-xl font-bold text-neon-cyan">Settings</h2>
+                    <h2 className="text-xl font-bold text-neon-cyan">Settings (Fixed)</h2>
                     <div className="flex gap-4 mt-6 overflow-x-auto no-scrollbar">
                         <button
                             onClick={() => setActiveTab('general')}
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'general' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
                             General
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('widgets')}
+                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'widgets' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            Widgets
                         </button>
                         <button
                             onClick={() => setActiveTab('background')}
@@ -443,6 +467,44 @@ export function SettingsModal({
                         </div>
                     )}
 
+                    {activeTab === 'widgets' && (
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-semibold text-white/90 flex items-center gap-2">
+                                <LayoutGrid className="w-5 h-5 text-neon-purple" />
+                                Add Widgets
+                            </h3>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                <button
+                                    onClick={() => onAddWidget('clock')}
+                                    className="flex flex-col items-center justify-center p-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl gap-2 transition group"
+                                >
+                                    <div className="p-3 bg-blue-500/20 rounded-full text-blue-400 group-hover:bg-blue-500/30 group-hover:text-blue-300 transition">
+                                        <Clock className="w-6 h-6" />
+                                    </div>
+                                    <span className="text-sm font-medium text-gray-300">Clock</span>
+                                </button>
+                                <button
+                                    onClick={() => onAddWidget('weather')}
+                                    className="flex flex-col items-center justify-center p-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl gap-2 transition group"
+                                >
+                                    <div className="p-3 bg-yellow-500/20 rounded-full text-yellow-400 group-hover:bg-yellow-500/30 group-hover:text-yellow-300 transition">
+                                        <CloudSun className="w-6 h-6" />
+                                    </div>
+                                    <span className="text-sm font-medium text-gray-300">Weather</span>
+                                </button>
+                                <button
+                                    onClick={() => onAddWidget('calendar')}
+                                    className="flex flex-col items-center justify-center p-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl gap-2 transition group"
+                                >
+                                    <div className="p-3 bg-green-500/20 rounded-full text-green-400 group-hover:bg-green-500/30 group-hover:text-green-300 transition">
+                                        <Calendar className="w-6 h-6" />
+                                    </div>
+                                    <span className="text-sm font-medium text-gray-300">Calendar</span>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {activeTab === 'background' && (
                         <div className="space-y-6">
                             {/* Presets */}
@@ -473,10 +535,12 @@ export function SettingsModal({
                                     <div className="flex gap-2">
                                         <input
                                             type="text"
-                                            value={bgConfig.value.startsWith('http') ? bgConfig.value : ''}
+                                            value={mediaUrlInput}
                                             onChange={(e) => {
                                                 const val = e.target.value
-                                                // Simple auto-detection
+                                                setMediaUrlInput(val)
+                                                // Only update main config if it looks like a valid URL or path
+                                                // to avoid flickering or invalid states in the preview
                                                 const isVideo = /\.(mp4|webm|mov)$/i.test(val)
                                                 onBgChange({
                                                     type: isVideo ? 'video' : 'image',
@@ -775,6 +839,7 @@ export function SettingsModal({
                                     <h3 className="text-xl font-bold text-white">ER-Startseite</h3>
                                     <p className="text-gray-400 text-sm">A modern, highly customizable dashboard.</p>
                                 </div>
+                                <VersionDisplay />
                                 <div className="flex gap-4 pt-4">
                                     <a
                                         href="https://github.com/Eidolf/ER-Startseite"
@@ -791,6 +856,26 @@ export function SettingsModal({
                     )}
                 </div>
             </div>
+        </div>
+    )
+}
+
+function VersionDisplay() {
+    const [version, setVersion] = useState<string>('...')
+
+    useEffect(() => {
+        fetch('/health')
+            .then(res => res.json())
+            .then(data => {
+                if (data.version) setVersion(data.version)
+            })
+            .catch(() => setVersion('Unknown'))
+    }, [])
+
+    return (
+        <div className="bg-white/5 rounded-lg p-2 px-4 border border-white/5 inline-flex items-center gap-2">
+            <span className="text-sm text-gray-400">Software Version</span>
+            <span className="text-neon-cyan font-mono text-sm font-bold">{version}</span>
         </div>
     )
 }

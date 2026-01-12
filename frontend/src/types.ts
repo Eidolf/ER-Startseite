@@ -36,8 +36,19 @@ export type LayoutMode = 'grid' | 'list' | 'compact' | 'categories'
 export interface LayoutConfig {
     mode: LayoutMode
     customOrder: string[] // App IDs
+    widgets: WidgetData[]
     categories: Category[]
     hiddenAppIds: string[]
+}
+
+export interface WidgetData {
+    id: string
+    type: 'weather' | 'clock' | 'search' | 'calendar' | 'text'
+    x?: number // For grid positioning if we were using RGL, but here maybe just order?
+    y?: number
+    w?: number
+    h?: number
+    settings?: Record<string, any>
 }
 
 export interface AppConfig {

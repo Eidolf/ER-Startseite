@@ -67,9 +67,23 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 
+import tomllib
+
+def get_project_version():
+    try:
+        with open("pyproject.toml", "rb") as f:
+            data = tomllib.load(f)
+            return data["tool"]["poetry"]["version"]
+    except Exception:
+        return "0.0.0"
+
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "service": "ER-Startseite Backend"}
+    return {
+        "status": "ok",
+        "service": "ER-Startseite Backend",
+        "version": get_project_version()
+    }
 
 
 @app.get("/ready")
