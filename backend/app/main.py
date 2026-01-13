@@ -91,6 +91,8 @@ async def health_check():
 async def readiness_check():
     # TODO: Add DB check here
     return {"status": "ready"}
+
+
 @app.get("/manifest.webmanifest")
 async def get_manifest():
     config_service = ConfigService()
@@ -101,13 +103,7 @@ async def get_manifest():
     short_name = (name[:12] + "...") if len(name) > 12 else name
 
     # Default Icons
-    icons = [
-        {
-            "src": "/logo.svg",
-            "sizes": "any",
-            "type": "image/svg+xml"
-        }
-    ]
+    icons = [{"src": "/logo.svg", "sizes": "any", "type": "image/svg+xml"}]
 
     # If Custom Logo is set
     if config.logoConfig and config.logoConfig.value:
@@ -116,7 +112,6 @@ async def get_manifest():
 
         # Imports for validation
         import mimetypes
-
 
         logger.info(f"Manifest: Checking custom logo '{logo_value}'")
 
@@ -141,7 +136,7 @@ async def get_manifest():
         logger.info(f"Manifest: Logo '{logo_value}' valid? {is_valid_logo}")
 
         if is_valid_logo:
-             # Guess MIME type
+            # Guess MIME type
             mime_type, _ = mimetypes.guess_type(logo_value)
             if not mime_type:
                 # Fallback based on extension
@@ -153,15 +148,11 @@ async def get_manifest():
                 elif lower_val.endswith(".jpg") or lower_val.endswith(".jpeg"):
                     mime_type = "image/jpeg"
                 elif lower_val.endswith(".webp"):
-                     mime_type = "image/webp"
+                    mime_type = "image/webp"
                 else:
-                    mime_type = "image/png" # Default fallback
+                    mime_type = "image/png"  # Default fallback
 
-            custom_icon = {
-                "src": logo_value,
-                "sizes": "any",
-                "type": mime_type
-            }
+            custom_icon = {"src": logo_value, "sizes": "any", "type": mime_type}
             # Add as primary icon
             icons.insert(0, custom_icon)
 
@@ -175,5 +166,5 @@ async def get_manifest():
         "scope": "/",
         "start_url": "/",
         "orientation": "portrait",
-        "icons": icons
+        "icons": icons,
     }
