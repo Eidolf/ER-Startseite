@@ -1122,7 +1122,7 @@ function App() {
     }
 
     const renderContent = () => {
-        if (layoutConfig.mode === 'categories') {
+        if (activeLayoutMode === 'categories') {
             const hasSearch = searchQuery.length > 0;
             const searchLower = searchQuery.toLowerCase();
 
@@ -1853,8 +1853,8 @@ function App() {
                     <DndContext
                         sensors={sensors}
                         collisionDetection={pointerWithin}
-                        onDragEnd={layoutConfig.mode === 'categories' ? onDragEnd : handleDragEnd}
-                        onDragOver={layoutConfig.mode === 'categories' ? handleDragOver : undefined}
+                        onDragEnd={activeLayoutMode === 'categories' ? onDragEnd : handleDragEnd}
+                        onDragOver={activeLayoutMode === 'categories' ? handleDragOver : undefined}
                     >
                         {renderContent()}
                     </DndContext>

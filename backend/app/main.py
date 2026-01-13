@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 
 import structlog
@@ -70,6 +71,11 @@ app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads"
 
 
 def get_project_version():
+    # Priority: Env Var > pyproject.toml > Default
+    env_version = os.getenv("APP_VERSION") or os.getenv("VERSION")
+    if env_version:
+        return env_version
+
     try:
         with open("pyproject.toml", "rb") as f:
             data = tomllib.load(f)

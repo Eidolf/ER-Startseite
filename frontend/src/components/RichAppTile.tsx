@@ -1,4 +1,6 @@
 import { AppData, IconConfig } from '../types'
+import { AppRegistry } from '../registries'
+import { StatItem } from '../registries/types'
 import { AppIcon } from './AppIcon'
 import { useAppStats } from '../hooks/useAppStats'
 import { ArrowUpFromLine, Disc, AlertCircle, Loader2 } from 'lucide-react'
@@ -142,59 +144,63 @@ export function RichAppTile({ app, onClick, onContextMenu, isEditMode, isAuthent
     const renderStats = () => {
         if (loading) return <div className="flex items-center justify-center p-2"><Loader2 className="w-3 h-3 text-neon-cyan animate-spin" /></div>
         if (error) return <div className="text-[10px] text-red-400 p-2 truncate" title={error}>Connection Failed</div>
+        if (!stats) return <div className="text-[10px] text-gray-600 p-2 italic"></div>
 
-        if (app.integration === 'lidarr' && stats?.lidarr) {
-            const { queue, albums } = stats.lidarr
-            const isProtected = queue === -1
+        // Get Manifest to know layout
+        // We need lookup, or pass it from useAppStats? 
+        // Ideally AppData has enough info, or we import registry.
+        // Let's import registry here too.
 
-            if (isProtected) return <div className="text-[10px] text-gray-400 italic p-2">Protected</div>
+        // Dynamic import to avoid cycles? No, registry import is fine.
+        // We need to know which App this is. app.integration
+
+        // If 'protected', showing generic protected message? 
+        // The stats object values can be 'protected'.
+
+        // Helper to render a single stat item
+        const renderItem = (item: StatItem | 'protected') => {
+            if (item === 'protected') return <div className="text-[10px] text-gray-400 italic">Protected</div>
+            if (!item) return null
+
+            // Icon lookup could be generic, for now we map known ones or just pass component names if we had them.
+            // We passed 'ArrowUpFromLine' string.
+            const IconMap: Record<string, React.ElementType> = {
+                'ArrowUpFromLine': ArrowUpFromLine,
+                'Disc': Disc,
+                'AlertCircle': AlertCircle,
+                'Loader2': Loader2
+            }
+            const IconComp = (item.icon && IconMap[item.icon]) || Disc
 
             return (
-                <div className="flex flex-col gap-2 p-2 w-full h-full justify-center">
-                    <div className="flex items-center gap-2 text-white">
-                        <ArrowUpFromLine className="w-4 h-4 text-orange-400 shrink-0" />
-                        <div className="flex flex-col">
-                            <span className="text-xs font-bold leading-none">{queue}</span>
-                            <span className="text-[8px] text-gray-400 uppercase leading-none mt-0.5">Queue</span>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-white">
-                        <Disc className="w-4 h-4 text-neon-purple shrink-0" />
-                        <div className="flex flex-col">
-                            <span className="text-xs font-bold leading-none">{albums > 0 ? albums : '-'}</span>
-                            <span className="text-[8px] text-gray-400 uppercase leading-none mt-0.5">Albums</span>
-                        </div>
+                <div className="flex items-center gap-2 text-white">
+                    <IconComp className={`w-4 h-4 shrink-0 ${item.color || 'text-neon-cyan'}`} />
+                    <div className="flex flex-col">
+                        <span className="text-xs font-bold leading-none">{item.value}</span>
+                        <span className="text-[8px] text-gray-400 uppercase leading-none mt-0.5">{item.label}</span>
                     </div>
                 </div>
             )
         }
 
-        if (app.integration === 'ombi' && stats?.ombi) {
-            const { movies, tv } = stats.ombi
+        // Layouts
+        // We have 'top', 'bottom', 'tl', 'tr', 'bl', 'br' in stats based on manifest.
 
-            if (movies === 'protected') return <div className="text-[10px] text-gray-400 italic p-2">Protected</div>
-
-            const moviePending = (typeof movies === 'object') ? movies.pending : 0
-            const tvPending = (typeof tv === 'object') ? tv.pending : 0
-            const totalPending = moviePending + tvPending
-
-            if (totalPending === 0) return <div className="text-[10px] text-gray-500 p-2">No pending requests</div>
-
-            return (
-                <div className="flex flex-col gap-2 p-2 w-full h-full justify-center">
-                    <div className="flex items-center gap-2 text-white">
-                        <AlertCircle className="w-4 h-4 text-yellow-400 shrink-0" />
-                        <div className="flex flex-col">
-                            <span className="text-xs font-bold leading-none">{totalPending}</span>
-                            <span className="text-[8px] text-gray-400 uppercase leading-none mt-0.5">Pending</span>
-                        </div>
-                    </div>
-                </div>
-            )
-        }
-
-        return <div className="text-[10px] text-gray-600 p-2 italic"></div>
+        // Mixed / Rows-2 (Visually similar: Vertical stack)
+        return (
+            <div className="flex flex-col gap-2 p-2 w-full h-full justify-center">
+                {stats['top'] && renderItem(stats['top'])}
+                {stats['bottom'] && renderItem(stats['bottom'])}
+                {stats['tl'] && renderItem(stats['tl'])}
+                {stats['tr'] && renderItem(stats['tr'])}
+                {stats['bl'] && renderItem(stats['bl'])}
+                {stats['br'] && renderItem(stats['br'])}
+            </div>
+        )
     }
+
+    // Layout Checks
+    const isLogoOnly = !app.integration || (AppRegistry[app.integration]?.layout === 'logo-only')
 
     return (
         <div
@@ -205,23 +211,25 @@ export function RichAppTile({ app, onClick, onContextMenu, isEditMode, isAuthent
         >
             {/* Inner Content Wrapper */}
             <div className={getInnerClasses()} style={getInnerStyle()}>
-                {/* Left: Logo (40%) */}
-                <div className="w-[40%] h-full p-2 flex flex-col items-start justify-start relative">
-                    <div className="w-full h-12 relative overflow-hidden rounded-lg">
+                {/* Left: Logo (40% or 100%) */}
+                <div className={`h-full flex flex-col items-center justify-center relative transition-all duration-300 ${isLogoOnly ? 'w-full p-6' : 'w-[40%] p-2 items-start justify-start'}`}>
+                    <div className={`relative overflow-hidden rounded-lg ${isLogoOnly ? 'w-20 h-20' : 'w-full h-12'}`}>
                         <AppIcon
                             src={app.custom_icon_url || app.icon_url || app.default_icon || ''}
                             alt={app.name}
-                            className="w-full h-full object-contain filter drop-shadow-md origin-top-left"
+                            className={`w-full h-full object-contain filter drop-shadow-md ${isLogoOnly ? 'origin-center' : 'origin-top-left'}`}
                         />
                     </div>
                 </div>
 
-                {/* Right: Stats (60%) */}
-                <div className="w-[60%] h-full flex flex-col relative z-20">
-                    <div className="flex-1 overflow-hidden relative">
-                        {renderStats()}
+                {/* Right: Stats (60% or Hidden) */}
+                {!isLogoOnly && (
+                    <div className="w-[60%] h-full flex flex-col relative z-20">
+                        <div className="flex-1 overflow-hidden relative">
+                            {renderStats()}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Bottom Name Overlay */}
                 <div className={`absolute bottom-0 left-0 right-0 p-1.5 bg-gradient-to-t from-black/90 to-transparent transition-opacity ${isEditMode ? 'opacity-0' : 'opacity-100'}`}>

@@ -66,6 +66,8 @@ export interface PremiumAppConfig {
     stats?: { enabled: boolean, protected?: boolean } // Generic stats (e.g. Lidarr Library)
     queue?: { enabled: boolean; protected: boolean };
     calendar?: { enabled: boolean, protected?: boolean } // Generic calendar (e.g. Lidarr Upcoming)
+    series?: { enabled: boolean, protected?: boolean } // Sonarr
+    books?: { enabled: boolean, protected?: boolean } // Readarr
     [key: string]: unknown
 }
 
@@ -84,4 +86,5 @@ export interface AppData {
     api_url?: string
     api_protected?: boolean
     api_config?: PremiumAppConfig
+    premium_id?: string
 }

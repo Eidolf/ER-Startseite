@@ -447,3 +447,13 @@ AppRegistry.register(
         fields=[URL_FIELD],
     )
 )
+# 24. MediaWiki
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="mediawiki",
+        name="MediaWiki",
+        description=("The collaborative editing software that runs Wikipedia."),
+        default_icon="https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/mediawiki.png",
+        fields=[URL_FIELD],
+    )
+)
