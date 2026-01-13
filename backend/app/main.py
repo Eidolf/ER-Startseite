@@ -112,6 +112,7 @@ async def get_manifest():
 
         # Imports for validation
         import mimetypes
+        from pathlib import Path
 
         logger.info(f"Manifest: Checking custom logo '{logo_value}'")
 
@@ -119,12 +120,12 @@ async def get_manifest():
         if logo_value.startswith("/uploads/"):
             # Trust the configuration to avoid Docker volume path issues
             # If the user uploaded it, it's likely there.
-            is_valid_logo = True
-
-            # Debugging path (optional, kept for logs)
-            # relative_path = logo_value.replace("/uploads/", "", 1)
-            # file_path = Path(settings.UPLOAD_DIR) / relative_path
-            # logger.info(f"Manifest: Path resolution: {file_path.absolute()}")
+            relative_path = logo_value.replace("/uploads/", "", 1)
+            file_path = Path(settings.UPLOAD_DIR) / relative_path
+            if file_path.exists():
+                is_valid_logo = True
+            else:
+                logger.warning(f"Manifest: Logo not found at {file_path}")
 
         elif (
             logo_value.startswith("http://")
