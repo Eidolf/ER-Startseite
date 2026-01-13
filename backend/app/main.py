@@ -131,9 +131,11 @@ async def get_manifest():
             # file_path = Path(settings.UPLOAD_DIR) / relative_path
             # logger.info(f"Manifest: Path resolution: {file_path.absolute()}")
 
-        elif (logo_value.startswith("http://") or
-              logo_value.startswith("https://") or
-              logo_value.startswith("/")):
+        elif (
+            logo_value.startswith("http://")
+            or logo_value.startswith("https://")
+            or logo_value.startswith("/")
+        ):
             is_valid_logo = True
 
         logger.info(f"Manifest: Logo '{logo_value}' valid? {is_valid_logo}")
