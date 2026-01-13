@@ -10,41 +10,7 @@ export default defineConfig({
         VitePWA({
             registerType: 'autoUpdate',
             includeAssets: ['logo.svg', 'pwa-192x192.png', 'pwa-512x512.png'],
-            manifest: {
-                name: 'ER-Startseite',
-                short_name: 'ER-Start',
-                description: 'ER Startseite App',
-                theme_color: '#ffffff',
-                background_color: '#ffffff',
-                display: 'standalone',
-                scope: '/',
-                start_url: '/',
-                orientation: 'portrait',
-                icons: [
-                    {
-                        src: 'pwa-192x192.png',
-                        sizes: '192x192',
-                        type: 'image/png'
-                    },
-                    {
-                        src: 'pwa-512x512.png',
-                        sizes: '512x512',
-                        type: 'image/png'
-                    },
-                    {
-                        src: 'pwa-512x512.png',
-                        sizes: '512x512',
-                        type: 'image/png',
-                        purpose: 'any'
-                    },
-                    {
-                        src: 'pwa-512x512.png',
-                        sizes: '512x512',
-                        type: 'image/png',
-                        purpose: 'maskable'
-                    }
-                ]
-            }
+            manifest: false, // We serve this dynamically from backend
         })
     ],
     resolve: {
@@ -61,6 +27,10 @@ export default defineConfig({
                 changeOrigin: true,
             },
             '/uploads': {
+                target: 'http://localhost:13000',
+                changeOrigin: true,
+            },
+            '/manifest.webmanifest': {
                 target: 'http://localhost:13000',
                 changeOrigin: true,
             }

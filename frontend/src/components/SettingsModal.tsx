@@ -324,7 +324,7 @@ export function SettingsModal({
                 </button>
 
                 <div className="p-6 pb-2 border-b border-white/10">
-                    <h2 className="text-xl font-bold text-neon-cyan">Settings (Fixed)</h2>
+                    <h2 className="text-xl font-bold text-neon-cyan">Settings</h2>
                     <div className="flex gap-4 mt-6 overflow-x-auto no-scrollbar">
                         <button
                             onClick={() => setActiveTab('general')}

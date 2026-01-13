@@ -1733,13 +1733,10 @@ function App() {
             <div className="md:hidden fixed top-0 left-0 w-full z-50 h-14 pointer-events-none">
                 {/* Left: Logo & Title */}
                 <div className="absolute top-2 left-2 flex items-center pointer-events-auto gap-2">
-                    {logoConfig.type === 'image' && logoConfig.value ? (
-                        <div className="h-10 w-auto flex items-center justify-center">
-                            <img src={logoConfig.value} alt="Logo" className="max-h-full w-auto max-w-[100px] object-contain drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]" />
-                        </div>
-                    ) : (
-                        <AnimatedLogo className="w-12 h-12" />
-                    )}
+                    <AnimatedLogo
+                        className="w-12 h-12"
+                        src={logoConfig.type === 'image' ? logoConfig.value : undefined}
+                    />
                     <h1 className={`text-xl font-bold tracking-tighter transition-all ml-0 ${titleConfig.style === 'default' ? 'text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-purple' : ''} ${titleConfig.style === 'gradient' ? 'text-transparent bg-clip-text' : titleConfig.style === 'solid' ? 'text-white' : ''}`}
                         style={{
                             textShadow: '0 0 10px rgba(6, 182, 212, 0.4)',
@@ -1778,30 +1775,18 @@ function App() {
             </div>
 
             {/* ================= DESKTOP HEADER (Visible only on desktop) ================= */}
-            <div className="hidden md:flex absolute top-0 left-0 w-full z-20 p-4 justify-between items-start pointer-events-none">
+            <div className="hidden md:flex absolute top-0 left-0 w-full z-20 p-4 pt-8 justify-between items-start pointer-events-none">
                 {/* Left Spacer for Balance */}
                 <div className="w-40"></div>
 
                 {/* Center: Logo & Title */}
-                <div className="flex flex-col items-center pointer-events-auto -mt-4">
-                    {logoConfig.type === 'image' && logoConfig.value ? (
-                        <div className="h-32 w-auto flex items-end justify-center pb-2">
-                            <img
-                                src={logoConfig.value}
-                                alt="Logo"
-                                className="max-h-full w-auto max-w-[250px] object-contain drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]"
-                                onError={(e) => {
-                                    console.error("Failed to load logo:", logoConfig.value);
-                                    e.currentTarget.style.display = 'none';
-                                    // Optionally fallback to text or leave empty, but preventing the broken image icon is good.
-                                    // Better yet, set a state to show AnimatedLogo?
-                                    // For now, hiding the broken image is better than alt text.
-                                }}
-                            />
-                        </div>
-                    ) : (
-                        <AnimatedLogo />
-                    )}
+                <div className="flex flex-col items-center pointer-events-auto pt-2">
+                    <div className="h-32 w-auto flex items-end justify-center pb-2">
+                        <AnimatedLogo
+                            className="h-full w-auto max-w-[250px]"
+                            src={logoConfig.type === 'image' ? logoConfig.value : undefined}
+                        />
+                    </div>
                     <h1
                         className={`text-5xl font-bold tracking-tighter text-center transition-all ${logoConfig.type === 'image' && logoConfig.value ? 'mt-2' : '-mt-16'} ${titleConfig.style === 'default' ? 'text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-purple' : ''} ${titleConfig.style === 'gradient' ? 'text-transparent bg-clip-text' : titleConfig.style === 'solid' ? 'text-white' : ''}`}
                         style={{
@@ -1842,7 +1827,7 @@ function App() {
             </div>
 
             {/* Main Content (Padded) */}
-            <div className="relative z-10 container mx-auto px-4 pt-[120px] md:pt-[250px] pb-4 flex flex-col h-screen overflow-hidden">
+            <div className="relative z-10 container mx-auto px-4 pt-[120px] md:pt-[320px] pb-4 flex flex-col h-screen overflow-hidden">
 
                 {/* Search Field */}
                 <div className="max-w-2xl w-full mx-auto mb-8 relative group shrink-0">

@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.exceptions import BackendException
+from app.services.config_service import ConfigService
 
 logger = structlog.get_logger()
 
@@ -90,3 +91,89 @@ async def health_check():
 async def readiness_check():
     # TODO: Add DB check here
     return {"status": "ready"}
+@app.get("/manifest.webmanifest")
+async def get_manifest():
+    config_service = ConfigService()
+    config = await config_service.get_config()
+
+    # Default Name
+    name = (config.pageTitle or "").strip() or "ER-Startseite"
+    short_name = (name[:12] + "...") if len(name) > 12 else name
+
+    # Default Icons
+    icons = [
+        {
+            "src": "/logo.svg",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        }
+    ]
+
+    # If Custom Logo is set
+    if config.logoConfig and config.logoConfig.value:
+        logo_value = config.logoConfig.value
+        is_valid_logo = False
+
+        # Imports for validation
+        import mimetypes
+        from pathlib import Path
+
+        logger.info(f"Manifest: Checking custom logo '{logo_value}'")
+
+        # Check if local file exists
+        if logo_value.startswith("/uploads/"):
+            # Trust the configuration to avoid Docker volume path issues
+            # If the user uploaded it, it's likely there.
+            is_valid_logo = True
+
+            # Debugging path (optional, kept for logs)
+            # relative_path = logo_value.replace("/uploads/", "", 1)
+            # file_path = Path(settings.UPLOAD_DIR) / relative_path
+            # logger.info(f"Manifest: Path resolution: {file_path.absolute()}")
+
+        # Allow external URLs (basic check)
+        elif logo_value.startswith("http://") or logo_value.startswith("https://"):
+            is_valid_logo = True
+        # Allow relative paths (e.g. static assets)
+        elif logo_value.startswith("/"):
+             is_valid_logo = True
+
+        logger.info(f"Manifest: Logo '{logo_value}' valid? {is_valid_logo}")
+
+        if is_valid_logo:
+             # Guess MIME type
+            mime_type, _ = mimetypes.guess_type(logo_value)
+            if not mime_type:
+                # Fallback based on extension
+                lower_val = logo_value.lower()
+                if lower_val.endswith(".svg"):
+                    mime_type = "image/svg+xml"
+                elif lower_val.endswith(".png"):
+                    mime_type = "image/png"
+                elif lower_val.endswith(".jpg") or lower_val.endswith(".jpeg"):
+                    mime_type = "image/jpeg"
+                elif lower_val.endswith(".webp"):
+                     mime_type = "image/webp"
+                else:
+                    mime_type = "image/png" # Default fallback
+
+            custom_icon = {
+                "src": logo_value,
+                "sizes": "any",
+                "type": mime_type
+            }
+            # Add as primary icon
+            icons.insert(0, custom_icon)
+
+    return {
+        "name": name,
+        "short_name": short_name,
+        "description": "ER Startseite App",
+        "theme_color": "#ffffff",
+        "background_color": "#ffffff",
+        "display": "standalone",
+        "scope": "/",
+        "start_url": "/",
+        "orientation": "portrait",
+        "icons": icons
+    }
