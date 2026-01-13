@@ -1,8 +1,16 @@
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
 from fastapi.testclient import TestClient
+
 from app.main import app
-from app.schemas.config import AppConfig, LogoConfig, BackgroundConfig, IconConfig, LayoutConfig
+from app.schemas.config import (
+    AppConfig,
+    BackgroundConfig,
+    IconConfig,
+    LayoutConfig,
+    LogoConfig,
+)
 
 client = TestClient(app)
 
@@ -18,7 +26,15 @@ def test_manifest_default_fallback(mock_config_service):
         pageTitle="   ", # Empty with whitespace
         bgConfig=BackgroundConfig(type="color", value="#000"),
         logoConfig=LogoConfig(type="none", value=None),
-        iconConfig=IconConfig(showBorder=False, borderStyle="", borderColor="", borderGradientColors=[], backgroundStyle="", backgroundColor="", gradientColors=[]),
+        iconConfig=IconConfig(
+            showBorder=False,
+            borderStyle="",
+            borderColor="",
+            borderGradientColors=[],
+            backgroundStyle="",
+            backgroundColor="",
+            gradientColors=[],
+        ),
         layoutConfig=LayoutConfig()
     ))
 
@@ -37,7 +53,15 @@ def test_manifest_invalid_logo_file(mock_config_service):
         pageTitle="My App",
         bgConfig=BackgroundConfig(type="color", value="#000"),
         logoConfig=LogoConfig(type="image", value="/uploads/nonexistent.png"),
-        iconConfig=IconConfig(showBorder=False, borderStyle="", borderColor="", borderGradientColors=[], backgroundStyle="", backgroundColor="", gradientColors=[]),
+        iconConfig=IconConfig(
+            showBorder=False,
+            borderStyle="",
+            borderColor="",
+            borderGradientColors=[],
+            backgroundStyle="",
+            backgroundColor="",
+            gradientColors=[],
+        ),
         layoutConfig=LayoutConfig()
     ))
 
@@ -60,7 +84,15 @@ def test_manifest_valid_external_logo(mock_config_service):
         pageTitle="My App",
         bgConfig=BackgroundConfig(type="color", value="#000"),
         logoConfig=LogoConfig(type="image", value="https://example.com/logo.png"),
-        iconConfig=IconConfig(showBorder=False, borderStyle="", borderColor="", borderGradientColors=[], backgroundStyle="", backgroundColor="", gradientColors=[]),
+        iconConfig=IconConfig(
+            showBorder=False,
+            borderStyle="",
+            borderColor="",
+            borderGradientColors=[],
+            backgroundStyle="",
+            backgroundColor="",
+            gradientColors=[],
+        ),
         layoutConfig=LayoutConfig()
     ))
 

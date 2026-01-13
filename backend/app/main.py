@@ -116,7 +116,7 @@ async def get_manifest():
 
         # Imports for validation
         import mimetypes
-        from pathlib import Path
+
 
         logger.info(f"Manifest: Checking custom logo '{logo_value}'")
 
@@ -131,12 +131,10 @@ async def get_manifest():
             # file_path = Path(settings.UPLOAD_DIR) / relative_path
             # logger.info(f"Manifest: Path resolution: {file_path.absolute()}")
 
-        # Allow external URLs (basic check)
-        elif logo_value.startswith("http://") or logo_value.startswith("https://"):
+        elif (logo_value.startswith("http://") or
+              logo_value.startswith("https://") or
+              logo_value.startswith("/")):
             is_valid_logo = True
-        # Allow relative paths (e.g. static assets)
-        elif logo_value.startswith("/"):
-             is_valid_logo = True
 
         logger.info(f"Manifest: Logo '{logo_value}' valid? {is_valid_logo}")
 
