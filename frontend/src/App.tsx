@@ -1788,7 +1788,7 @@ function App() {
                         />
                     </div>
                     <h1
-                        className={`text-5xl font-bold tracking-tighter text-center transition-all ${logoConfig.type === 'image' && logoConfig.value ? 'mt-2' : '-mt-16'} ${titleConfig.style === 'default' ? 'text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-purple' : ''} ${titleConfig.style === 'gradient' ? 'text-transparent bg-clip-text' : titleConfig.style === 'solid' ? 'text-white' : ''}`}
+                        className={`text-5xl font-bold tracking-tighter text-center transition-all mt-2 ${titleConfig.style === 'default' ? 'text-transparent bg-clip-text bg-gradient-to-r from-neon-cyan to-neon-purple' : ''} ${titleConfig.style === 'gradient' ? 'text-transparent bg-clip-text' : titleConfig.style === 'solid' ? 'text-white' : ''}`}
                         style={{
                             textShadow: '0 0 15px rgba(6, 182, 212, 0.4)',
                             color: titleConfig.style === 'solid' ? titleConfig.color : undefined,
