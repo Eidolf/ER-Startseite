@@ -56,4 +56,27 @@ echo "🔍 Checking runtimes..."
 if command_exists node; then echo "✅ Node.js $(node -v)"; else echo "❌ Node.js missing"; fi
 if command_exists python3; then echo "✅ Python $(python3 --version)"; else echo "❌ Python missing"; fi
 
+# 4. Install Dependencies
+echo "📦 Installing Dependencies..."
+
+# Backend
+if [ -d "backend" ]; then
+    echo "👉 Installing Backend Dependencies (Poetry)..."
+    if command_exists poetry; then
+        (cd backend && poetry install)
+    else
+        echo "⚠️  Poetry not found. Skipping backend install."
+    fi
+fi
+
+# Frontend
+if [ -d "frontend" ]; then
+    echo "👉 Installing Frontend Dependencies (npm)..."
+    if command_exists npm; then
+        (cd frontend && npm install)
+    else
+        echo "⚠️  npm not found. Skipping frontend install."
+    fi
+fi
+
 echo "✅ Setup complete! run './check-prepush.sh' to start pre-flight checks."

@@ -1472,7 +1472,13 @@ function App() {
                                 </p>
                             </div>
                             <SortableContext items={layoutConfig.hiddenAppIds || []} strategy={rectSortingStrategy}>
-                                <DroppableContainer id="hidden-apps" className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 min-h-[100px] p-2 rounded-xl bg-black/20 border-dashed border border-red-500/20">
+                                <DroppableContainer
+                                    id="hidden-apps"
+                                    className={`gap-4 min-h-[100px] p-2 rounded-xl bg-black/20 border-dashed border border-red-500/20 ${activeLayoutMode === 'list'
+                                        ? 'flex flex-col'
+                                        : 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6'
+                                        }`}
+                                >
                                     {(layoutConfig.hiddenAppIds || []).map((id) => {
                                         const app = apps.find(a => a.id === id);
                                         if (!app) return null;
@@ -1485,8 +1491,14 @@ function App() {
                                                 key={app.id}
                                                 app={app}
                                                 isEditMode={isEditMode}
-                                                tileClass={tileClass}
-                                                style={getIconStyle()}
+                                                tileClass={activeLayoutMode === 'rich-grid' ? '' : (activeLayoutMode === 'list'
+                                                    ? "relative rounded-xl p-4 flex items-center gap-4 transition-all duration-300 cursor-pointer group hover:bg-white/5 glass-panel w-full border border-red-500/10"
+                                                    : tileClass)}
+                                                style={activeLayoutMode === 'rich-grid' ? {
+                                                    backgroundColor: 'transparent',
+                                                    boxShadow: 'none',
+                                                    border: 'none'
+                                                } : getIconStyle()}
                                                 onClick={(e: React.MouseEvent) => {
                                                     if (app.type === 'folder') {
                                                         e.preventDefault();
@@ -1506,10 +1518,46 @@ function App() {
                                                 }}
                                                 onContextMenu={handleContextMenu}
                                             >
-                                                <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0 opacity-70">
-                                                    <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain grayscale" />
-                                                </div>
-                                                <span className="font-medium text-gray-400 text-center text-sm truncate w-full px-2">{app.name}</span>
+                                                {activeLayoutMode === 'rich-grid' ? (
+                                                    <RichAppTile
+                                                        app={app}
+                                                        onClick={() => {
+                                                            if (app.type === 'folder') {
+                                                                setOpenFolder(app);
+                                                                return;
+                                                            }
+                                                            if (!isEditMode && app.url) {
+                                                                if (openInNewTab) window.open(app.url, '_blank', 'noopener,noreferrer');
+                                                                else window.location.href = app.url;
+                                                            }
+                                                        }}
+                                                        onContextMenu={(e) => { e.preventDefault(); }}
+                                                        isEditMode={isEditMode}
+                                                        isAuthenticated={isAuthenticated}
+                                                        iconConfig={iconConfig}
+                                                    />
+                                                ) : activeLayoutMode === 'compact' ? (
+                                                    <div className="flex items-center gap-3 w-full h-full p-2 opacity-70">
+                                                        <div className="w-8 h-8 rounded-lg bg-white/10 p-1.5 flex-shrink-0">
+                                                            <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain grayscale" />
+                                                        </div>
+                                                        <span className="font-medium text-gray-400 text-sm truncate">{app.name}</span>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <div className={`${activeLayoutMode === 'list' ? 'w-12 h-12' : 'w-16 h-16'} rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0 opacity-70`}>
+                                                            <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain grayscale" />
+                                                        </div>
+                                                        <div className={`flex flex-col min-w-0 ${activeLayoutMode === 'list' ? 'flex-1 items-start' : 'items-center w-full'}`}>
+                                                            <span className={`font-medium text-gray-400 text-center text-sm truncate w-full px-2 ${activeLayoutMode === 'list' ? 'text-lg text-left' : ''}`}>{app.name}</span>
+                                                            {activeLayoutMode === 'list' && app.description && (
+                                                                <span className="text-sm text-gray-500 truncate w-full px-2 text-left">
+                                                                    {app.description}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </>
+                                                )}
                                             </SortableAppTile>
                                         )
                                     })}

@@ -51,8 +51,12 @@ RUN addgroup --system --gid 1001 appuser && \
 RUN apt-get update && apt-get install -y --no-install-recommends gosu && rm -rf /var/lib/apt/lists/*
 
 # Create uploads directory and set permissions
+# Create uploads directory and set permissions
 WORKDIR /app
 RUN mkdir -p /app/uploads /app/data && chown -R appuser:appuser /app/uploads /app/data
+
+# Backup default data to restore if volume is empty
+COPY --chown=appuser:appuser data /app/data_defaults
 
 # Copy entrypoint script
 COPY entrypoint.sh .
