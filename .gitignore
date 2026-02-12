@@ -45,3 +45,4 @@ dist/
 .DS_Store
 Thumbs.db
 backend/test_output*.txt
+data/
