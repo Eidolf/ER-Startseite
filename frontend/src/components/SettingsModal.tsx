@@ -58,7 +58,7 @@ function ChangePasswordForm() {
             } else {
                 alert("Failed to change password. Check old password.")
             }
-        } catch (err) {
+        } catch {
             alert("Error changing password")
         } finally {
             setLoading(false)
