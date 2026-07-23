@@ -41,7 +41,10 @@ dist/
 *.swp
 *.swo
 
-# OS
+# OS & Local Data
 .DS_Store
 Thumbs.db
 backend/test_output*.txt
+data/
+*.tmp
+*.bak

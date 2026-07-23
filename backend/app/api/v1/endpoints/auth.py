@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from fastapi import APIRouter, Cookie, Depends, Response
+from fastapi import APIRouter, Cookie, Depends, Request, Response
 from pydantic import BaseModel
 
 from app.core import security
@@ -47,7 +47,7 @@ async def setup_auth(req: SetupRequest, service: AuthService = Depends(get_servi
     return {"status": "success"}
 
 
-def set_auth_cookie(response: Response, remember: bool):
+def set_auth_cookie(response: Response, remember: bool, secure: bool = False):
     access_token_expires = timedelta(days=30) if remember else timedelta(hours=12)
     access_token = security.create_access_token(
         data={"sub": "admin"}, expires_delta=access_token_expires
@@ -60,7 +60,7 @@ def set_auth_cookie(response: Response, remember: bool):
         key="access_token",
         value=access_token,
         httponly=True,
-        secure=False,  # Set to True in Production (HTTPS)
+        secure=secure,
         samesite="lax",
         max_age=max_age,
     )
@@ -68,23 +68,31 @@ def set_auth_cookie(response: Response, remember: bool):
 
 @router.post("/login")
 async def login(
-    req: LoginRequest, response: Response, service: AuthService = Depends(get_service)
+    req: LoginRequest,
+    response: Response,
+    request: Request,
+    service: AuthService = Depends(get_service),
 ):
     if not service.verify_password(req.password):
         raise AuthException("Invalid password")
 
-    set_auth_cookie(response, req.remember)
+    is_secure = request.url.scheme == "https"
+    set_auth_cookie(response, req.remember, secure=is_secure)
     return {"status": "success", "token": "cookie-set"}
 
 
 @router.post("/verify")
 async def verify(
-    req: LoginRequest, response: Response, service: AuthService = Depends(get_service)
+    req: LoginRequest,
+    response: Response,
+    request: Request,
+    service: AuthService = Depends(get_service),
 ):
     if not service.verify_password(req.password):
         raise AuthException("Invalid password")
 
-    set_auth_cookie(response, req.remember)
+    is_secure = request.url.scheme == "https"
+    set_auth_cookie(response, req.remember, secure=is_secure)
     return {"status": "valid"}
 
 

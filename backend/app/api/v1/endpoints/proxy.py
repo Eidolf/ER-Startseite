@@ -27,6 +27,18 @@ async def proxy_request(request: ProxyRequest):
     Proxy HTTP requests to internal services.
     Solves Mixed Content issues when HTTPS frontend needs to call HTTP APIs.
     """
+    # Basic SSRF prevention
+    lower_url = request.url.lower().strip()
+    if not (lower_url.startswith("http://") or lower_url.startswith("https://")):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid protocol. Only http and https are permitted.",
+        )
+    if "169.254.169.254" in lower_url:
+        raise HTTPException(
+            status_code=403, detail="Access to cloud metadata IP is prohibited."
+        )
+
     try:
         async with httpx.AsyncClient(timeout=request.timeout, verify=False) as client:
             response = await client.request(

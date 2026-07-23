@@ -42,9 +42,10 @@ class Settings(BaseSettings):
             f"{values.get('POSTGRES_SERVER')}/{values.get('POSTGRES_DB')}"
         )
 
-    # Security
+    # Security & Paths
     SECRET_KEY: str = "changeme"
     UPLOAD_DIR: str = "uploads"
+    DATA_DIR: str = "data"
 
     model_config = SettingsConfigDict(
         case_sensitive=True, env_file=".env", extra="ignore"

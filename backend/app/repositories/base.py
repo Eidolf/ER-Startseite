@@ -37,9 +37,28 @@ class JsonRepository(Generic[T]):
 
     async def save_all(self, items: list[T]):
         await self._ensure_dir()
-        # Use model_dump(mode='json') to ensure HttpUrl and strict types are serialized
         data = [item.model_dump(mode="json") for item in items]
-        await self.file_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        content = json.dumps(data, indent=2)
+
+        # Atomic Write & Backup
+        tmp_path = Path(f"{self.file_path}.tmp")
+        bak_path = Path(f"{self.file_path}.bak")
+
+        await tmp_path.write_text(content, encoding="utf-8")
+
+        if await self.file_path.exists():
+            try:
+                # Keep one backup of previous valid state
+                if await bak_path.exists():
+                    await bak_path.unlink()
+                await self.file_path.rename(bak_path)
+            except Exception as e:
+                print(
+                    f"WARNING: Failed creating backup for {self.file_path}: {e}",
+                    flush=True,
+                )
+
+        await tmp_path.rename(self.file_path)
 
     async def add(self, item: T) -> list[T]:
         items = await self.read_all()

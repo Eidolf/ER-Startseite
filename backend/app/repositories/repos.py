@@ -1,3 +1,8 @@
+import os
+
+from anyio import Path
+
+from app.core.config import settings
 from app.repositories.base import JsonRepository
 from app.schemas.app import App
 from app.schemas.config import (
@@ -12,7 +17,7 @@ from app.schemas.config import (
 # App Repo manages a LIST of Apps
 class AppRepository(JsonRepository[App]):
     def __init__(self):
-        super().__init__("data/apps.json", App)
+        super().__init__(os.path.join(settings.DATA_DIR, "apps.json"), App)
 
     async def update(
         self, item_id: str, update_data: dict, id_field: str = "id"
@@ -34,7 +39,6 @@ class AppRepository(JsonRepository[App]):
                     return True
 
                 # Check contents if folder
-                # Check contents if folder
                 if (
                     app.type == "folder"
                     and app.contents
@@ -51,27 +55,62 @@ class AppRepository(JsonRepository[App]):
 
 
 # Config Repo manages a SINGLE Config Object (stored as a JSON object, not list)
-# We need to override read/save for single object
 class ConfigRepository:
     def __init__(self):
-        self._repo = JsonRepository("data/config.json", AppConfig)
-        # But JsonRepository assumes list...
-        # Let's customize for Config
+        self._file_path = Path(os.path.join(settings.DATA_DIR, "config.json"))
+
+    async def _ensure_dir(self):
+        parent = self._file_path.parent
+        if not await parent.exists():
+            await parent.mkdir(parents=True, exist_ok=True)
 
     async def get_config(self) -> AppConfig:
-        if not await self._repo.file_path.exists():
-            return self._get_default()
-        try:
-            content = await self._repo.file_path.read_text(encoding="utf-8")
-            return AppConfig.parse_raw(content)
-        except Exception:
-            return self._get_default()
+        bak_path = Path(f"{self._file_path}.bak")
+
+        # Try reading main file first
+        if await self._file_path.exists():
+            try:
+                content = await self._file_path.read_text(encoding="utf-8")
+                return AppConfig.parse_raw(content)
+            except Exception as e:
+                print(
+                    f"WARNING: Failed reading {self._file_path}: {e}. Attempting backup restore...",
+                    flush=True,
+                )
+
+        # Try reading backup file if primary failed or missing
+        if await bak_path.exists():
+            try:
+                content = await bak_path.read_text(encoding="utf-8")
+                config = AppConfig.parse_raw(content)
+                print(
+                    f"SUCCESS: Restored configuration from backup {bak_path}",
+                    flush=True,
+                )
+                return config
+            except Exception as e:
+                print(f"ERROR: Backup restore from {bak_path} failed: {e}", flush=True)
+
+        return self._get_default()
 
     async def save_config(self, config: AppConfig):
-        await self._repo._ensure_dir()
-        await self._repo.file_path.write_text(
-            config.model_dump_json(indent=2), encoding="utf-8"
-        )
+        await self._ensure_dir()
+        content = config.model_dump_json(indent=2)
+
+        tmp_path = Path(f"{self._file_path}.tmp")
+        bak_path = Path(f"{self._file_path}.bak")
+
+        await tmp_path.write_text(content, encoding="utf-8")
+
+        if await self._file_path.exists():
+            try:
+                if await bak_path.exists():
+                    await bak_path.unlink()
+                await self._file_path.rename(bak_path)
+            except Exception as e:
+                print(f"WARNING: Failed creating config backup: {e}", flush=True)
+
+        await tmp_path.rename(self._file_path)
 
     def _get_default(self) -> AppConfig:
         from app.core.constants import (

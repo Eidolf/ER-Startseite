@@ -35,6 +35,7 @@ def get_file_tree() -> dict[str, str]:
         "data": "Persistent data storage directory for config.json and apps.json",
         "docs": "Documentation directory containing setup and architecture guides",
         "scripts": "Utility and build maintenance scripts",
+        "CHANGELOG.md": "Project changelog recording version updates, security enhancements, and fixes",
         "docker-compose.yml": "Docker Compose configuration for local development",
         "Makefile": "Developer shortcut commands for installation, linting, and testing",
         "check-prepush.sh": "Pre-flight validation script enforcing code quality before git push"
