@@ -1,0 +1,125 @@
+{
+  "features": {
+    "dashboard_grid_management": {
+      "description": "Managing grid layout, categories, background options, search bar configurations, and page titles.",
+      "backend": {
+        "models": [
+          "backend/app/schemas/config.py"
+        ],
+        "endpoints": [
+          "backend/app/api/v1/endpoints/config.py"
+        ],
+        "services": [
+          "backend/app/services/config_service.py"
+        ]
+      },
+      "frontend": {
+        "components": [
+          "frontend/src/App.tsx",
+          "frontend/src/components/LayoutMenu.tsx",
+          "frontend/src/components/SettingsModal.tsx"
+        ],
+        "hooks": [],
+        "styles": [
+          "frontend/src/index.css"
+        ]
+      }
+    },
+    "app_catalog_and_preview": {
+      "description": "Adding, editing, deleting self-hosted application tiles, auto-fetching favicons/metadata, and browsing premium app registries.",
+      "backend": {
+        "models": [
+          "backend/app/schemas/app.py",
+          "backend/app/core/premium_apps.py"
+        ],
+        "endpoints": [
+          "backend/app/api/v1/endpoints/apps.py",
+          "backend/app/api/v1/endpoints/registry.py"
+        ],
+        "services": [
+          "backend/app/services/app_service.py",
+          "backend/app/services/registry_service.py"
+        ]
+      },
+      "frontend": {
+        "components": [
+          "frontend/src/components/AppFormModal.tsx",
+          "frontend/src/components/AppDetailsModal.tsx",
+          "frontend/src/components/RichAppTile.tsx"
+        ],
+        "hooks": [
+          "frontend/src/hooks/useAppStats.ts"
+        ],
+        "styles": [
+          "frontend/src/index.css"
+        ]
+      }
+    },
+    "authentication_and_setup": {
+      "description": "Initial setup, admin login, HTTP-only authentication cookies, session status, and password changing.",
+      "backend": {
+        "models": [
+          "backend/app/api/v1/endpoints/auth.py"
+        ],
+        "endpoints": [
+          "backend/app/api/v1/endpoints/auth.py"
+        ],
+        "services": [
+          "backend/app/services/auth_service.py"
+        ]
+      },
+      "frontend": {
+        "components": [
+          "frontend/src/components/SettingsModal.tsx"
+        ],
+        "hooks": [],
+        "styles": [
+          "frontend/src/index.css"
+        ]
+      }
+    },
+    "media_and_assets_upload": {
+      "description": "Uploading images and videos for custom logos, background themes, and tile icons with file validation.",
+      "backend": {
+        "models": [],
+        "endpoints": [
+          "backend/app/api/v1/endpoints/media.py"
+        ],
+        "services": []
+      },
+      "frontend": {
+        "components": [
+          "frontend/src/components/SettingsModal.tsx",
+          "frontend/src/components/AppFormModal.tsx"
+        ],
+        "hooks": [],
+        "styles": [
+          "frontend/src/index.css"
+        ]
+      }
+    },
+    "proxy_and_arr_integrations": {
+      "description": "HTTP request proxying to local network services to resolve HTTPS/HTTP mixed content issues, and Arr stack status widget fetching.",
+      "backend": {
+        "models": [
+          "backend/app/api/v1/endpoints/proxy.py"
+        ],
+        "endpoints": [
+          "backend/app/api/v1/endpoints/proxy.py"
+        ],
+        "services": []
+      },
+      "frontend": {
+        "components": [
+          "frontend/src/components/RichAppTile.tsx"
+        ],
+        "hooks": [
+          "frontend/src/hooks/useAppStats.ts"
+        ],
+        "styles": [
+          "frontend/src/index.css"
+        ]
+      }
+    }
+  }
+}

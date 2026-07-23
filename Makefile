@@ -1,4 +1,4 @@
-.PHONY: install start test lint
+.PHONY: install start test lint format build manifest
 
 install:
 	cd backend && poetry install
@@ -15,6 +15,7 @@ test:
 	cd frontend && npm run test
 
 lint:
+	python3 scripts/generate_manifest.py
 	cd backend && poetry run ruff check .
 	cd frontend && npm run lint
 
@@ -22,5 +23,9 @@ format:
 	cd backend && poetry run black .
 	cd frontend && npm run format
 
-build:
+manifest:
+	python3 scripts/generate_manifest.py
+
+build: manifest
 	docker-compose build
+

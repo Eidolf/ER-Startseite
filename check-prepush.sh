@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+export PATH="$HOME/.local/bin:$PATH"
+
 echo "🛫 Initiating Pre-Flight Checks..."
 
 # Colors
@@ -34,7 +36,10 @@ run_step() {
     fi
 }
 
-# 1. Backend Checks
+# 1. Manifest Generation & Sync Check
+run_step "Manifest: Generate & Sync Check" "python3 scripts/generate_manifest.py" "critical"
+
+# 2. Backend Checks
 echo "Use 'poetry run' for python commands if needed."
 run_step "Backend: Ruff Lint" "(cd backend && poetry run ruff check .)" "critical"
 run_step "Backend: Black Format Check" "(cd backend && poetry run black --check .)" "critical"

@@ -1,0 +1,558 @@
+{
+  "metadata": {
+    "name": "ER-Startseite",
+    "description": "Customizable self-hosted homepage dashboard and application launcher",
+    "entry_points": {
+      "backend": "backend/app/main.py",
+      "frontend": "frontend/src/main.tsx"
+    }
+  },
+  "file_tree": {
+    "backend": "FastAPI backend service directory",
+    "backend/app/main.py": "Main FastAPI application entry point and global routes",
+    "backend/app/api/v1/router.py": "Central API router aggregating v1 endpoint modules",
+    "backend/app/api/v1/endpoints": "Endpoint handler modules (apps, auth, config, media, proxy, registry)",
+    "backend/app/core": "Core configuration, security, exceptions, and premium app definitions",
+    "backend/app/schemas": "Pydantic data validation and serialization models",
+    "backend/app/services": "Business logic services (AppService, AuthService, ConfigService, RegistryService)",
+    "backend/app/repositories": "Persistence layer handling JSON-file storage repositories",
+    "frontend": "React TypeScript frontend application directory",
+    "frontend/src/main.tsx": "Frontend application entry point rendering App root",
+    "frontend/src/App.tsx": "Main application dashboard component with grid layout and state",
+    "frontend/src/components": "UI components for app tiles, modals, settings, and widgets",
+    "frontend/src/components/widgets": "Dashboard widgets (ClockWidget, WeatherWidget, CalendarWidget)",
+    "frontend/src/hooks": "Custom React hooks (useAppStats)",
+    "frontend/src/registries": "Service-specific API integrations for Arr stack and home services",
+    "frontend/src/utils": "Utility modules including fetchProxy for CORS-safe API calls",
+    "data": "Persistent data storage directory for config.json and apps.json",
+    "docs": "Documentation directory containing setup and architecture guides",
+    "scripts": "Utility and build maintenance scripts",
+    "docker-compose.yml": "Docker Compose configuration for local development",
+    "Makefile": "Developer shortcut commands for installation, linting, and testing",
+    "check-prepush.sh": "Pre-flight validation script enforcing code quality before git push"
+  },
+  "db_models": {
+    "AppBase": {
+      "file": "backend/app/schemas/app.py",
+      "fields": {
+        "name": "str",
+        "id": "str | None",
+        "url": "HttpUrl | None",
+        "icon_url": "str | None",
+        "custom_icon_url": "str | None",
+        "description": "str | None",
+        "premium_id": "str | None",
+        "type": "Literal['link', 'folder']",
+        "contents": "list['AppBase']",
+        "integration": "str | None",
+        "api_key": "str | None",
+        "api_url": "str | None",
+        "api_protected": "bool",
+        "api_config": "dict[str, Any] | None"
+      },
+      "relationships": []
+    },
+    "AppCreate": {
+      "file": "backend/app/schemas/app.py",
+      "fields": {},
+      "relationships": []
+    },
+    "App": {
+      "file": "backend/app/schemas/app.py",
+      "fields": {
+        "id": "str",
+        "created_at": "str",
+        "contents": "list['App']"
+      },
+      "relationships": []
+    },
+    "AppPreviewRequest": {
+      "file": "backend/app/schemas/app.py",
+      "fields": {
+        "url": "HttpUrl"
+      },
+      "relationships": []
+    },
+    "AppPreviewResponse": {
+      "file": "backend/app/schemas/app.py",
+      "fields": {
+        "title": "str | None",
+        "icon": "str | None",
+        "description": "str | None"
+      },
+      "relationships": []
+    },
+    "BackgroundConfig": {
+      "file": "backend/app/schemas/config.py",
+      "fields": {
+        "type": "str",
+        "value": "str"
+      },
+      "relationships": []
+    },
+    "LogoConfig": {
+      "file": "backend/app/schemas/config.py",
+      "fields": {
+        "type": "str",
+        "value": "str | None"
+      },
+      "relationships": []
+    },
+    "IconConfig": {
+      "file": "backend/app/schemas/config.py",
+      "fields": {
+        "showBorder": "bool",
+        "borderStyle": "str",
+        "borderColor": "str",
+        "borderGradientColors": "list[str]",
+        "backgroundStyle": "str",
+        "backgroundColor": "str",
+        "gradientColors": "list[str]",
+        "backgroundOpacity": "int"
+      },
+      "relationships": []
+    },
+    "TitleConfig": {
+      "file": "backend/app/schemas/config.py",
+      "fields": {
+        "style": "str",
+        "color": "str",
+        "gradientColors": "list[str]"
+      },
+      "relationships": []
+    },
+    "Category": {
+      "file": "backend/app/schemas/config.py",
+      "fields": {
+        "id": "str",
+        "name": "str",
+        "app_ids": "list[str]"
+      },
+      "relationships": []
+    },
+    "WidgetData": {
+      "file": "backend/app/schemas/config.py",
+      "fields": {
+        "id": "str",
+        "type": "str",
+        "x": "int",
+        "y": "int",
+        "w": "int",
+        "h": "int",
+        "settings": "dict[str, Any]"
+      },
+      "relationships": []
+    },
+    "LayoutConfig": {
+      "file": "backend/app/schemas/config.py",
+      "fields": {
+        "mode": "str",
+        "customOrder": "list[str]",
+        "categories": "list[Category]",
+        "hiddenAppIds": "list[str]",
+        "widgets": "list[WidgetData]"
+      },
+      "relationships": []
+    },
+    "AppConfig": {
+      "file": "backend/app/schemas/config.py",
+      "fields": {
+        "pageTitle": "str",
+        "openInNewTab": "bool",
+        "bgConfig": "BackgroundConfig",
+        "logoConfig": "LogoConfig",
+        "iconConfig": "IconConfig",
+        "titleConfig": "TitleConfig",
+        "layoutConfig": "LayoutConfig",
+        "registry_urls": "list[str]"
+      },
+      "relationships": []
+    },
+    "StandardResponse": {
+      "file": "backend/app/schemas/common.py",
+      "fields": {
+        "success": "bool",
+        "data": "T | None",
+        "message": "str | None",
+        "error_code": "str | None"
+      },
+      "relationships": []
+    },
+    "PremiumAppField": {
+      "file": "backend/app/core/premium_apps.py",
+      "fields": {
+        "name": "str",
+        "label": "str",
+        "type": "str",
+        "required": "bool",
+        "default": "str | None",
+        "placeholder": "str | None"
+      },
+      "relationships": []
+    },
+    "PremiumAppDefinition": {
+      "file": "backend/app/core/premium_apps.py",
+      "fields": {
+        "id": "str",
+        "name": "str",
+        "description": "str",
+        "default_icon": "str",
+        "fields": "list[PremiumAppField]"
+      },
+      "relationships": []
+    }
+  },
+  "services": {
+    "AuthService": {
+      "file": "backend/app/services/auth_service.py",
+      "methods": [
+        {
+          "name": "is_setup",
+          "signature": "is_setup()",
+          "description": "Execute is_setup"
+        },
+        {
+          "name": "setup_password",
+          "signature": "setup_password(password)",
+          "description": "Execute setup_password"
+        },
+        {
+          "name": "verify_password",
+          "signature": "verify_password(password)",
+          "description": "Execute verify_password"
+        },
+        {
+          "name": "change_password",
+          "signature": "change_password(old_password, new_password)",
+          "description": "Execute change_password"
+        }
+      ]
+    },
+    "ConfigService": {
+      "file": "backend/app/services/config_service.py",
+      "methods": [
+        {
+          "name": "get_config",
+          "signature": "get_config()",
+          "description": "Execute get_config"
+        },
+        {
+          "name": "update_config",
+          "signature": "update_config(config)",
+          "description": "Execute update_config"
+        }
+      ]
+    },
+    "RegistryService": {
+      "file": "backend/app/services/registry_service.py",
+      "methods": [
+        {
+          "name": "fetch_registry",
+          "signature": "fetch_registry(url)",
+          "description": "Fetches a registry from a given URL and validates its content."
+        },
+        {
+          "name": "validate_registry_url",
+          "signature": "validate_registry_url(url)",
+          "description": "Validates if a URL points to a valid registry."
+        },
+        {
+          "name": "get_all_premium_apps",
+          "signature": "get_all_premium_apps(registry_urls)",
+          "description": "Combines the built-in apps with apps from custom registries."
+        }
+      ]
+    },
+    "AppService": {
+      "file": "backend/app/services/app_service.py",
+      "methods": [
+        {
+          "name": "get_all",
+          "signature": "get_all()",
+          "description": "Execute get_all"
+        },
+        {
+          "name": "create",
+          "signature": "create(app_in)",
+          "description": "Execute create"
+        },
+        {
+          "name": "delete",
+          "signature": "delete(app_id)",
+          "description": "Execute delete"
+        },
+        {
+          "name": "update",
+          "signature": "update(app_id, app_in)",
+          "description": "Execute update"
+        },
+        {
+          "name": "fetch_metadata",
+          "signature": "fetch_metadata(url)",
+          "description": "Fetches metadata (icon, description) from the given URL."
+        }
+      ]
+    }
+  },
+  "endpoints": [
+    {
+      "path": "/api/v1/apps",
+      "method": "GET",
+      "summary": "GET /api/v1/apps",
+      "description": "GET /api/v1/apps",
+      "request_model": null,
+      "response_model": "list[App]",
+      "file": "backend/app/api/v1/endpoints/apps.py"
+    },
+    {
+      "path": "/api/v1/apps",
+      "method": "POST",
+      "summary": "POST /api/v1/apps",
+      "description": "POST /api/v1/apps",
+      "request_model": null,
+      "response_model": "App",
+      "file": "backend/app/api/v1/endpoints/apps.py"
+    },
+    {
+      "path": "/api/v1/apps/premium",
+      "method": "GET",
+      "summary": "GET /api/v1/apps/premium",
+      "description": "GET /api/v1/apps/premium",
+      "request_model": null,
+      "response_model": "list[PremiumAppDefinition]",
+      "file": "backend/app/api/v1/endpoints/apps.py"
+    },
+    {
+      "path": "/api/v1/apps/preview",
+      "method": "POST",
+      "summary": "POST /api/v1/apps/preview",
+      "description": "POST /api/v1/apps/preview",
+      "request_model": null,
+      "response_model": "AppPreviewResponse",
+      "file": "backend/app/api/v1/endpoints/apps.py"
+    },
+    {
+      "path": "/api/v1/apps/{app_id}",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/apps/{app_id}",
+      "description": "DELETE /api/v1/apps/{app_id}",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/apps.py"
+    },
+    {
+      "path": "/api/v1/apps/{app_id}",
+      "method": "PUT",
+      "summary": "PUT /api/v1/apps/{app_id}",
+      "description": "PUT /api/v1/apps/{app_id}",
+      "request_model": null,
+      "response_model": "App",
+      "file": "backend/app/api/v1/endpoints/apps.py"
+    },
+    {
+      "path": "/api/v1/auth/change-password",
+      "method": "POST",
+      "summary": "POST /api/v1/auth/change-password",
+      "description": "POST /api/v1/auth/change-password",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/auth.py"
+    },
+    {
+      "path": "/api/v1/auth/login",
+      "method": "POST",
+      "summary": "POST /api/v1/auth/login",
+      "description": "POST /api/v1/auth/login",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/auth.py"
+    },
+    {
+      "path": "/api/v1/auth/logout",
+      "method": "POST",
+      "summary": "POST /api/v1/auth/logout",
+      "description": "POST /api/v1/auth/logout",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/auth.py"
+    },
+    {
+      "path": "/api/v1/auth/setup",
+      "method": "POST",
+      "summary": "POST /api/v1/auth/setup",
+      "description": "POST /api/v1/auth/setup",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/auth.py"
+    },
+    {
+      "path": "/api/v1/auth/status",
+      "method": "GET",
+      "summary": "GET /api/v1/auth/status",
+      "description": "GET /api/v1/auth/status",
+      "request_model": null,
+      "response_model": "AuthStatus",
+      "file": "backend/app/api/v1/endpoints/auth.py"
+    },
+    {
+      "path": "/api/v1/auth/verify",
+      "method": "POST",
+      "summary": "POST /api/v1/auth/verify",
+      "description": "POST /api/v1/auth/verify",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/auth.py"
+    },
+    {
+      "path": "/api/v1/config",
+      "method": "GET",
+      "summary": "GET /api/v1/config",
+      "description": "GET /api/v1/config",
+      "request_model": null,
+      "response_model": "AppConfig",
+      "file": "backend/app/api/v1/endpoints/config.py"
+    },
+    {
+      "path": "/api/v1/config",
+      "method": "POST",
+      "summary": "POST /api/v1/config",
+      "description": "POST /api/v1/config",
+      "request_model": null,
+      "response_model": "AppConfig",
+      "file": "backend/app/api/v1/endpoints/config.py"
+    },
+    {
+      "path": "/api/v1/media",
+      "method": "GET",
+      "summary": "List all uploaded media files.",
+      "description": "List all uploaded media files.",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/media.py"
+    },
+    {
+      "path": "/api/v1/media/upload",
+      "method": "POST",
+      "summary": "POST /api/v1/media/upload",
+      "description": "POST /api/v1/media/upload",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/media.py"
+    },
+    {
+      "path": "/api/v1/media/{filename}",
+      "method": "DELETE",
+      "summary": "Delete a specific media file.",
+      "description": "Delete a specific media file.",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/media.py"
+    },
+    {
+      "path": "/api/v1/proxy",
+      "method": "POST",
+      "summary": "Proxy HTTP requests to internal services.",
+      "description": "Proxy HTTP requests to internal services.\nSolves Mixed Content issues when HTTPS frontend needs to call HTTP APIs.",
+      "request_model": null,
+      "response_model": "ProxyResponse",
+      "file": "backend/app/api/v1/endpoints/proxy.py"
+    },
+    {
+      "path": "/api/v1/registry/validate",
+      "method": "POST",
+      "summary": "Validates a registry URL.",
+      "description": "Validates a registry URL.",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/registry.py"
+    },
+    {
+      "path": "/health",
+      "method": "GET",
+      "summary": "Health check endpoint",
+      "description": "Returns status, service name, and version",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/main.py"
+    },
+    {
+      "path": "/manifest.webmanifest",
+      "method": "GET",
+      "summary": "Web App Manifest",
+      "description": "Generates PWA webmanifest dynamically based on config",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/main.py"
+    },
+    {
+      "path": "/ready",
+      "method": "GET",
+      "summary": "Readiness check endpoint",
+      "description": "Returns readiness status",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/main.py"
+    }
+  ],
+  "frontend": {
+    "components": {
+      "AnimatedLogo": {
+        "file": "frontend/src/components/AnimatedLogo.tsx",
+        "description": "UI Component AnimatedLogo for dashboard view or modal dialog"
+      },
+      "AppDetailsModal": {
+        "file": "frontend/src/components/AppDetailsModal.tsx",
+        "description": "UI Component AppDetailsModal for dashboard view or modal dialog"
+      },
+      "AppFormModal": {
+        "file": "frontend/src/components/AppFormModal.tsx",
+        "description": "UI Component AppFormModal for dashboard view or modal dialog"
+      },
+      "AppIcon": {
+        "file": "frontend/src/components/AppIcon.tsx",
+        "description": "UI Component AppIcon for dashboard view or modal dialog"
+      },
+      "LayoutMenu": {
+        "file": "frontend/src/components/LayoutMenu.tsx",
+        "description": "UI Component LayoutMenu for dashboard view or modal dialog"
+      },
+      "RichAppTile": {
+        "file": "frontend/src/components/RichAppTile.tsx",
+        "description": "UI Component RichAppTile for dashboard view or modal dialog"
+      },
+      "SettingsModal": {
+        "file": "frontend/src/components/SettingsModal.tsx",
+        "description": "UI Component SettingsModal for dashboard view or modal dialog"
+      },
+      "WidgetContextModal": {
+        "file": "frontend/src/components/WidgetContextModal.tsx",
+        "description": "UI Component WidgetContextModal for dashboard view or modal dialog"
+      },
+      "WidgetTile": {
+        "file": "frontend/src/components/WidgetTile.tsx",
+        "description": "UI Component WidgetTile for dashboard view or modal dialog"
+      },
+      "CalendarWidget": {
+        "file": "frontend/src/components/widgets/CalendarWidget.tsx",
+        "description": "UI Component CalendarWidget for dashboard view or modal dialog"
+      },
+      "ClockWidget": {
+        "file": "frontend/src/components/widgets/ClockWidget.tsx",
+        "description": "UI Component ClockWidget for dashboard view or modal dialog"
+      },
+      "WeatherWidget": {
+        "file": "frontend/src/components/widgets/WeatherWidget.tsx",
+        "description": "UI Component WeatherWidget for dashboard view or modal dialog"
+      }
+    },
+    "hooks": {
+      "useAppStats": {
+        "file": "frontend/src/hooks/useAppStats.ts",
+        "description": "React hook useAppStats for managing component state and stats fetching"
+      }
+    },
+    "routes": {
+      "/": "App"
+    }
+  }
+}

@@ -56,6 +56,8 @@ jobs:
           poetry run ruff check .
           poetry run black --check .
           poetry run mypy .
+          python3 ../scripts/generate_manifest.py
+          git diff --exit-code ../project_manifest.json || (echo "project_manifest.json is out of date! Run python3 scripts/generate_manifest.py" && exit 1)
 
       - name: Test Backend
         if: matrix.service == 'backend'
