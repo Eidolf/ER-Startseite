@@ -30,3 +30,4 @@ export const JDownloaderManifest = createGenericManifest('jdownloader', 'jDownlo
 export const GrocyManifest = createGenericManifest('grocy', 'Grocy')
 export const HomeAssistantManifest = createGenericManifest('homeassistant', 'Home Assistant')
 export const MediawikiManifest = createGenericManifest('mediawiki', 'MediaWiki')
+export const AudiobookshelfManifest = createGenericManifest('audiobookshelf', 'Audiobookshelf', 'Headphones')

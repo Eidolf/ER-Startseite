@@ -457,3 +457,17 @@ AppRegistry.register(
         fields=[URL_FIELD],
     )
 )
+
+# 25. Audiobookshelf
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="audiobookshelf",
+        name="Audiobookshelf",
+        description=(
+            "Self-hosted audiobook and podcast server for managing and streaming "
+            "your audiobooks and podcasts."
+        ),
+        default_icon="https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/audiobookshelf.png",
+        fields=[URL_FIELD],
+    )
+)
