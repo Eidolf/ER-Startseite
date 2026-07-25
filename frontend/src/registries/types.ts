@@ -21,6 +21,7 @@ export type FetchStatsResult = Record<string, StatItem | 'protected' | null>
 export interface PremiumAppManifest {
     id: string
     name: string
+    icon?: string
     description?: string
     layout: RegistryLayout
     /**

@@ -1,10 +1,10 @@
 import { PremiumAppManifest, FetchContext } from './types'
 
 // Generic factory to create simple registry entries
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const createGenericManifest = (id: string, name: string, _icon: string = 'AppWindow'): PremiumAppManifest => ({
+const createGenericManifest = (id: string, name: string, icon: string = 'AppWindow'): PremiumAppManifest => ({
     id,
     name,
+    icon,
     layout: 'logo-only', // Optimized for static apps
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     fetchStats: async (_context: FetchContext) => {
