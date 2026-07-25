@@ -1124,7 +1124,7 @@ function App() {
 
     const renderContent = () => {
         if (activeLayoutMode === 'canvas') {
-            return <FreeCanvasBoard />
+            return <FreeCanvasBoard apps={apps} openInNewTab={openInNewTab} />
         }
 
         if (activeLayoutMode === 'categories') {

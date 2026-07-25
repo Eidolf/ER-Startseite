@@ -1,21 +1,28 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, RotateCcw, Cookie, Move, Trash2, Maximize2, Search, FileText } from 'lucide-react'
+import { Plus, RotateCcw, Cookie, Move, Trash2, Maximize2, Search, FileText, Folder, ChevronDown, ChevronUp, AppWindow, ExternalLink, X } from 'lucide-react'
 import { ClockWidget } from './widgets/ClockWidget'
 import { WeatherWidget } from './widgets/WeatherWidget'
 import { CalendarWidget } from './widgets/CalendarWidget'
+import { AppIcon } from './AppIcon'
+import { AppData } from '../types'
 import { getJsonCookie, setJsonCookie, deleteCookie } from '../utils/cookieUtils'
 
 const COOKIE_NAME = 'er_canvas_layout_v1'
 
 export interface CanvasWidget {
     id: string
-    type: 'clock' | 'weather' | 'calendar' | 'search' | 'text'
+    type: 'clock' | 'weather' | 'calendar' | 'search' | 'text' | 'app' | 'folder'
     title: string
     x: number
     y: number
     width: number
     height: number
     customText?: string
+    appId?: string
+    appData?: AppData
+    folderName?: string
+    folderApps?: AppData[]
+    isExpanded?: boolean
 }
 
 const DEFAULT_WIDGETS: CanvasWidget[] = [
@@ -23,15 +30,25 @@ const DEFAULT_WIDGETS: CanvasWidget[] = [
     { id: 'w-weather-1', type: 'weather', title: 'Weather', x: 340, y: 40, width: 280, height: 150 },
     { id: 'w-calendar-1', type: 'calendar', title: 'Calendar', x: 640, y: 40, width: 300, height: 260 },
     { id: 'w-search-1', type: 'search', title: 'Search Bar', x: 40, y: 210, width: 580, height: 90 },
-    { id: 'w-text-1', type: 'text', title: 'Personal Notes', x: 40, y: 320, width: 400, height: 180, customText: 'Welcome to your private free canvas dashboard! Drag and resize widgets anywhere.' },
+    { id: 'w-text-1', type: 'text', title: 'Personal Notes', x: 40, y: 320, width: 400, height: 180, customText: 'Welcome to your private free canvas dashboard! Drag and resize widgets, apps, and expandable folders anywhere.' },
 ]
 
-export function FreeCanvasBoard() {
+interface FreeCanvasBoardProps {
+    apps?: AppData[]
+    openInNewTab?: boolean
+}
+
+export function FreeCanvasBoard({ apps = [], openInNewTab = false }: FreeCanvasBoardProps) {
     const [widgets, setWidgets] = useState<CanvasWidget[]>(() => {
         return getJsonCookie<CanvasWidget[]>(COOKIE_NAME, DEFAULT_WIDGETS)
     })
     const [isSavedInCookie, setIsSavedInCookie] = useState(false)
     const [isAddMenuOpen, setIsAddMenuOpen] = useState(false)
+    const [isAppPickerOpen, setIsAppPickerOpen] = useState(false)
+    const [isFolderModalOpen, setIsFolderModalOpen] = useState(false)
+    const [folderTitleInput, setFolderTitleInput] = useState('')
+    const [selectedFolderAppIds, setSelectedFolderAppIds] = useState<string[]>([])
+
     const [draggingId, setDraggingId] = useState<string | null>(null)
     const [resizingId, setResizingId] = useState<string | null>(null)
     const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -104,7 +121,7 @@ export function FreeCanvasBoard() {
         setResizingId(null)
     }
 
-    const addWidget = (type: CanvasWidget['type']) => {
+    const addWidget = (type: CanvasWidget['type'], extra?: Partial<CanvasWidget>) => {
         const id = `w-${type}-${Date.now()}`
         const titles: Record<CanvasWidget['type'], string> = {
             clock: 'Clock',
@@ -112,6 +129,8 @@ export function FreeCanvasBoard() {
             calendar: 'Calendar',
             search: 'Search Bar',
             text: 'Note',
+            app: extra?.title || 'App Shortcut',
+            folder: extra?.title || 'Folder Container',
         }
         const defaults: Record<CanvasWidget['type'], { width: number; height: number }> = {
             clock: { width: 280, height: 150 },
@@ -119,6 +138,8 @@ export function FreeCanvasBoard() {
             calendar: { width: 300, height: 260 },
             search: { width: 500, height: 90 },
             text: { width: 360, height: 160 },
+            app: { width: 200, height: 120 },
+            folder: { width: 380, height: 240 },
         }
 
         const newWidget: CanvasWidget = {
@@ -130,10 +151,45 @@ export function FreeCanvasBoard() {
             width: defaults[type].width,
             height: defaults[type].height,
             customText: type === 'text' ? 'Write your note here...' : undefined,
+            isExpanded: type === 'folder' ? true : undefined,
+            ...extra,
         }
 
         setWidgets((prev) => [...prev, newWidget])
         setIsAddMenuOpen(false)
+    }
+
+    const handleSelectAppForCanvas = (app: AppData) => {
+        addWidget('app', {
+            title: app.name,
+            appId: app.id,
+            appData: app,
+        })
+        setIsAppPickerOpen(false)
+    }
+
+    const handleCreateFolderForCanvas = () => {
+        if (!folderTitleInput.trim()) return
+        const folderApps = apps.filter((a) => selectedFolderAppIds.includes(a.id))
+
+        addWidget('folder', {
+            title: folderTitleInput.trim(),
+            folderName: folderTitleInput.trim(),
+            folderApps,
+            isExpanded: true,
+            width: 380,
+            height: 260,
+        })
+
+        setFolderTitleInput('')
+        setSelectedFolderAppIds([])
+        setIsFolderModalOpen(false)
+    }
+
+    const toggleFolderExpanded = (id: string) => {
+        setWidgets((prev) =>
+            prev.map((w) => (w.id === id ? { ...w, isExpanded: !w.isExpanded } : w))
+        )
     }
 
     const removeWidget = (id: string) => {
@@ -150,6 +206,15 @@ export function FreeCanvasBoard() {
         setWidgets((prev) =>
             prev.map((w) => (w.id === id ? { ...w, customText: text } : w))
         )
+    }
+
+    const launchApp = (url?: string) => {
+        if (!url) return
+        if (openInNewTab) {
+            window.open(url, '_blank', 'noopener,noreferrer')
+        } else {
+            window.location.href = url
+        }
     }
 
     return (
@@ -176,7 +241,7 @@ export function FreeCanvasBoard() {
                     <div>
                         <h2 className="text-lg font-bold text-white tracking-wide">Free Canvas Board</h2>
                         <p className="text-xs text-gray-400">
-                            Freely position & resize widgets. Saved in your browser cookies.
+                            Freely position & resize widgets, apps, and expandable folders. Saved in your browser cookies.
                         </p>
                     </div>
                 </div>
@@ -188,17 +253,20 @@ export function FreeCanvasBoard() {
                         <span>{isSavedInCookie ? 'Cookie Persisted' : 'Saving...'}</span>
                     </div>
 
-                    {/* Add Widget Options */}
+                    {/* Add Menu Options */}
                     <div className="relative">
                         <button
                             onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
                             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium text-sm transition shadow-lg shadow-indigo-600/30"
                         >
                             <Plus className="w-4 h-4" />
-                            <span>Add Widget</span>
+                            <span>Add to Canvas</span>
                         </button>
                         {isAddMenuOpen && (
-                            <div className="absolute right-0 top-full mt-2 w-48 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-2 z-[100] animate-in fade-in zoom-in-95 duration-150">
+                            <div className="absolute right-0 top-full mt-2 w-56 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-2 z-[100] animate-in fade-in zoom-in-95 duration-150">
+                                <div className="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                    Widgets
+                                </div>
                                 <button
                                     onClick={() => addWidget('clock')}
                                     className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 rounded-xl flex items-center gap-2"
@@ -228,6 +296,29 @@ export function FreeCanvasBoard() {
                                     className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 rounded-xl flex items-center gap-2"
                                 >
                                     <span className="w-2 h-2 rounded-full bg-pink-400" /> Custom Note
+                                </button>
+
+                                <div className="h-px bg-white/10 my-1.5" />
+                                <div className="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                    Shortcuts & Containers
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setIsAddMenuOpen(false)
+                                        setIsAppPickerOpen(true)
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 rounded-xl flex items-center gap-2"
+                                >
+                                    <AppWindow className="w-4 h-4 text-cyan-400" /> App Shortcut
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIsAddMenuOpen(false)
+                                        setIsFolderModalOpen(true)
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 rounded-xl flex items-center gap-2"
+                                >
+                                    <Folder className="w-4 h-4 text-amber-400" /> Expandable Folder
                                 </button>
                             </div>
                         )}
@@ -266,17 +357,28 @@ export function FreeCanvasBoard() {
                             onMouseDown={(e) => handleMouseDown(e, widget.id)}
                             className="absolute top-0 left-0 right-0 h-8 bg-black/60 backdrop-blur-md rounded-t-2xl border-b border-white/10 px-3 flex items-center justify-between cursor-move opacity-0 group-hover:opacity-100 transition-opacity z-20"
                         >
-                            <div className="flex items-center gap-2 text-xs font-semibold text-gray-300">
-                                <Move className="w-3.5 h-3.5 text-indigo-400" />
-                                <span>{widget.title}</span>
+                            <div className="flex items-center gap-2 text-xs font-semibold text-gray-300 truncate">
+                                <Move className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                                <span className="truncate">{widget.title}</span>
                             </div>
-                            <button
-                                onClick={() => removeWidget(widget.id)}
-                                className="text-gray-400 hover:text-red-400 p-1 rounded transition"
-                                title="Remove widget"
-                            >
-                                <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            <div className="flex items-center gap-1">
+                                {widget.type === 'folder' && (
+                                    <button
+                                        onClick={() => toggleFolderExpanded(widget.id)}
+                                        className="text-gray-400 hover:text-white p-1 rounded transition"
+                                        title={widget.isExpanded ? 'Collapse Folder' : 'Expand Folder'}
+                                    >
+                                        {widget.isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => removeWidget(widget.id)}
+                                    className="text-gray-400 hover:text-red-400 p-1 rounded transition"
+                                    title="Remove item"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Widget Body Content */}
@@ -315,19 +417,181 @@ export function FreeCanvasBoard() {
                                     />
                                 </div>
                             )}
+                            {widget.type === 'app' && (
+                                <div
+                                    onClick={() => launchApp(widget.appData?.url)}
+                                    className="w-full h-full bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-3 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-white/10 transition group/app shadow-lg"
+                                >
+                                    <div className="w-12 h-12 rounded-xl bg-white/5 p-2 mb-2 flex items-center justify-center shrink-0">
+                                        <AppIcon src={widget.appData?.icon_url} alt={widget.title} className="w-full h-full object-contain" />
+                                    </div>
+                                    <span className="text-sm font-semibold text-white truncate w-full px-1">{widget.title}</span>
+                                    {widget.appData?.url && (
+                                        <span className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5 truncate max-w-full">
+                                            <ExternalLink className="w-2.5 h-2.5" /> Launch
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                            {widget.type === 'folder' && (
+                                <div className="w-full h-full bg-black/50 backdrop-blur-xl rounded-2xl border border-amber-500/20 p-3 flex flex-col shadow-2xl overflow-hidden">
+                                    {/* Folder Header */}
+                                    <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
+                                        <div className="flex items-center gap-2">
+                                            <Folder className="w-5 h-5 text-amber-400" />
+                                            <span className="font-bold text-white text-sm truncate">{widget.folderName || widget.title}</span>
+                                            <span className="text-[10px] bg-amber-500/20 text-amber-300 font-semibold px-2 py-0.5 rounded-full">
+                                                {widget.folderApps?.length || 0}
+                                            </span>
+                                        </div>
+                                        <button
+                                            onClick={() => toggleFolderExpanded(widget.id)}
+                                            className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition"
+                                        >
+                                            {widget.isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                        </button>
+                                    </div>
+
+                                    {/* Folder Expandable Content */}
+                                    {widget.isExpanded ? (
+                                        <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-2 overflow-y-auto p-1">
+                                            {widget.folderApps?.map((app) => (
+                                                <div
+                                                    key={app.id}
+                                                    onClick={() => launchApp(app.url)}
+                                                    className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/5 hover:bg-white/15 border border-white/5 transition cursor-pointer group/folderapp"
+                                                >
+                                                    <div className="w-8 h-8 rounded-lg bg-black/20 p-1 mb-1 flex items-center justify-center">
+                                                        <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain" />
+                                                    </div>
+                                                    <span className="text-xs text-gray-200 truncate w-full text-center">{app.name}</span>
+                                                </div>
+                                            ))}
+                                            {(!widget.folderApps || widget.folderApps.length === 0) && (
+                                                <div className="col-span-full flex items-center justify-center text-xs text-gray-500 italic py-4">
+                                                    Empty Folder Container
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div
+                                            onClick={() => toggleFolderExpanded(widget.id)}
+                                            className="flex-1 flex items-center justify-center text-xs text-gray-400 cursor-pointer hover:text-white transition"
+                                        >
+                                            Click to expand ({widget.folderApps?.length || 0} items)
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Resize handle */}
                         <div
                             onMouseDown={(e) => handleResizeMouseDown(e, widget.id)}
                             className="absolute bottom-1 right-1 p-1 text-gray-400 hover:text-white cursor-se-resize opacity-0 group-hover:opacity-100 transition-opacity z-20"
-                            title="Resize widget"
+                            title="Resize item"
                         >
                             <Maximize2 className="w-3.5 h-3.5 rotate-90" />
                         </div>
                     </div>
                 ))}
             </div>
+
+            {/* App Picker Modal */}
+            {isAppPickerOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-md bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-white">Select App for Canvas</h3>
+                            <button onClick={() => setIsAppPickerOpen(false)} className="text-gray-400 hover:text-white">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
+                            {apps.map((app) => (
+                                <button
+                                    key={app.id}
+                                    onClick={() => handleSelectAppForCanvas(app)}
+                                    className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/10 transition border border-white/5 text-left"
+                                >
+                                    <div className="w-8 h-8 rounded-lg bg-black/30 p-1 flex items-center justify-center shrink-0">
+                                        <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="text-sm font-semibold text-white truncate">{app.name}</div>
+                                        {app.url && <div className="text-xs text-gray-400 truncate">{app.url}</div>}
+                                    </div>
+                                </button>
+                            ))}
+                            {apps.length === 0 && (
+                                <div className="text-center text-gray-400 text-sm py-6">No applications available.</div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Folder Creator Modal */}
+            {isFolderModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-md bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-white">Create Canvas Folder Container</h3>
+                            <button onClick={() => setIsFolderModalOpen(false)} className="text-gray-400 hover:text-white">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-400 mb-1">Folder Name</label>
+                                <input
+                                    type="text"
+                                    value={folderTitleInput}
+                                    onChange={(e) => setFolderTitleInput(e.target.value)}
+                                    placeholder="e.g. Media Tools"
+                                    className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 text-sm"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-medium text-gray-400 mb-2">Select Included Apps</label>
+                                <div className="max-h-48 overflow-y-auto space-y-1.5 border border-white/10 rounded-xl p-2 bg-black/20">
+                                    {apps.map((app) => {
+                                        const isSelected = selectedFolderAppIds.includes(app.id)
+                                        return (
+                                            <button
+                                                key={app.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedFolderAppIds((prev) =>
+                                                        isSelected ? prev.filter((id) => id !== app.id) : [...prev, app.id]
+                                                    )
+                                                }}
+                                                className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition ${
+                                                    isSelected ? 'bg-amber-500/20 border border-amber-500/40 text-white' : 'hover:bg-white/5 text-gray-300'
+                                                }`}
+                                            >
+                                                <div className="w-6 h-6 rounded bg-black/30 p-0.5 flex items-center justify-center shrink-0">
+                                                    <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain" />
+                                                </div>
+                                                <span className="text-xs font-medium truncate flex-1">{app.name}</span>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleCreateFolderForCanvas}
+                                disabled={!folderTitleInput.trim()}
+                                className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold rounded-xl text-sm transition shadow-lg shadow-amber-500/20"
+                            >
+                                Create Folder Container
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
