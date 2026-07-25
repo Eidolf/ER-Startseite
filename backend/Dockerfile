@@ -1,4 +1,4 @@
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
@@ -34,7 +34,7 @@ COPY pyproject.toml ./
 RUN poetry config installer.max-workers 1 && poetry install --no-root --only main
 
 # Runtime stage
-FROM python:3.11-slim as runtime
+FROM python:3.11-slim AS runtime
 
 WORKDIR /app
 
@@ -45,8 +45,8 @@ COPY --from=builder /app/.venv ./.venv
 COPY . .
 
 # Create non-root user
-RUN addgroup --system --gid 1001 appuser && \
-    adduser --system --uid 1001 --gid 1001 appuser
+RUN addgroup --gid 1001 appuser && \
+    adduser --uid 1001 --gid 1001 --disabled-password --gecos "" appuser
 
 # Install gosu (for easy step-down from root)
 ENV DEBIAN_FRONTEND=noninteractive
