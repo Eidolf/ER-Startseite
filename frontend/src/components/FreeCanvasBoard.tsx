@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, RotateCcw, Cookie, Move, Trash2, Maximize2, Search, FileText, Folder, ChevronDown, ChevronUp, AppWindow, ExternalLink, X } from 'lucide-react'
+import { Plus, RotateCcw, Cookie, Move, Trash2, Maximize2, Search, FileText, Folder, ChevronDown, ChevronUp, AppWindow, ExternalLink, X, ShieldCheck } from 'lucide-react'
 import { ClockWidget } from './widgets/ClockWidget'
 import { WeatherWidget } from './widgets/WeatherWidget'
 import { CalendarWidget } from './widgets/CalendarWidget'
@@ -17,10 +17,12 @@ export interface CanvasWidget {
     y: number
     width: number
     height: number
+    expandedHeight?: number
     customText?: string
     appId?: string
     appData?: AppData
     folderName?: string
+    folderAppIds?: string[]
     folderApps?: AppData[]
     isExpanded?: boolean
 }
@@ -38,16 +40,45 @@ interface FreeCanvasBoardProps {
     openInNewTab?: boolean
 }
 
-export function FreeCanvasBoard({ apps = [], openInNewTab = false }: FreeCanvasBoardProps) {
+interface HoverPreviewState {
+    id: string
+    name: string
+    url: string
+    x: number
+    y: number
+}
+
+export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
     const [widgets, setWidgets] = useState<CanvasWidget[]>(() => {
-        return getJsonCookie<CanvasWidget[]>(COOKIE_NAME, DEFAULT_WIDGETS)
+        const raw = getJsonCookie<CanvasWidget[]>(COOKIE_NAME, DEFAULT_WIDGETS)
+        // Hydrate stored apps/folders with live system app objects
+        return raw.map((w) => {
+            if (w.type === 'app' && w.appId) {
+                const foundApp = apps.find((a) => a.id === w.appId)
+                return { ...w, appData: foundApp || w.appData }
+            }
+            if (w.type === 'folder' && (w.folderAppIds || w.folderApps)) {
+                const appIds = w.folderAppIds || w.folderApps?.map((a) => a.id) || []
+                const foundFolderApps = apps.filter((a) => appIds.includes(a.id))
+                return {
+                    ...w,
+                    folderAppIds: appIds,
+                    folderApps: foundFolderApps.length > 0 ? foundFolderApps : w.folderApps,
+                }
+            }
+            return w
+        })
     })
+
     const [isSavedInCookie, setIsSavedInCookie] = useState(false)
     const [isAddMenuOpen, setIsAddMenuOpen] = useState(false)
     const [isAppPickerOpen, setIsAppPickerOpen] = useState(false)
     const [isFolderModalOpen, setIsFolderModalOpen] = useState(false)
     const [folderTitleInput, setFolderTitleInput] = useState('')
     const [selectedFolderAppIds, setSelectedFolderAppIds] = useState<string[]>([])
+
+    const [hoverPreview, setHoverPreview] = useState<HoverPreviewState | null>(null)
+    const hoverTimerRef = useRef<NodeJS.Timeout | null>(null)
 
     const [draggingId, setDraggingId] = useState<string | null>(null)
     const [resizingId, setResizingId] = useState<string | null>(null)
@@ -60,9 +91,48 @@ export function FreeCanvasBoard({ apps = [], openInNewTab = false }: FreeCanvasB
     })
     const boardRef = useRef<HTMLDivElement>(null)
 
-    // Save to cookies on layout changes
+    // Keep apps/folders in sync when system apps change
     useEffect(() => {
-        setJsonCookie(COOKIE_NAME, widgets)
+        if (apps.length > 0) {
+            setWidgets((prev) =>
+                prev.map((w) => {
+                    if (w.type === 'app' && w.appId) {
+                        const foundApp = apps.find((a) => a.id === w.appId)
+                        return { ...w, appData: foundApp || w.appData }
+                    }
+                    if (w.type === 'folder' && (w.folderAppIds || w.folderApps)) {
+                        const appIds = w.folderAppIds || w.folderApps?.map((a) => a.id) || []
+                        const foundFolderApps = apps.filter((a) => appIds.includes(a.id))
+                        return {
+                            ...w,
+                            folderAppIds: appIds,
+                            folderApps: foundFolderApps.length > 0 ? foundFolderApps : w.folderApps,
+                        }
+                    }
+                    return w
+                })
+            )
+        }
+    }, [apps])
+
+    // Save lean representation to cookies on layout changes
+    useEffect(() => {
+        const leanWidgets = widgets.map((w) => ({
+            id: w.id,
+            type: w.type,
+            title: w.title,
+            x: w.x,
+            y: w.y,
+            width: w.width,
+            height: w.height,
+            expandedHeight: w.expandedHeight,
+            customText: w.customText,
+            appId: w.appId,
+            folderName: w.folderName,
+            folderAppIds: w.folderAppIds || w.folderApps?.map((a) => a.id),
+            isExpanded: w.isExpanded,
+        }))
+        setJsonCookie(COOKIE_NAME, leanWidgets)
         setIsSavedInCookie(true)
     }, [widgets])
 
@@ -81,7 +151,7 @@ export function FreeCanvasBoard({ apps = [], openInNewTab = false }: FreeCanvasB
     const handleResizeMouseDown = (e: React.MouseEvent, id: string) => {
         e.stopPropagation()
         const widget = widgets.find((w) => w.id === id)
-        if (!widget) return
+        if (!widget || widget.isExpanded === false) return
 
         setResizingId(id)
         initialSize.current = {
@@ -111,7 +181,11 @@ export function FreeCanvasBoard({ apps = [], openInNewTab = false }: FreeCanvasB
             const newHeight = Math.max(80, Math.round((initialSize.current.height + deltaY) / 10) * 10)
 
             setWidgets((prev) =>
-                prev.map((w) => (w.id === resizingId ? { ...w, width: newWidth, height: newHeight } : w))
+                prev.map((w) =>
+                    w.id === resizingId
+                        ? { ...w, width: newWidth, height: newHeight, expandedHeight: newHeight }
+                        : w
+                )
             )
         }
     }
@@ -150,6 +224,7 @@ export function FreeCanvasBoard({ apps = [], openInNewTab = false }: FreeCanvasB
             y: 60 + (widgets.length % 5) * 40,
             width: defaults[type].width,
             height: defaults[type].height,
+            expandedHeight: defaults[type].height,
             customText: type === 'text' ? 'Write your note here...' : undefined,
             isExpanded: type === 'folder' ? true : undefined,
             ...extra,
@@ -175,10 +250,12 @@ export function FreeCanvasBoard({ apps = [], openInNewTab = false }: FreeCanvasB
         addWidget('folder', {
             title: folderTitleInput.trim(),
             folderName: folderTitleInput.trim(),
+            folderAppIds: selectedFolderAppIds,
             folderApps,
             isExpanded: true,
             width: 380,
-            height: 260,
+            height: 240,
+            expandedHeight: 240,
         })
 
         setFolderTitleInput('')
@@ -188,7 +265,26 @@ export function FreeCanvasBoard({ apps = [], openInNewTab = false }: FreeCanvasB
 
     const toggleFolderExpanded = (id: string) => {
         setWidgets((prev) =>
-            prev.map((w) => (w.id === id ? { ...w, isExpanded: !w.isExpanded } : w))
+            prev.map((w) => {
+                if (w.id !== id) return w
+                const isCurrentlyExpanded = w.isExpanded !== false
+                if (isCurrentlyExpanded) {
+                    // Collapse: save height to expandedHeight, set height to 52px
+                    return {
+                        ...w,
+                        isExpanded: false,
+                        expandedHeight: w.height > 52 ? w.height : w.expandedHeight || 240,
+                        height: 52,
+                    }
+                } else {
+                    // Expand: restore expandedHeight
+                    return {
+                        ...w,
+                        isExpanded: true,
+                        height: w.expandedHeight || 240,
+                    }
+                }
+            })
         )
     }
 
@@ -208,13 +304,34 @@ export function FreeCanvasBoard({ apps = [], openInNewTab = false }: FreeCanvasB
         )
     }
 
-    const launchApp = (url?: string) => {
+    // Requirement 3: Always launch in a new tab on Canvas
+    const launchCanvasApp = (url?: string) => {
         if (!url) return
-        if (openInNewTab) {
-            window.open(url, '_blank', 'noopener,noreferrer')
-        } else {
-            window.location.href = url
-        }
+        window.open(url, '_blank', 'noopener,noreferrer')
+    }
+
+    // Requirement 4: Safe 2-second Hover Preview Timer
+    const handleAppMouseEnter = (id: string, name: string, url?: string, e?: React.MouseEvent) => {
+        if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+        if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) return
+
+        const posX = e ? Math.min(e.clientX + 15, window.innerWidth - 340) : 100
+        const posY = e ? Math.min(e.clientY + 15, window.innerHeight - 240) : 100
+
+        hoverTimerRef.current = setTimeout(() => {
+            setHoverPreview({
+                id,
+                name,
+                url,
+                x: posX,
+                y: posY,
+            })
+        }, 2000)
+    }
+
+    const handleAppMouseLeave = () => {
+        if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+        setHoverPreview(null)
     }
 
     return (
@@ -346,9 +463,9 @@ export function FreeCanvasBoard({ apps = [], openInNewTab = false }: FreeCanvasB
                             left: `${widget.x}px`,
                             top: `${widget.y}px`,
                             width: `${widget.width}px`,
-                            height: `${widget.height}px`,
+                            height: `${widget.isExpanded === false ? 52 : widget.height}px`,
                         }}
-                        className={`group rounded-2xl transition-shadow ${
+                        className={`group rounded-2xl transition-all duration-200 ${
                             draggingId === widget.id ? 'z-50 shadow-2xl ring-2 ring-indigo-500' : 'z-10'
                         }`}
                     >
@@ -366,9 +483,9 @@ export function FreeCanvasBoard({ apps = [], openInNewTab = false }: FreeCanvasB
                                     <button
                                         onClick={() => toggleFolderExpanded(widget.id)}
                                         className="text-gray-400 hover:text-white p-1 rounded transition"
-                                        title={widget.isExpanded ? 'Collapse Folder' : 'Expand Folder'}
+                                        title={widget.isExpanded === false ? 'Expand Folder' : 'Collapse Folder'}
                                     >
-                                        {widget.isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                        {widget.isExpanded === false ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
                                     </button>
                                 )}
                                 <button
@@ -419,7 +536,9 @@ export function FreeCanvasBoard({ apps = [], openInNewTab = false }: FreeCanvasB
                             )}
                             {widget.type === 'app' && (
                                 <div
-                                    onClick={() => launchApp(widget.appData?.url)}
+                                    onClick={() => launchCanvasApp(widget.appData?.url)}
+                                    onMouseEnter={(e) => handleAppMouseEnter(widget.id, widget.title, widget.appData?.url, e)}
+                                    onMouseLeave={handleAppMouseLeave}
                                     className="w-full h-full bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-3 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-white/10 transition group/app shadow-lg"
                                 >
                                     <div className="w-12 h-12 rounded-xl bg-white/5 p-2 mb-2 flex items-center justify-center shrink-0">
@@ -428,37 +547,40 @@ export function FreeCanvasBoard({ apps = [], openInNewTab = false }: FreeCanvasB
                                     <span className="text-sm font-semibold text-white truncate w-full px-1">{widget.title}</span>
                                     {widget.appData?.url && (
                                         <span className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5 truncate max-w-full">
-                                            <ExternalLink className="w-2.5 h-2.5" /> Launch
+                                            <ExternalLink className="w-2.5 h-2.5" /> New Tab
                                         </span>
                                     )}
                                 </div>
                             )}
                             {widget.type === 'folder' && (
                                 <div className="w-full h-full bg-black/50 backdrop-blur-xl rounded-2xl border border-amber-500/20 p-3 flex flex-col shadow-2xl overflow-hidden">
-                                    {/* Folder Header */}
-                                    <div className="flex items-center justify-between mb-2 pb-2 border-b border-white/10">
-                                        <div className="flex items-center gap-2">
-                                            <Folder className="w-5 h-5 text-amber-400" />
+                                    {/* Requirement 1: Header line only when collapsed */}
+                                    <div className="flex items-center justify-between h-8 shrink-0">
+                                        <div className="flex items-center gap-2 min-w-0">
+                                            <Folder className="w-5 h-5 text-amber-400 shrink-0" />
                                             <span className="font-bold text-white text-sm truncate">{widget.folderName || widget.title}</span>
-                                            <span className="text-[10px] bg-amber-500/20 text-amber-300 font-semibold px-2 py-0.5 rounded-full">
+                                            <span className="text-[10px] bg-amber-500/20 text-amber-300 font-semibold px-2 py-0.5 rounded-full shrink-0">
                                                 {widget.folderApps?.length || 0}
                                             </span>
                                         </div>
                                         <button
                                             onClick={() => toggleFolderExpanded(widget.id)}
-                                            className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition"
+                                            className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition shrink-0"
+                                            title={widget.isExpanded === false ? 'Expand Folder' : 'Collapse Folder'}
                                         >
-                                            {widget.isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                            {widget.isExpanded === false ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
                                         </button>
                                     </div>
 
-                                    {/* Folder Expandable Content */}
-                                    {widget.isExpanded ? (
-                                        <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-2 overflow-y-auto p-1">
+                                    {/* Folder Content (Visible when expanded) */}
+                                    {widget.isExpanded !== false && (
+                                        <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-2 overflow-y-auto p-1 mt-2 border-t border-white/10 pt-2">
                                             {widget.folderApps?.map((app) => (
                                                 <div
                                                     key={app.id}
-                                                    onClick={() => launchApp(app.url)}
+                                                    onClick={() => launchCanvasApp(app.url)}
+                                                    onMouseEnter={(e) => handleAppMouseEnter(app.id, app.name, app.url, e)}
+                                                    onMouseLeave={handleAppMouseLeave}
                                                     className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/5 hover:bg-white/15 border border-white/5 transition cursor-pointer group/folderapp"
                                                 >
                                                     <div className="w-8 h-8 rounded-lg bg-black/20 p-1 mb-1 flex items-center justify-center">
@@ -473,29 +595,53 @@ export function FreeCanvasBoard({ apps = [], openInNewTab = false }: FreeCanvasB
                                                 </div>
                                             )}
                                         </div>
-                                    ) : (
-                                        <div
-                                            onClick={() => toggleFolderExpanded(widget.id)}
-                                            className="flex-1 flex items-center justify-center text-xs text-gray-400 cursor-pointer hover:text-white transition"
-                                        >
-                                            Click to expand ({widget.folderApps?.length || 0} items)
-                                        </div>
                                     )}
                                 </div>
                             )}
                         </div>
 
-                        {/* Resize handle */}
-                        <div
-                            onMouseDown={(e) => handleResizeMouseDown(e, widget.id)}
-                            className="absolute bottom-1 right-1 p-1 text-gray-400 hover:text-white cursor-se-resize opacity-0 group-hover:opacity-100 transition-opacity z-20"
-                            title="Resize item"
-                        >
-                            <Maximize2 className="w-3.5 h-3.5 rotate-90" />
-                        </div>
+                        {/* Resize handle (Hidden when folder is collapsed) */}
+                        {widget.isExpanded !== false && (
+                            <div
+                                onMouseDown={(e) => handleResizeMouseDown(e, widget.id)}
+                                className="absolute bottom-1 right-1 p-1 text-gray-400 hover:text-white cursor-se-resize opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                                title="Resize item"
+                            >
+                                <Maximize2 className="w-3.5 h-3.5 rotate-90" />
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>
+
+            {/* Requirement 4: Secure 2-Second Sandboxed Hover Preview Modal */}
+            {hoverPreview && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        left: `${hoverPreview.x}px`,
+                        top: `${hoverPreview.y}px`,
+                    }}
+                    className="z-[200] w-80 h-56 bg-slate-900/95 border border-indigo-500/40 rounded-2xl shadow-2xl backdrop-blur-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 pointer-events-none"
+                >
+                    <div className="px-3 py-1.5 bg-black/60 border-b border-white/10 flex items-center justify-between text-xs text-gray-300 font-semibold">
+                        <div className="flex items-center gap-1.5 truncate">
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span className="truncate">Safe Sandbox Preview: {hoverPreview.name}</span>
+                        </div>
+                    </div>
+                    <div className="relative flex-1 w-full h-full bg-black/40 overflow-hidden">
+                        <iframe
+                            src={hoverPreview.url}
+                            title={`Preview of ${hoverPreview.name}`}
+                            sandbox=""
+                            referrerPolicy="no-referrer"
+                            loading="lazy"
+                            className="w-full h-full border-0 pointer-events-none opacity-90 scale-90 origin-top-left w-[111%] h-[111%]"
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* App Picker Modal */}
             {isAppPickerOpen && (
