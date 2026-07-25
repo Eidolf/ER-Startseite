@@ -15,6 +15,7 @@ ENV PYTHONUNBUFFERED=1 \
     POETRY_HTTP_TIMEOUT=1000
 
 # Install system deps
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
     curl \
@@ -48,6 +49,7 @@ RUN addgroup --system --gid 1001 appuser && \
     adduser --system --uid 1001 --gid 1001 appuser
 
 # Install gosu (for easy step-down from root)
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends gosu && rm -rf /var/lib/apt/lists/*
 
 # Create uploads directory and set permissions

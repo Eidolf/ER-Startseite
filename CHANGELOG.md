@@ -19,3 +19,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Configuration Backup & Automatic Recovery**: Added automatic backup file generation (`.bak`) and fallback recovery logic in `ConfigRepository` to protect user settings from transient read errors or corrupted storage.
 - **Configurable Storage Path**: Centralized persistent data storage directory management via `DATA_DIR` configuration setting.
 - **ESLint & Pre-Flight Compliance**: Resolved `@typescript-eslint/no-unused-vars` warning in `SettingsModal.tsx` and validated full pre-flight test suite.
+- **Docker & NPM Cleanup**: Fixed `debconf` frontend initialization warnings in backend Dockerfile (`DEBIAN_FRONTEND=noninteractive`), suppressed NPM update/fund notices, updated `caniuse-lite`/browserslist database, upgraded `@typescript-eslint/*` to resolve 22 vulnerability audit issues (0 vulnerabilities remaining).
