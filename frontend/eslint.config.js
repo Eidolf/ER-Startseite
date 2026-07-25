@@ -1,3 +1,4 @@
+import { fixupPluginRules } from "@eslint/compat";
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
 import reactHooks from "eslint-plugin-react-hooks";
@@ -17,9 +18,9 @@ export default [
             },
         },
         plugins: {
-            "@typescript-eslint": tseslint,
-            "react-hooks": reactHooks,
-            "react-refresh": reactRefresh,
+            "@typescript-eslint": fixupPluginRules(tseslint),
+            "react-hooks": fixupPluginRules(reactHooks),
+            "react-refresh": fixupPluginRules(reactRefresh),
         },
         rules: {
             ...tseslint.configs.recommended.rules,
