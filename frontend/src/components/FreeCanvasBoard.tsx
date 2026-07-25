@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, RotateCcw, Cookie, Move, Trash2, Maximize2, Search, FileText, Folder, ChevronDown, ChevronUp, AppWindow, ExternalLink, X, ShieldCheck } from 'lucide-react'
+import { Plus, RotateCcw, Cookie, Move, Trash2, Maximize2, Search, FileText, Folder, ChevronDown, ChevronUp, AppWindow, ExternalLink, X, ShieldCheck, Pencil } from 'lucide-react'
 import { ClockWidget } from './widgets/ClockWidget'
 import { WeatherWidget } from './widgets/WeatherWidget'
 import { CalendarWidget } from './widgets/CalendarWidget'
@@ -74,6 +74,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
     const [isAddMenuOpen, setIsAddMenuOpen] = useState(false)
     const [isAppPickerOpen, setIsAppPickerOpen] = useState(false)
     const [isFolderModalOpen, setIsFolderModalOpen] = useState(false)
+    const [editingFolderId, setEditingFolderId] = useState<string | null>(null)
     const [folderTitleInput, setFolderTitleInput] = useState('')
     const [selectedFolderAppIds, setSelectedFolderAppIds] = useState<string[]>([])
 
@@ -243,21 +244,45 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
         setIsAppPickerOpen(false)
     }
 
-    const handleCreateFolderForCanvas = () => {
+    const handleOpenEditFolder = (widget: CanvasWidget) => {
+        setEditingFolderId(widget.id)
+        setFolderTitleInput(widget.folderName || widget.title)
+        setSelectedFolderAppIds(widget.folderAppIds || widget.folderApps?.map((a) => a.id) || [])
+        setIsFolderModalOpen(true)
+    }
+
+    const handleCreateOrUpdateFolder = () => {
         if (!folderTitleInput.trim()) return
         const folderApps = apps.filter((a) => selectedFolderAppIds.includes(a.id))
 
-        addWidget('folder', {
-            title: folderTitleInput.trim(),
-            folderName: folderTitleInput.trim(),
-            folderAppIds: selectedFolderAppIds,
-            folderApps,
-            isExpanded: true,
-            width: 380,
-            height: 240,
-            expandedHeight: 240,
-        })
+        if (editingFolderId) {
+            setWidgets((prev) =>
+                prev.map((w) =>
+                    w.id === editingFolderId
+                        ? {
+                              ...w,
+                              title: folderTitleInput.trim(),
+                              folderName: folderTitleInput.trim(),
+                              folderAppIds: selectedFolderAppIds,
+                              folderApps,
+                          }
+                        : w
+                )
+            )
+        } else {
+            addWidget('folder', {
+                title: folderTitleInput.trim(),
+                folderName: folderTitleInput.trim(),
+                folderAppIds: selectedFolderAppIds,
+                folderApps,
+                isExpanded: true,
+                width: 380,
+                height: 240,
+                expandedHeight: 240,
+            })
+        }
 
+        setEditingFolderId(null)
         setFolderTitleInput('')
         setSelectedFolderAppIds([])
         setIsFolderModalOpen(false)
@@ -480,13 +505,22 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                             </div>
                             <div className="flex items-center gap-1">
                                 {widget.type === 'folder' && (
-                                    <button
-                                        onClick={() => toggleFolderExpanded(widget.id)}
-                                        className="text-gray-400 hover:text-white p-1 rounded transition"
-                                        title={widget.isExpanded === false ? 'Expand Folder' : 'Collapse Folder'}
-                                    >
-                                        {widget.isExpanded === false ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
-                                    </button>
+                                    <>
+                                        <button
+                                            onClick={() => handleOpenEditFolder(widget)}
+                                            className="text-gray-400 hover:text-amber-400 p-1 rounded transition"
+                                            title="Edit Folder Apps"
+                                        >
+                                            <Pencil className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                            onClick={() => toggleFolderExpanded(widget.id)}
+                                            className="text-gray-400 hover:text-white p-1 rounded transition"
+                                            title={widget.isExpanded === false ? 'Expand Folder' : 'Collapse Folder'}
+                                        >
+                                            {widget.isExpanded === false ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+                                        </button>
+                                    </>
                                 )}
                                 <button
                                     onClick={() => removeWidget(widget.id)}
@@ -563,13 +597,22 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                                                 {widget.folderApps?.length || 0}
                                             </span>
                                         </div>
-                                        <button
-                                            onClick={() => toggleFolderExpanded(widget.id)}
-                                            className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition shrink-0"
-                                            title={widget.isExpanded === false ? 'Expand Folder' : 'Collapse Folder'}
-                                        >
-                                            {widget.isExpanded === false ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                                        </button>
+                                        <div className="flex items-center gap-1 shrink-0">
+                                            <button
+                                                onClick={() => handleOpenEditFolder(widget)}
+                                                className="text-gray-400 hover:text-amber-400 p-1 rounded-lg hover:bg-white/10 transition"
+                                                title="Edit Folder Apps"
+                                            >
+                                                <Pencil className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                                onClick={() => toggleFolderExpanded(widget.id)}
+                                                className="text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition"
+                                                title={widget.isExpanded === false ? 'Expand Folder' : 'Collapse Folder'}
+                                            >
+                                                {widget.isExpanded === false ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {/* Folder Content (Visible when expanded) */}
@@ -677,13 +720,21 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                 </div>
             )}
 
-            {/* Folder Creator Modal */}
+            {/* Folder Creator & Editor Modal */}
             {isFolderModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="w-full max-w-md bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold text-white">Create Canvas Folder Container</h3>
-                            <button onClick={() => setIsFolderModalOpen(false)} className="text-gray-400 hover:text-white">
+                            <h3 className="text-lg font-bold text-white">
+                                {editingFolderId ? 'Edit Canvas Folder Container' : 'Create Canvas Folder Container'}
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    setIsFolderModalOpen(false)
+                                    setEditingFolderId(null)
+                                }}
+                                className="text-gray-400 hover:text-white"
+                            >
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
@@ -728,11 +779,11 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                             </div>
 
                             <button
-                                onClick={handleCreateFolderForCanvas}
+                                onClick={handleCreateOrUpdateFolder}
                                 disabled={!folderTitleInput.trim()}
                                 className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-bold rounded-xl text-sm transition shadow-lg shadow-amber-500/20"
                             >
-                                Create Folder Container
+                                {editingFolderId ? 'Save Changes' : 'Create Folder Container'}
                             </button>
                         </div>
                     </div>
