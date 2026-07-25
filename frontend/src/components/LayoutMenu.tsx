@@ -1,7 +1,6 @@
 import { LayoutGrid, List, Check, Move, Folder, Eye, EyeOff } from 'lucide-react'
 import { motion } from 'framer-motion'
-
-export type LayoutMode = 'grid' | 'list' | 'compact' | 'categories' | 'rich-grid'
+import { LayoutMode } from '../types'
 
 interface LayoutMenuProps {
     currentMode: LayoutMode
@@ -65,6 +64,15 @@ export function LayoutMenu({ currentMode, onModeChange, isEditMode, onToggleEdit
                         <Folder className="w-4 h-4" />
                         <span className="flex-1 text-left">Category View</span>
                         {currentMode === 'categories' && <Check className="w-4 h-4" />}
+                    </button>
+
+                    <button
+                        onClick={() => onModeChange('canvas')}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${currentMode === 'canvas' ? 'bg-neon-cyan/20 text-neon-cyan' : 'hover:bg-white/5 text-gray-300'}`}
+                    >
+                        <Move className="w-4 h-4 text-indigo-400" />
+                        <span className="flex-1 text-left">Free Canvas Board</span>
+                        {currentMode === 'canvas' && <Check className="w-4 h-4" />}
                     </button>
 
                     <div className="h-px bg-white/10 my-2" />

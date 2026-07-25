@@ -18,9 +18,64 @@ def read_version():
         return f.read().strip()
 
 def write_version(version):
-    with open(VERSION_FILE, 'w') as f:
-        f.write(version)
-    print(f"Updated {VERSION_FILE} to {version}")
+    if not isinstance(version, str) or not re.match(r'^\d{4}\.\d{1,2}\.\d+(?:-[a-zA-Z0-9.\-+]+)?$', version.strip()):
+        print(f"Error: Invalid version format: {version!r}. Version must match release format (e.g. 2026.7.1 or 2026.7.1-beta).", file=sys.stderr)
+        sys.exit(1)
+
+    version = version.strip()
+
+    file_configs = [
+        (VERSION_FILE, None, f"{version}\n"),
+        ('backend/pyproject.toml', r'version = "[^"]+"', f'version = "{version}"'),
+        ('frontend/package.json', r'"version": "[^"]+"', f'"version": "{version}"'),
+    ]
+
+    staged_updates = []
+    backups = {}
+
+    for path, pattern, replacement in file_configs:
+        if not os.path.exists(path):
+            continue
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except OSError as e:
+            print(f"Error reading {path}: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        if pattern is None:
+            new_content = replacement
+        else:
+            if not re.search(pattern, content):
+                print(f"Error: Pattern {pattern!r} not found in {path}", file=sys.stderr)
+                sys.exit(1)
+            new_content = re.sub(pattern, replacement, content, count=1)
+
+        staged_updates.append((path, content, new_content))
+
+    applied_files = []
+    try:
+        for path, old_content, new_content in staged_updates:
+            dir_name = os.path.dirname(path) or '.'
+            tmp_path = os.path.join(dir_name, f".tmp_{os.path.basename(path)}")
+
+            with open(tmp_path, 'w', encoding='utf-8') as f:
+                f.write(new_content)
+
+            backups[path] = old_content
+            os.replace(tmp_path, path)
+            applied_files.append(path)
+            print(f"Updated {path} version to {version}")
+
+    except Exception as e:
+        print(f"Error during version update: {e}. Rolling back...", file=sys.stderr)
+        for path in applied_files:
+            try:
+                with open(path, 'w', encoding='utf-8') as f:
+                    f.write(backups[path])
+            except Exception as rollback_err:
+                print(f"Critical error rolling back {path}: {rollback_err}", file=sys.stderr)
+        sys.exit(1)
 
 def parse_version(version_str):
     # Regex for YYYY.MM.Patch(-Suffix)?

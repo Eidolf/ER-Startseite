@@ -1,10 +1,10 @@
 import { PremiumAppManifest, FetchContext } from './types'
 
 // Generic factory to create simple registry entries
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const createGenericManifest = (id: string, name: string, _icon: string = 'AppWindow'): PremiumAppManifest => ({
+const createGenericManifest = (id: string, name: string, icon: string = 'AppWindow'): PremiumAppManifest => ({
     id,
     name,
+    icon,
     layout: 'logo-only', // Optimized for static apps
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     fetchStats: async (_context: FetchContext) => {
@@ -30,3 +30,4 @@ export const JDownloaderManifest = createGenericManifest('jdownloader', 'jDownlo
 export const GrocyManifest = createGenericManifest('grocy', 'Grocy')
 export const HomeAssistantManifest = createGenericManifest('homeassistant', 'Home Assistant')
 export const MediawikiManifest = createGenericManifest('mediawiki', 'MediaWiki')
+export const AudiobookshelfManifest = createGenericManifest('audiobookshelf', 'Audiobookshelf', 'Headphones')

@@ -1,5 +1,7 @@
 import os
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import structlog
 import tomllib
@@ -15,10 +17,68 @@ from app.services.config_service import ConfigService
 
 logger = structlog.get_logger()
 
+MODULE_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = MODULE_ROOT.parent
+REPO_ROOT = PROJECT_ROOT.parent
+
+_CACHED_VERSION: str | None = None
+
+
+def get_project_version() -> str:
+    global _CACHED_VERSION
+    if _CACHED_VERSION is not None:
+        return _CACHED_VERSION
+
+    # Priority: Env Var > VERSION file > pyproject.toml > Default
+    env_version = os.getenv("APP_VERSION") or os.getenv("VERSION")
+    if env_version:
+        _CACHED_VERSION = env_version
+        return env_version
+
+    candidate_paths = [
+        REPO_ROOT / "VERSION",
+        PROJECT_ROOT / "VERSION",
+        Path("/app/VERSION"),
+    ]
+
+    for v_path in candidate_paths:
+        if v_path.exists():
+            try:
+                ver = v_path.read_text(encoding="utf-8").strip()
+                if ver:
+                    _CACHED_VERSION = ver
+                    return ver
+            except (FileNotFoundError, UnicodeDecodeError, OSError) as e:
+                logger.warning(
+                    "Error reading VERSION candidate file",
+                    path=str(v_path),
+                    exc_info=e,
+                )
+
+    pyproject_path = PROJECT_ROOT / "pyproject.toml"
+    if pyproject_path.exists():
+        try:
+            with open(pyproject_path, "rb") as f:
+                data = tomllib.load(f)
+                ver = str(data["tool"]["poetry"]["version"])
+                if ver:
+                    _CACHED_VERSION = ver
+                    return ver
+        except (FileNotFoundError, KeyError, tomllib.TOMLDecodeError, OSError) as e:
+            logger.warning(
+                "Error reading pyproject.toml version",
+                path=str(pyproject_path),
+                exc_info=e,
+            )
+
+    _CACHED_VERSION = "0.0.0"
+    return _CACHED_VERSION
+
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Startup: Initializing ER-Startseite Backend")
+    get_project_version()
     yield
     logger.info("Shutdown: cleaning up resources")
 
@@ -68,20 +128,6 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 # Mount uploads directory
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
-
-
-def get_project_version():
-    # Priority: Env Var > pyproject.toml > Default
-    env_version = os.getenv("APP_VERSION") or os.getenv("VERSION")
-    if env_version:
-        return env_version
-
-    try:
-        with open("pyproject.toml", "rb") as f:
-            data = tomllib.load(f)
-            return data["tool"]["poetry"]["version"]
-    except Exception:
-        return "0.0.0"
 
 
 @app.get("/health")
