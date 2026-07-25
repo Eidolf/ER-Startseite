@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, RotateCcw, Cookie, Move, Trash2, Maximize2, Search, FileText, Folder, ChevronDown, ChevronUp, AppWindow, ExternalLink, X, ShieldCheck, Pencil } from 'lucide-react'
+import { Plus, RotateCcw, Cookie, Move, Trash2, Maximize2, Search, FileText, Folder, ChevronDown, ChevronUp, AppWindow, ExternalLink, X, Pencil, Camera, Globe } from 'lucide-react'
 import { ClockWidget } from './widgets/ClockWidget'
 import { WeatherWidget } from './widgets/WeatherWidget'
 import { CalendarWidget } from './widgets/CalendarWidget'
@@ -98,6 +98,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
     const [weatherUnitInput, setWeatherUnitInput] = useState<'c' | 'f'>('c')
 
     const [hoverPreview, setHoverPreview] = useState<HoverPreviewState | null>(null)
+    const [previewMode, setPreviewMode] = useState<'snapshot' | 'iframe'>('snapshot')
     const hoverTimerRef = useRef<NodeJS.Timeout | null>(null)
 
     const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -761,7 +762,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                 ))}
             </div>
 
-            {/* Tuned & Secure Sandboxed Hover Preview Modal */}
+            {/* Dual Mode Web Preview Modal (Image Snapshot & Sandboxed Iframe) */}
             {hoverPreview && (
                 <div
                     style={{
@@ -769,29 +770,61 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                         left: `${hoverPreview.x}px`,
                         top: `${hoverPreview.y}px`,
                     }}
-                    className="z-[200] w-[420px] h-[280px] bg-slate-900/95 border border-indigo-500/50 rounded-2xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 pointer-events-none"
+                    className="z-[200] w-[420px] h-[280px] bg-slate-900/95 border border-indigo-500/50 rounded-2xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 pointer-events-auto"
                 >
-                    <div className="px-3 py-2 bg-black/80 border-b border-white/10 flex items-center justify-between text-xs text-gray-300 font-semibold shrink-0">
+                    <div className="px-3 py-1.5 bg-black/80 border-b border-white/10 flex items-center justify-between text-xs text-gray-300 font-semibold shrink-0">
                         <div className="flex items-center gap-1.5 truncate">
-                            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                            <span className="truncate">Sandboxed Preview: {hoverPreview.name}</span>
+                            <Camera className="w-4 h-4 text-cyan-400 shrink-0" />
+                            <span className="truncate">{hoverPreview.name}</span>
                         </div>
-                        <span className="text-[10px] text-gray-400 font-mono truncate max-w-[150px]">
-                            {hoverPreview.url}
-                        </span>
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => setPreviewMode('snapshot')}
+                                className={`px-2 py-0.5 rounded text-[10px] font-medium transition flex items-center gap-1 ${
+                                    previewMode === 'snapshot'
+                                        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'
+                                        : 'text-gray-400 hover:text-white'
+                                }`}
+                            >
+                                <Camera className="w-3 h-3" /> Image
+                            </button>
+                            <button
+                                onClick={() => setPreviewMode('iframe')}
+                                className={`px-2 py-0.5 rounded text-[10px] font-medium transition flex items-center gap-1 ${
+                                    previewMode === 'iframe'
+                                        ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40'
+                                        : 'text-gray-400 hover:text-white'
+                                }`}
+                            >
+                                <Globe className="w-3 h-3" /> Live
+                            </button>
+                        </div>
                     </div>
                     <div className="relative flex-1 w-full h-full bg-slate-950 overflow-hidden flex items-center justify-center">
-                        <iframe
-                            src={hoverPreview.url}
-                            title={`Preview of ${hoverPreview.name}`}
-                            sandbox="allow-scripts allow-forms allow-same-origin"
-                            referrerPolicy="no-referrer"
-                            loading="lazy"
-                            className="w-[133.3%] h-[133.3%] border-0 pointer-events-none opacity-95 scale-[0.75] origin-top-left absolute inset-0"
-                        />
-                        <div className="absolute bottom-2 left-2 right-2 p-2 bg-black/80 backdrop-blur-md rounded-xl border border-white/10 flex items-center justify-between text-[11px] text-gray-300 z-10">
-                            <span className="truncate">Sites with X-Frame-Options open in new tab</span>
-                            <ExternalLink className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                        {previewMode === 'snapshot' ? (
+                            <img
+                                src={`https://s0.wp.com/mshots/v1/${encodeURIComponent(hoverPreview.url)}?w=600&h=400`}
+                                alt={`Snapshot preview of ${hoverPreview.name}`}
+                                onError={(e) => {
+                                    // Fallback to thum.io snapshot service if needed
+                                    const target = e.target as HTMLImageElement
+                                    target.src = `https://image.thum.io/get/width/600/crop/400/${hoverPreview.url}`
+                                }}
+                                className="w-full h-full object-cover opacity-95"
+                            />
+                        ) : (
+                            <iframe
+                                src={hoverPreview.url}
+                                title={`Preview of ${hoverPreview.name}`}
+                                sandbox="allow-scripts allow-forms allow-same-origin"
+                                referrerPolicy="no-referrer"
+                                loading="lazy"
+                                className="w-[133.3%] h-[133.3%] border-0 pointer-events-none opacity-95 scale-[0.75] origin-top-left absolute inset-0"
+                            />
+                        )}
+                        <div className="absolute bottom-2 left-2 right-2 p-1.5 bg-black/80 backdrop-blur-md rounded-xl border border-white/10 flex items-center justify-between text-[10px] text-gray-300 z-10 pointer-events-none">
+                            <span className="truncate">{hoverPreview.url}</span>
+                            <ExternalLink className="w-3 h-3 text-cyan-400 shrink-0 ml-1" />
                         </div>
                     </div>
                 </div>
