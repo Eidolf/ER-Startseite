@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github, LayoutGrid, Clock, CloudSun, Calendar, Save, LogOut } from 'lucide-react'
-import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig, WidgetData } from '../types'
+import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig, WidgetData, LayoutMode } from '../types'
 
 interface MediaItem {
     name: string
@@ -212,8 +212,8 @@ interface SettingsModalProps {
     openInNewTab: boolean
     onOpenInNewTabChange: (enabled: boolean) => void
     onAddWidget: (type: WidgetData['type']) => void
-    layoutMode: 'grid' | 'list' | 'compact' | 'categories' | 'rich-grid'
-    onLayoutModeChange: (mode: 'grid' | 'list' | 'compact' | 'categories' | 'rich-grid') => void
+    layoutMode: LayoutMode
+    onLayoutModeChange: (mode: LayoutMode) => void
     onSaveAsDefault?: () => void
     serverMode?: string
     onLogout?: () => void

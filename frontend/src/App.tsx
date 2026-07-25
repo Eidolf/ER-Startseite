@@ -10,7 +10,7 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, r
 import { CSS } from '@dnd-kit/utilities'
 
 import { RichAppTile } from './components/RichAppTile'
-import { AppData, BackgroundConfig, LogoConfig, IconConfig, LayoutConfig, TitleConfig, WidgetData } from './types'
+import { AppData, BackgroundConfig, LogoConfig, IconConfig, LayoutConfig, TitleConfig, WidgetData, LayoutMode } from './types'
 import { DEFAULT_BG, DEFAULT_LOGO_CONFIG, DEFAULT_TITLE_CONFIG, DEFAULT_ICON_CONFIG, DEFAULT_LAYOUT_CONFIG } from './defaults'
 import { AppFormModal } from './components/AppFormModal'
 import { WidgetTile } from './components/WidgetTile'
@@ -18,6 +18,7 @@ import { WeatherWidget } from './components/widgets/WeatherWidget'
 import { ClockWidget } from './components/widgets/ClockWidget'
 import { CalendarWidget } from './components/widgets/CalendarWidget'
 import { WidgetContextModal } from './components/WidgetContextModal'
+import { FreeCanvasBoard } from './components/FreeCanvasBoard'
 
 interface SortableAppTileProps {
     app: AppData
@@ -322,14 +323,14 @@ function App() {
 
     // Client-Side View Persistence
     // 'localMode' overrides 'layoutConfig.mode' (Server Default) on this specific device
-    const [localMode, setLocalMode] = useState<'grid' | 'list' | 'compact' | 'categories' | 'rich-grid' | null>(() => {
-        return (localStorage.getItem('layoutMode') as 'grid' | 'list' | 'compact' | 'categories' | 'rich-grid' | null) || null
+    const [localMode, setLocalMode] = useState<LayoutMode | null>(() => {
+        return (localStorage.getItem('layoutMode') as LayoutMode | null) || null
     })
 
     // The actual mode to display: Local Override > Server Default
     const activeLayoutMode = localMode || layoutConfig.mode
 
-    const handleLocalModeChange = (mode: 'grid' | 'list' | 'compact' | 'categories' | 'rich-grid') => {
+    const handleLocalModeChange = (mode: LayoutMode) => {
         setLocalMode(mode)
         localStorage.setItem('layoutMode', mode)
     }
@@ -1122,6 +1123,10 @@ function App() {
     }
 
     const renderContent = () => {
+        if (activeLayoutMode === 'canvas') {
+            return <FreeCanvasBoard />
+        }
+
         if (activeLayoutMode === 'categories') {
             const hasSearch = searchQuery.length > 0;
             const searchLower = searchQuery.toLowerCase();

@@ -513,6 +513,10 @@
         "file": "frontend/src/components/AppIcon.tsx",
         "description": "UI Component AppIcon for dashboard view or modal dialog"
       },
+      "FreeCanvasBoard": {
+        "file": "frontend/src/components/FreeCanvasBoard.tsx",
+        "description": "UI Component FreeCanvasBoard for dashboard view or modal dialog"
+      },
       "LayoutMenu": {
         "file": "frontend/src/components/LayoutMenu.tsx",
         "description": "UI Component LayoutMenu for dashboard view or modal dialog"

@@ -31,7 +31,7 @@ export interface Category {
     app_ids: string[]
 }
 
-export type LayoutMode = 'grid' | 'list' | 'compact' | 'categories' | 'rich-grid'
+export type LayoutMode = 'grid' | 'list' | 'compact' | 'categories' | 'rich-grid' | 'canvas'
 
 export interface LayoutConfig {
     mode: LayoutMode

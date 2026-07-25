@@ -1,4 +1,3 @@
-import React from 'react'
 import { X, Trash2, Settings } from 'lucide-react'
 import { WidgetData } from '../types'
 
