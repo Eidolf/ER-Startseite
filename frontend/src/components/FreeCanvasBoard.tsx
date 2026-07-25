@@ -31,6 +31,7 @@ export function FreeCanvasBoard() {
         return getJsonCookie<CanvasWidget[]>(COOKIE_NAME, DEFAULT_WIDGETS)
     })
     const [isSavedInCookie, setIsSavedInCookie] = useState(false)
+    const [isAddMenuOpen, setIsAddMenuOpen] = useState(false)
     const [draggingId, setDraggingId] = useState<string | null>(null)
     const [resizingId, setResizingId] = useState<string | null>(null)
     const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -132,6 +133,7 @@ export function FreeCanvasBoard() {
         }
 
         setWidgets((prev) => [...prev, newWidget])
+        setIsAddMenuOpen(false)
     }
 
     const removeWidget = (id: string) => {
@@ -141,6 +143,7 @@ export function FreeCanvasBoard() {
     const resetLayout = () => {
         deleteCookie(COOKIE_NAME)
         setWidgets(DEFAULT_WIDGETS)
+        setIsAddMenuOpen(false)
     }
 
     const updateNoteText = (id: string, text: string) => {
@@ -156,8 +159,16 @@ export function FreeCanvasBoard() {
             onMouseUp={handleMouseUp}
             className="relative w-full min-h-[calc(100vh-100px)] p-6 select-none overflow-auto"
         >
+            {/* Click-outside backdrop for dropdown */}
+            {isAddMenuOpen && (
+                <div
+                    className="fixed inset-0 z-40 bg-transparent"
+                    onClick={() => setIsAddMenuOpen(false)}
+                />
+            )}
+
             {/* Top Toolbar */}
-            <div className="flex flex-wrap items-center justify-between gap-4 mb-6 bg-black/40 backdrop-blur-xl p-4 rounded-2xl border border-white/10 shadow-2xl">
+            <div className="relative z-50 flex flex-wrap items-center justify-between gap-4 mb-6 bg-black/40 backdrop-blur-xl p-4 rounded-2xl border border-white/10 shadow-2xl">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-indigo-500/20 rounded-xl border border-indigo-500/30 text-indigo-400">
                         <Move className="w-5 h-5" />
@@ -178,43 +189,48 @@ export function FreeCanvasBoard() {
                     </div>
 
                     {/* Add Widget Options */}
-                    <div className="relative group">
-                        <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium text-sm transition shadow-lg shadow-indigo-600/30">
+                    <div className="relative">
+                        <button
+                            onClick={() => setIsAddMenuOpen(!isAddMenuOpen)}
+                            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-medium text-sm transition shadow-lg shadow-indigo-600/30"
+                        >
                             <Plus className="w-4 h-4" />
                             <span>Add Widget</span>
                         </button>
-                        <div className="absolute right-0 top-full mt-2 w-48 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-2 hidden group-hover:block z-50">
-                            <button
-                                onClick={() => addWidget('clock')}
-                                className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 rounded-xl flex items-center gap-2"
-                            >
-                                <span className="w-2 h-2 rounded-full bg-cyan-400" /> Clock Widget
-                            </button>
-                            <button
-                                onClick={() => addWidget('weather')}
-                                className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 rounded-xl flex items-center gap-2"
-                            >
-                                <span className="w-2 h-2 rounded-full bg-yellow-400" /> Weather Widget
-                            </button>
-                            <button
-                                onClick={() => addWidget('calendar')}
-                                className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 rounded-xl flex items-center gap-2"
-                            >
-                                <span className="w-2 h-2 rounded-full bg-emerald-400" /> Calendar Widget
-                            </button>
-                            <button
-                                onClick={() => addWidget('search')}
-                                className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 rounded-xl flex items-center gap-2"
-                            >
-                                <span className="w-2 h-2 rounded-full bg-indigo-400" /> Search Bar
-                            </button>
-                            <button
-                                onClick={() => addWidget('text')}
-                                className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 rounded-xl flex items-center gap-2"
-                            >
-                                <span className="w-2 h-2 rounded-full bg-pink-400" /> Custom Note
-                            </button>
-                        </div>
+                        {isAddMenuOpen && (
+                            <div className="absolute right-0 top-full mt-2 w-48 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-2 z-[100] animate-in fade-in zoom-in-95 duration-150">
+                                <button
+                                    onClick={() => addWidget('clock')}
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 rounded-xl flex items-center gap-2"
+                                >
+                                    <span className="w-2 h-2 rounded-full bg-cyan-400" /> Clock Widget
+                                </button>
+                                <button
+                                    onClick={() => addWidget('weather')}
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 rounded-xl flex items-center gap-2"
+                                >
+                                    <span className="w-2 h-2 rounded-full bg-yellow-400" /> Weather Widget
+                                </button>
+                                <button
+                                    onClick={() => addWidget('calendar')}
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 rounded-xl flex items-center gap-2"
+                                >
+                                    <span className="w-2 h-2 rounded-full bg-emerald-400" /> Calendar Widget
+                                </button>
+                                <button
+                                    onClick={() => addWidget('search')}
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 rounded-xl flex items-center gap-2"
+                                >
+                                    <span className="w-2 h-2 rounded-full bg-indigo-400" /> Search Bar
+                                </button>
+                                <button
+                                    onClick={() => addWidget('text')}
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 rounded-xl flex items-center gap-2"
+                                >
+                                    <span className="w-2 h-2 rounded-full bg-pink-400" /> Custom Note
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Reset Button */}
