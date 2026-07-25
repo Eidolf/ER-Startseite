@@ -340,8 +340,8 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
         if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
         if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) return
 
-        const posX = e ? Math.min(e.clientX + 15, window.innerWidth - 340) : 100
-        const posY = e ? Math.min(e.clientY + 15, window.innerHeight - 240) : 100
+        const posX = e ? Math.max(10, Math.min(e.clientX + 15, window.innerWidth - 440)) : 100
+        const posY = e ? Math.max(10, Math.min(e.clientY + 15, window.innerHeight - 300)) : 100
 
         hoverTimerRef.current = setTimeout(() => {
             setHoverPreview({
@@ -657,7 +657,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                 ))}
             </div>
 
-            {/* Requirement 4: Secure 2-Second Sandboxed Hover Preview Modal */}
+            {/* Requirement 4: Tuned & Secure Sandboxed Hover Preview Modal */}
             {hoverPreview && (
                 <div
                     style={{
@@ -665,22 +665,25 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                         left: `${hoverPreview.x}px`,
                         top: `${hoverPreview.y}px`,
                     }}
-                    className="z-[200] w-80 h-56 bg-slate-900/95 border border-indigo-500/40 rounded-2xl shadow-2xl backdrop-blur-xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 pointer-events-none"
+                    className="z-[200] w-[420px] h-[280px] bg-slate-900/95 border border-indigo-500/50 rounded-2xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 pointer-events-none"
                 >
-                    <div className="px-3 py-1.5 bg-black/60 border-b border-white/10 flex items-center justify-between text-xs text-gray-300 font-semibold">
+                    <div className="px-3 py-2 bg-black/80 border-b border-white/10 flex items-center justify-between text-xs text-gray-300 font-semibold shrink-0">
                         <div className="flex items-center gap-1.5 truncate">
-                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                            <span className="truncate">Safe Sandbox Preview: {hoverPreview.name}</span>
+                            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                            <span className="truncate">Sandboxed Preview: {hoverPreview.name}</span>
                         </div>
+                        <span className="text-[10px] text-gray-400 font-mono truncate max-w-[150px]">
+                            {hoverPreview.url}
+                        </span>
                     </div>
-                    <div className="relative flex-1 w-full h-full bg-black/40 overflow-hidden">
+                    <div className="relative flex-1 w-full h-full bg-slate-950 overflow-hidden">
                         <iframe
                             src={hoverPreview.url}
                             title={`Preview of ${hoverPreview.name}`}
-                            sandbox=""
+                            sandbox="allow-scripts allow-forms allow-same-origin"
                             referrerPolicy="no-referrer"
                             loading="lazy"
-                            className="w-full h-full border-0 pointer-events-none opacity-90 scale-90 origin-top-left w-[111%] h-[111%]"
+                            className="w-[133.3%] h-[133.3%] border-0 pointer-events-none opacity-95 scale-[0.75] origin-top-left"
                         />
                     </div>
                 </div>
