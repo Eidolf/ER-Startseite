@@ -18,6 +18,12 @@ def read_version():
         return f.read().strip()
 
 def write_version(version):
+    if not isinstance(version, str) or not re.match(r'^\d{4}\.\d{1,2}\.\d+(?:-[a-zA-Z0-9.\-+]+)?$', version.strip()):
+        print(f"Error: Invalid version format: {version!r}. Version must match release format (e.g. 2026.7.1 or 2026.7.1-beta).", file=sys.stderr)
+        sys.exit(1)
+
+    version = version.strip()
+
     file_configs = [
         (VERSION_FILE, None, f"{version}\n"),
         ('backend/pyproject.toml', r'version = "[^"]+"', f'version = "{version}"'),
