@@ -71,10 +71,20 @@ app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads"
 
 
 def get_project_version():
-    # Priority: Env Var > pyproject.toml > Default
+    # Priority: Env Var > VERSION file > pyproject.toml > Default
     env_version = os.getenv("APP_VERSION") or os.getenv("VERSION")
     if env_version:
         return env_version
+
+    for v_path in ["VERSION", "../VERSION", "/app/VERSION"]:
+        if os.path.exists(v_path):
+            try:
+                with open(v_path, encoding="utf-8") as f:
+                    ver = f.read().strip()
+                    if ver:
+                        return ver
+            except Exception:
+                pass
 
     try:
         with open("pyproject.toml", "rb") as f:

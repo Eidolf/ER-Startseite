@@ -18,9 +18,29 @@ def read_version():
         return f.read().strip()
 
 def write_version(version):
-    with open(VERSION_FILE, 'w') as f:
+    with open(VERSION_FILE, 'w', encoding='utf-8') as f:
         f.write(version)
     print(f"Updated {VERSION_FILE} to {version}")
+
+    # Update backend/pyproject.toml if present
+    pyproject_path = 'backend/pyproject.toml'
+    if os.path.exists(pyproject_path):
+        with open(pyproject_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        new_content = re.sub(r'version = "[^"]+"', f'version = "{version}"', content, count=1)
+        with open(pyproject_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        print(f"Updated {pyproject_path} version to {version}")
+
+    # Update frontend/package.json if present
+    pkg_path = 'frontend/package.json'
+    if os.path.exists(pkg_path):
+        with open(pkg_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        new_content = re.sub(r'"version": "[^"]+"', f'"version": "{version}"', content, count=1)
+        with open(pkg_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        print(f"Updated {pkg_path} version to {version}")
 
 def parse_version(version_str):
     # Regex for YYYY.MM.Patch(-Suffix)?
