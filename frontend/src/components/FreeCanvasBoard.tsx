@@ -98,8 +98,9 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
     const [weatherUnitInput, setWeatherUnitInput] = useState<'c' | 'f'>('c')
 
     const [hoverPreview, setHoverPreview] = useState<HoverPreviewState | null>(null)
-    const [previewMode, setPreviewMode] = useState<'snapshot' | 'iframe'>('snapshot')
+    const [previewMode, setPreviewMode] = useState<'iframe' | 'snapshot'>('iframe')
     const hoverTimerRef = useRef<NodeJS.Timeout | null>(null)
+    const leaveTimerRef = useRef<NodeJS.Timeout | null>(null)
 
     const [draggingId, setDraggingId] = useState<string | null>(null)
     const [resizingId, setResizingId] = useState<string | null>(null)
@@ -414,6 +415,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
 
     const handleAppMouseEnter = (id: string, name: string, url?: string, e?: React.MouseEvent) => {
         if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+        if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current)
         if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) return
 
         const posX = e ? Math.max(10, Math.min(e.clientX + 15, window.innerWidth - 440)) : 100
@@ -432,6 +434,16 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
 
     const handleAppMouseLeave = () => {
         if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+        leaveTimerRef.current = setTimeout(() => {
+            setHoverPreview(null)
+        }, 300)
+    }
+
+    const handlePopupMouseEnter = () => {
+        if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current)
+    }
+
+    const handlePopupMouseLeave = () => {
         setHoverPreview(null)
     }
 
@@ -765,6 +777,8 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
             {/* Dual Mode Web Preview Modal (Image Snapshot & Sandboxed Iframe) */}
             {hoverPreview && (
                 <div
+                    onMouseEnter={handlePopupMouseEnter}
+                    onMouseLeave={handlePopupMouseLeave}
                     style={{
                         position: 'fixed',
                         left: `${hoverPreview.x}px`,
