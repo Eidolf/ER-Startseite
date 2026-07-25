@@ -25,11 +25,16 @@ export interface CanvasWidget {
     folderAppIds?: string[]
     folderApps?: AppData[]
     isExpanded?: boolean
+    clockFormat24?: boolean
+    clockShowSeconds?: boolean
+    clockDateFormat?: 'full' | 'short' | 'none'
+    weatherLocation?: string
+    weatherUnit?: 'c' | 'f'
 }
 
 const DEFAULT_WIDGETS: CanvasWidget[] = [
-    { id: 'w-clock-1', type: 'clock', title: 'Clock', x: 40, y: 40, width: 280, height: 150 },
-    { id: 'w-weather-1', type: 'weather', title: 'Weather', x: 340, y: 40, width: 280, height: 150 },
+    { id: 'w-clock-1', type: 'clock', title: 'Clock', x: 40, y: 40, width: 280, height: 150, clockFormat24: true, clockShowSeconds: false, clockDateFormat: 'full' },
+    { id: 'w-weather-1', type: 'weather', title: 'Weather', x: 340, y: 40, width: 280, height: 150, weatherLocation: 'Berlin', weatherUnit: 'c' },
     { id: 'w-calendar-1', type: 'calendar', title: 'Calendar', x: 640, y: 40, width: 300, height: 260 },
     { id: 'w-search-1', type: 'search', title: 'Search Bar', x: 40, y: 210, width: 580, height: 90 },
     { id: 'w-text-1', type: 'text', title: 'Personal Notes', x: 40, y: 320, width: 400, height: 180, customText: 'Welcome to your private free canvas dashboard! Drag and resize widgets, apps, and expandable folders anywhere.' },
@@ -51,7 +56,6 @@ interface HoverPreviewState {
 export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
     const [widgets, setWidgets] = useState<CanvasWidget[]>(() => {
         const raw = getJsonCookie<CanvasWidget[]>(COOKIE_NAME, DEFAULT_WIDGETS)
-        // Hydrate stored apps/folders with live system app objects
         return raw.map((w) => {
             if (w.type === 'app' && w.appId) {
                 const foundApp = apps.find((a) => a.id === w.appId)
@@ -73,10 +77,25 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
     const [isSavedInCookie, setIsSavedInCookie] = useState(false)
     const [isAddMenuOpen, setIsAddMenuOpen] = useState(false)
     const [isAppPickerOpen, setIsAppPickerOpen] = useState(false)
+    
+    // Folder modal states
     const [isFolderModalOpen, setIsFolderModalOpen] = useState(false)
     const [editingFolderId, setEditingFolderId] = useState<string | null>(null)
     const [folderTitleInput, setFolderTitleInput] = useState('')
     const [selectedFolderAppIds, setSelectedFolderAppIds] = useState<string[]>([])
+
+    // Clock modal states
+    const [isClockModalOpen, setIsClockModalOpen] = useState(false)
+    const [editingClockId, setEditingClockId] = useState<string | null>(null)
+    const [clockFormat24Input, setClockFormat24Input] = useState(true)
+    const [clockShowSecondsInput, setClockShowSecondsInput] = useState(false)
+    const [clockDateFormatInput, setClockDateFormatInput] = useState<'full' | 'short' | 'none'>('full')
+
+    // Weather modal states
+    const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false)
+    const [editingWeatherId, setEditingWeatherId] = useState<string | null>(null)
+    const [weatherLocationInput, setWeatherLocationInput] = useState('Berlin')
+    const [weatherUnitInput, setWeatherUnitInput] = useState<'c' | 'f'>('c')
 
     const [hoverPreview, setHoverPreview] = useState<HoverPreviewState | null>(null)
     const hoverTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -92,7 +111,6 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
     })
     const boardRef = useRef<HTMLDivElement>(null)
 
-    // Keep apps/folders in sync when system apps change
     useEffect(() => {
         if (apps.length > 0) {
             setWidgets((prev) =>
@@ -116,7 +134,6 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
         }
     }, [apps])
 
-    // Save lean representation to cookies on layout changes
     useEffect(() => {
         const leanWidgets = widgets.map((w) => ({
             id: w.id,
@@ -132,6 +149,11 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
             folderName: w.folderName,
             folderAppIds: w.folderAppIds || w.folderApps?.map((a) => a.id),
             isExpanded: w.isExpanded,
+            clockFormat24: w.clockFormat24,
+            clockShowSeconds: w.clockShowSeconds,
+            clockDateFormat: w.clockDateFormat,
+            weatherLocation: w.weatherLocation,
+            weatherUnit: w.weatherUnit,
         }))
         setJsonCookie(COOKIE_NAME, leanWidgets)
         setIsSavedInCookie(true)
@@ -167,7 +189,6 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
         if (draggingId) {
             const rawX = e.clientX - dragOffset.current.x
             const rawY = e.clientY - dragOffset.current.y
-            // Snap to 10px grid, constrain positive
             const snappedX = Math.max(10, Math.round(rawX / 10) * 10)
             const snappedY = Math.max(10, Math.round(rawY / 10) * 10)
 
@@ -228,6 +249,11 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
             expandedHeight: defaults[type].height,
             customText: type === 'text' ? 'Write your note here...' : undefined,
             isExpanded: type === 'folder' ? true : undefined,
+            clockFormat24: true,
+            clockShowSeconds: false,
+            clockDateFormat: 'full',
+            weatherLocation: 'Berlin',
+            weatherUnit: 'c',
             ...extra,
         }
 
@@ -244,6 +270,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
         setIsAppPickerOpen(false)
     }
 
+    // Handlers for Folder Editing
     const handleOpenEditFolder = (widget: CanvasWidget) => {
         setEditingFolderId(widget.id)
         setFolderTitleInput(widget.folderName || widget.title)
@@ -288,13 +315,64 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
         setIsFolderModalOpen(false)
     }
 
+    // Handlers for Clock Editing
+    const handleOpenEditClock = (widget: CanvasWidget) => {
+        setEditingClockId(widget.id)
+        setClockFormat24Input(widget.clockFormat24 !== false)
+        setClockShowSecondsInput(!!widget.clockShowSeconds)
+        setClockDateFormatInput(widget.clockDateFormat || 'full')
+        setIsClockModalOpen(true)
+    }
+
+    const handleSaveClockSettings = () => {
+        if (!editingClockId) return
+        setWidgets((prev) =>
+            prev.map((w) =>
+                w.id === editingClockId
+                    ? {
+                          ...w,
+                          clockFormat24: clockFormat24Input,
+                          clockShowSeconds: clockShowSecondsInput,
+                          clockDateFormat: clockDateFormatInput,
+                      }
+                    : w
+            )
+        )
+        setEditingClockId(null)
+        setIsClockModalOpen(false)
+    }
+
+    // Handlers for Weather Editing
+    const handleOpenEditWeather = (widget: CanvasWidget) => {
+        setEditingWeatherId(widget.id)
+        setWeatherLocationInput(widget.weatherLocation || 'Berlin')
+        setWeatherUnitInput(widget.weatherUnit || 'c')
+        setIsWeatherModalOpen(true)
+    }
+
+    const handleSaveWeatherSettings = () => {
+        if (!editingWeatherId) return
+        setWidgets((prev) =>
+            prev.map((w) =>
+                w.id === editingWeatherId
+                    ? {
+                          ...w,
+                          weatherLocation: weatherLocationInput.trim() || 'Berlin',
+                          weatherUnit: weatherUnitInput,
+                      }
+                    : w
+            )
+        )
+        setEditingWeatherId(null)
+        setIsWeatherModalOpen(false)
+    }
+
     const toggleFolderExpanded = (id: string) => {
         setWidgets((prev) =>
             prev.map((w) => {
                 if (w.id !== id) return w
                 const isCurrentlyExpanded = w.isExpanded !== false
                 if (isCurrentlyExpanded) {
-                    // Collapse: save height to expandedHeight, set height to 52px
                     return {
                         ...w,
                         isExpanded: false,
@@ -302,7 +380,6 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                         height: 52,
                     }
                 } else {
-                    // Expand: restore expandedHeight
                     return {
                         ...w,
                         isExpanded: true,
@@ -329,13 +406,11 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
         )
     }
 
-    // Requirement 3: Always launch in a new tab on Canvas
     const launchCanvasApp = (url?: string) => {
         if (!url) return
         window.open(url, '_blank', 'noopener,noreferrer')
     }
 
-    // Requirement 4: Safe 2-second Hover Preview Timer
     const handleAppMouseEnter = (id: string, name: string, url?: string, e?: React.MouseEvent) => {
         if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
         if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) return
@@ -504,6 +579,24 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                                 <span className="truncate">{widget.title}</span>
                             </div>
                             <div className="flex items-center gap-1">
+                                {widget.type === 'clock' && (
+                                    <button
+                                        onClick={() => handleOpenEditClock(widget)}
+                                        className="text-gray-400 hover:text-cyan-400 p-1 rounded transition"
+                                        title="Configure Clock Format"
+                                    >
+                                        <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                                {widget.type === 'weather' && (
+                                    <button
+                                        onClick={() => handleOpenEditWeather(widget)}
+                                        className="text-gray-400 hover:text-yellow-400 p-1 rounded transition"
+                                        title="Configure Weather Location"
+                                    >
+                                        <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
                                 {widget.type === 'folder' && (
                                     <>
                                         <button
@@ -534,8 +627,19 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
 
                         {/* Widget Body Content */}
                         <div className="w-full h-full pt-1">
-                            {widget.type === 'clock' && <ClockWidget />}
-                            {widget.type === 'weather' && <WeatherWidget />}
+                            {widget.type === 'clock' && (
+                                <ClockWidget
+                                    is24Hour={widget.clockFormat24 !== false}
+                                    showSeconds={!!widget.clockShowSeconds}
+                                    dateFormat={widget.clockDateFormat || 'full'}
+                                />
+                            )}
+                            {widget.type === 'weather' && (
+                                <WeatherWidget
+                                    location={widget.weatherLocation || 'Berlin'}
+                                    unit={widget.weatherUnit || 'c'}
+                                />
+                            )}
                             {widget.type === 'calendar' && <CalendarWidget />}
                             {widget.type === 'search' && (
                                 <div className="w-full h-full bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-4 flex items-center gap-3">
@@ -588,7 +692,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                             )}
                             {widget.type === 'folder' && (
                                 <div className="w-full h-full bg-black/50 backdrop-blur-xl rounded-2xl border border-amber-500/20 p-3 flex flex-col shadow-2xl overflow-hidden">
-                                    {/* Requirement 1: Header line only when collapsed */}
+                                    {/* Header line only when collapsed */}
                                     <div className="flex items-center justify-between h-8 shrink-0">
                                         <div className="flex items-center gap-2 min-w-0">
                                             <Folder className="w-5 h-5 text-amber-400 shrink-0" />
@@ -657,7 +761,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                 ))}
             </div>
 
-            {/* Requirement 4: Tuned & Secure Sandboxed Hover Preview Modal */}
+            {/* Tuned & Secure Sandboxed Hover Preview Modal */}
             {hoverPreview && (
                 <div
                     style={{
@@ -676,15 +780,153 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                             {hoverPreview.url}
                         </span>
                     </div>
-                    <div className="relative flex-1 w-full h-full bg-slate-950 overflow-hidden">
+                    <div className="relative flex-1 w-full h-full bg-slate-950 overflow-hidden flex items-center justify-center">
                         <iframe
                             src={hoverPreview.url}
                             title={`Preview of ${hoverPreview.name}`}
                             sandbox="allow-scripts allow-forms allow-same-origin"
                             referrerPolicy="no-referrer"
                             loading="lazy"
-                            className="w-[133.3%] h-[133.3%] border-0 pointer-events-none opacity-95 scale-[0.75] origin-top-left"
+                            className="w-[133.3%] h-[133.3%] border-0 pointer-events-none opacity-95 scale-[0.75] origin-top-left absolute inset-0"
                         />
+                        <div className="absolute bottom-2 left-2 right-2 p-2 bg-black/80 backdrop-blur-md rounded-xl border border-white/10 flex items-center justify-between text-[11px] text-gray-300 z-10">
+                            <span className="truncate">Sites with X-Frame-Options open in new tab</span>
+                            <ExternalLink className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Clock Format Configuration Modal */}
+            {isClockModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-sm bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-white">Configure Clock Format</h3>
+                            <button onClick={() => setIsClockModalOpen(false)} className="text-gray-400 hover:text-white">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-400 mb-2">Time Format</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setClockFormat24Input(true)}
+                                        className={`py-2 px-3 rounded-xl text-xs font-semibold transition border ${
+                                            clockFormat24Input
+                                                ? 'bg-indigo-600 border-indigo-500 text-white'
+                                                : 'bg-black/30 border-white/10 text-gray-400 hover:text-white'
+                                        }`}
+                                    >
+                                        24-Hour (14:30)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setClockFormat24Input(false)}
+                                        className={`py-2 px-3 rounded-xl text-xs font-semibold transition border ${
+                                            !clockFormat24Input
+                                                ? 'bg-indigo-600 border-indigo-500 text-white'
+                                                : 'bg-black/30 border-white/10 text-gray-400 hover:text-white'
+                                        }`}
+                                    >
+                                        12-Hour (02:30 PM)
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-between py-2 border-t border-white/10">
+                                <span className="text-xs font-medium text-gray-300">Display Seconds</span>
+                                <input
+                                    type="checkbox"
+                                    checked={clockShowSecondsInput}
+                                    onChange={(e) => setClockShowSecondsInput(e.target.checked)}
+                                    className="w-4 h-4 rounded border-gray-600 text-indigo-600 focus:ring-indigo-500 accent-indigo-500 cursor-pointer"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-medium text-gray-400 mb-2">Date Format</label>
+                                <select
+                                    value={clockDateFormatInput}
+                                    onChange={(e) => setClockDateFormatInput(e.target.value as 'full' | 'short' | 'none')}
+                                    className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white focus:outline-none text-sm"
+                                >
+                                    <option value="full">Full (Saturday, 25 Jul)</option>
+                                    <option value="short">Short (25 Jul)</option>
+                                    <option value="none">Hidden</option>
+                                </select>
+                            </div>
+
+                            <button
+                                onClick={handleSaveClockSettings}
+                                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-indigo-600/30"
+                            >
+                                Save Clock Settings
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Weather Location Configuration Modal */}
+            {isWeatherModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-sm bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-white">Configure Weather Location</h3>
+                            <button onClick={() => setIsWeatherModalOpen(false)} className="text-gray-400 hover:text-white">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-400 mb-1">City / Location</label>
+                                <input
+                                    type="text"
+                                    value={weatherLocationInput}
+                                    onChange={(e) => setWeatherLocationInput(e.target.value)}
+                                    placeholder="e.g. Berlin, Munich, Frankfurt"
+                                    className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-yellow-500 text-sm"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-medium text-gray-400 mb-2">Temperature Unit</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setWeatherUnitInput('c')}
+                                        className={`py-2 px-3 rounded-xl text-xs font-semibold transition border ${
+                                            weatherUnitInput === 'c'
+                                                ? 'bg-yellow-500 border-yellow-400 text-black'
+                                                : 'bg-black/30 border-white/10 text-gray-400 hover:text-white'
+                                        }`}
+                                    >
+                                        Celsius (°C)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setWeatherUnitInput('f')}
+                                        className={`py-2 px-3 rounded-xl text-xs font-semibold transition border ${
+                                            weatherUnitInput === 'f'
+                                                ? 'bg-yellow-500 border-yellow-400 text-black'
+                                                : 'bg-black/30 border-white/10 text-gray-400 hover:text-white'
+                                        }`}
+                                    >
+                                        Fahrenheit (°F)
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={handleSaveWeatherSettings}
+                                className="w-full py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-xl text-sm transition shadow-lg shadow-yellow-500/20"
+                            >
+                                Save Weather Settings
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
