@@ -115,6 +115,17 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
         mouseY: 0,
     })
     const boardRef = useRef<HTMLDivElement>(null)
+    const workspaceRef = useRef<HTMLDivElement>(null)
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (boardRef.current) {
+                const targetTop = workspaceRef.current ? workspaceRef.current.offsetTop : 90
+                boardRef.current.scrollTop = targetTop
+            }
+        }, 50)
+        return () => clearTimeout(timer)
+    }, [])
 
     useEffect(() => {
         if (apps.length > 0) {
@@ -572,7 +583,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
             </div>
 
             {/* Canvas Container */}
-            <div className="relative w-full min-h-[750px] rounded-3xl bg-black/20 border border-white/5 backdrop-blur-sm overflow-hidden p-4">
+            <div ref={workspaceRef} className="relative w-full min-h-[750px] rounded-3xl bg-black/20 border border-white/5 backdrop-blur-sm overflow-hidden p-4">
                 {widgets.map((widget) => {
                     if (widget.type === 'app' && widget.appId && hiddenAppIds.includes(widget.appId) && !showHiddenApps) {
                         return null

@@ -1093,11 +1093,12 @@ function App() {
     useEffect(() => {
         if (activeLayoutMode === 'canvas') {
             const timer = setTimeout(() => {
-                if (mainScrollRef.current) {
-                    const targetTop = canvasBoardRef.current ? canvasBoardRef.current.offsetTop : 260
-                    mainScrollRef.current.scrollTop = targetTop
+                if (canvasBoardRef.current) {
+                    canvasBoardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                } else if (mainScrollRef.current) {
+                    mainScrollRef.current.scrollTop = 240
                 }
-            }, 50)
+            }, 100)
             return () => clearTimeout(timer)
         }
     }, [activeLayoutMode])
@@ -1562,7 +1563,7 @@ function App() {
     }
 
     return (
-        <div ref={mainScrollRef} className="h-screen overflow-y-auto custom-scrollbar relative text-white font-sans">
+        <div className="min-h-screen relative overflow-hidden text-white font-sans">
             {/* Background */}
             <div className="absolute inset-0 z-0 bg-black">
                 {bgConfig.type === 'video' && bgConfig.value ? (
@@ -1797,7 +1798,7 @@ function App() {
             </div>
 
             {/* ================= DESKTOP HEADER (Visible only on desktop) ================= */}
-            <div className={`hidden md:flex ${activeLayoutMode === 'canvas' ? 'relative' : 'absolute top-0 left-0'} w-full z-20 p-4 pt-8 justify-between items-start pointer-events-none`}>
+            <div className="hidden md:flex absolute top-0 left-0 w-full z-20 p-4 pt-8 justify-between items-start pointer-events-none">
                 {/* Left Spacer for Balance */}
                 <div className="w-40"></div>
 
@@ -1849,7 +1850,7 @@ function App() {
             </div>
 
             {/* Main Content (Padded) */}
-            <div className={`relative z-10 container mx-auto px-4 ${activeLayoutMode === 'canvas' ? 'pt-2 flex-1 pb-12' : 'pt-[120px] md:pt-[320px] pb-4 flex flex-col h-screen overflow-hidden'}`}>
+            <div className="relative z-10 container mx-auto px-4 pt-[120px] md:pt-[320px] pb-4 flex flex-col h-screen overflow-hidden">
 
                 {/* Search Field (Hidden strictly in Canvas view) */}
                 {activeLayoutMode !== 'canvas' && (
@@ -1872,8 +1873,8 @@ function App() {
                     </div>
                 )}
 
-                {/* App Grid */}
-                <div className={activeLayoutMode === 'canvas' ? 'w-full min-h-0' : 'flex-1 overflow-y-auto custom-scrollbar min-h-0'}>
+                {/* App Grid - Scrollable */}
+                <div ref={mainScrollRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
                     <DndContext
                         sensors={sensors}
                         collisionDetection={pointerWithin}
