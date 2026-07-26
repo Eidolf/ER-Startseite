@@ -115,17 +115,6 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
         mouseY: 0,
     })
     const boardRef = useRef<HTMLDivElement>(null)
-    const workspaceRef = useRef<HTMLDivElement>(null)
-
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            if (boardRef.current) {
-                const targetTop = workspaceRef.current ? workspaceRef.current.offsetTop - 24 : 80
-                boardRef.current.scrollTop = Math.max(0, targetTop)
-            }
-        }, 100)
-        return () => clearTimeout(timer)
-    }, [])
 
     useEffect(() => {
         if (apps.length > 0) {
@@ -468,7 +457,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
             ref={boardRef}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
-            className="relative w-full h-[calc(100vh-120px)] p-6 select-none overflow-y-auto custom-scrollbar"
+            className="relative w-full p-6 select-none"
         >
             {/* Click-outside backdrop for dropdown */}
             {isAddMenuOpen && (
@@ -583,7 +572,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
             </div>
 
             {/* Canvas Container */}
-            <div ref={workspaceRef} className="relative w-full min-h-[750px] rounded-3xl bg-black/20 border border-white/5 backdrop-blur-sm overflow-hidden p-4">
+            <div className="relative w-full min-h-[750px] rounded-3xl bg-black/20 border border-white/5 backdrop-blur-sm overflow-hidden p-4">
                 {widgets.map((widget) => {
                     if (widget.type === 'app' && widget.appId && hiddenAppIds.includes(widget.appId) && !showHiddenApps) {
                         return null
