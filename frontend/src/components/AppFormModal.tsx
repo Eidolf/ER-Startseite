@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X, Trash, ArrowUpFromLine, Upload, RefreshCw, Check, Film, Tv, Lock, Disc, Calendar } from 'lucide-react'
+import { X, Trash, ArrowUpFromLine, Upload, RefreshCw, Check, Film, Tv, Lock, Disc, Calendar, Clock, CloudSun } from 'lucide-react'
 import { AppData, Category, PremiumAppConfig } from '../types'
 import { AppIcon } from './AppIcon'
 import { AppRegistry } from '../registries'
@@ -10,10 +10,11 @@ interface AppFormModalProps {
     onComplete: (isHidden?: boolean, appId?: string, newApp?: AppData, categoryId?: string) => void
     editApp: AppData | null
     categories?: Category[]
+    onAddWidget?: (type: 'clock' | 'weather' | 'calendar' | 'search' | 'text', customText?: string) => void
 }
 
-export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories }: AppFormModalProps) {
-    const [activeTab, setActiveTab] = useState<'custom' | 'store' | 'folder'>('custom')
+export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories, onAddWidget }: AppFormModalProps) {
+    const [activeTab, setActiveTab] = useState<'custom' | 'store' | 'widgets' | 'folder'>('custom')
     const [categoryId, setCategoryId] = useState<string>('')
     const [premiumApps, setPremiumApps] = useState<AppData[]>([])
     const [selectedPremiumApp, setSelectedPremiumApp] = useState<AppData | null>(null)
@@ -37,6 +38,7 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
     // App Store Search & Sort State
     const [storeSearchQuery, setStoreSearchQuery] = useState('')
     const [storeSortOrder, setStoreSortOrder] = useState<'default' | 'alpha'>('default')
+    const [customNoteInput, setCustomNoteInput] = useState('')
 
     useEffect(() => {
         if (editApp) {
@@ -73,6 +75,7 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
             setApiUrl('')
             setApiProtected(false)
             setApiConfig({})
+            setCustomNoteInput('')
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, editApp])
@@ -284,6 +287,81 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
 
     // Determine what form content to show
     const renderFormContent = () => {
+        if (activeTab === 'widgets') {
+            return (
+                <div className="space-y-5">
+                    <h3 className="text-sm font-semibold text-gray-300">Select Widget to Add</h3>
+
+                    <div className="grid grid-cols-3 gap-3">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onAddWidget?.('clock')
+                                onClose()
+                            }}
+                            className="flex flex-col items-center justify-center p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl gap-2 transition group text-center"
+                        >
+                            <div className="p-2.5 bg-cyan-500/20 rounded-full text-cyan-400 group-hover:bg-cyan-500/30 transition">
+                                <Clock className="w-5 h-5" />
+                            </div>
+                            <span className="text-xs font-semibold text-white">Clock</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onAddWidget?.('weather')
+                                onClose()
+                            }}
+                            className="flex flex-col items-center justify-center p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl gap-2 transition group text-center"
+                        >
+                            <div className="p-2.5 bg-amber-500/20 rounded-full text-amber-400 group-hover:bg-amber-500/30 transition">
+                                <CloudSun className="w-5 h-5" />
+                            </div>
+                            <span className="text-xs font-semibold text-white">Live Weather</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onAddWidget?.('calendar')
+                                onClose()
+                            }}
+                            className="flex flex-col items-center justify-center p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl gap-2 transition group text-center"
+                        >
+                            <div className="p-2.5 bg-emerald-500/20 rounded-full text-emerald-400 group-hover:bg-emerald-500/30 transition">
+                                <Calendar className="w-5 h-5" />
+                            </div>
+                            <span className="text-xs font-semibold text-white">Calendar</span>
+                        </button>
+                    </div>
+
+                    {/* Custom Synchronized Note Section */}
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-pink-300">
+                            <Disc className="w-4 h-4" /> Add Custom Synchronized Note
+                        </div>
+                        <textarea
+                            value={customNoteInput}
+                            onChange={(e) => setCustomNoteInput(e.target.value)}
+                            placeholder="Type your synchronized note text (saved for all visitors)..."
+                            className="w-full h-24 bg-black/40 border border-white/10 rounded-xl p-3 text-white text-xs placeholder-gray-500 focus:outline-none focus:border-neon-cyan resize-none"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onAddWidget?.('text', customNoteInput.trim() || 'Custom Note')
+                                onClose()
+                            }}
+                            className="w-full py-2 bg-pink-500/20 border border-pink-500/40 text-pink-300 hover:bg-pink-500/30 rounded-xl text-xs font-semibold transition"
+                        >
+                            Add Custom Note Widget
+                        </button>
+                    </div>
+                </div>
+            )
+        }
+
         if (activeTab === 'store' && !selectedPremiumApp) {
             // Store Grid
             return (
@@ -632,6 +710,13 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
                                     className={`text-sm font-medium transition-colors ${activeTab === 'store' ? 'text-neon-cyan' : 'text-gray-400 hover:text-white'}`}
                                 >
                                     App Store
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('widgets')}
+                                    className={`text-sm font-medium transition-colors ${activeTab === 'widgets' ? 'text-neon-cyan' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    Widgets
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('folder')}

@@ -15,6 +15,7 @@ export const RadarrManifest: PremiumAppManifest = {
 
         const baseUrl = (app.api_url || app.url || '').replace(/\/$/, '')
         const apiKey = app.api_key?.trim() || ''
+        if (!apiKey) return { top: null, bottom: null }
         const appendAuth = (url: string) => `${url}${url.includes('?') ? '&' : '?'}apikey=${apiKey}`
 
         let queueCount: number | 'protected' = 0

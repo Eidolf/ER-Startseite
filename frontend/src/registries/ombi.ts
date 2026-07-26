@@ -21,6 +21,7 @@ export const OmbiManifest: PremiumAppManifest = {
 
         const baseUrl = (app.api_url || app.url || '').replace(/\/$/, '')
         const apiKey = app.api_key?.trim() || ''
+        if (!apiKey) return { top: null }
 
         const headers: Record<string, string> = {
             'X-Api-Key': apiKey,

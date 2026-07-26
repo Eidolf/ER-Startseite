@@ -1,13 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { Plus, RotateCcw, Cookie, Move, Trash2, Maximize2, Search, FileText, Folder, ChevronDown, ChevronUp, AppWindow, ExternalLink, X, Pencil, Camera, Globe } from 'lucide-react'
 import { ClockWidget } from './widgets/ClockWidget'
 import { WeatherWidget } from './widgets/WeatherWidget'
 import { CalendarWidget } from './widgets/CalendarWidget'
 import { AppIcon } from './AppIcon'
-import { AppData } from '../types'
+import { AppData, WidgetDefaults } from '../types'
 import { getJsonCookie, setJsonCookie, deleteCookie } from '../utils/cookieUtils'
 
 const COOKIE_NAME = 'er_canvas_layout_v1'
+const EMPTY_ARRAY: string[] = []
 
 export interface CanvasWidget {
     id: string
@@ -28,6 +29,7 @@ export interface CanvasWidget {
     clockFormat24?: boolean
     clockShowSeconds?: boolean
     clockDateFormat?: 'full' | 'short' | 'none'
+    clockTimezone?: string
     weatherLocation?: string
     weatherUnit?: 'c' | 'f'
 }
@@ -42,7 +44,10 @@ const DEFAULT_WIDGETS: CanvasWidget[] = [
 
 interface FreeCanvasBoardProps {
     apps?: AppData[]
+    hiddenAppIds?: string[]
+    showHiddenApps?: boolean
     openInNewTab?: boolean
+    widgetDefaults?: WidgetDefaults
 }
 
 interface HoverPreviewState {
@@ -53,7 +58,11 @@ interface HoverPreviewState {
     y: number
 }
 
-export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
+export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHiddenApps = false, widgetDefaults }: FreeCanvasBoardProps) {
+    const availableApps = useMemo(
+        () => apps.filter((a) => !hiddenAppIds.includes(a.id) || showHiddenApps),
+        [apps, hiddenAppIds, showHiddenApps]
+    )
     const [widgets, setWidgets] = useState<CanvasWidget[]>(() => {
         const raw = getJsonCookie<CanvasWidget[]>(COOKIE_NAME, DEFAULT_WIDGETS)
         return raw.map((w) => {
@@ -90,6 +99,8 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
     const [clockFormat24Input, setClockFormat24Input] = useState(true)
     const [clockShowSecondsInput, setClockShowSecondsInput] = useState(false)
     const [clockDateFormatInput, setClockDateFormatInput] = useState<'full' | 'short' | 'none'>('full')
+    const [clockTimezoneInput, setClockTimezoneInput] = useState('')
+    const [clockTimezoneError, setClockTimezoneError] = useState<string | null>(null)
 
     // Weather modal states
     const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false)
@@ -115,26 +126,39 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
 
     useEffect(() => {
         if (apps.length > 0) {
-            setWidgets((prev) =>
-                prev.map((w) => {
+            setWidgets((prev) => {
+                let hasChanged = false
+                const updated = prev.map((w) => {
                     if (w.type === 'app' && w.appId) {
-                        const foundApp = apps.find((a) => a.id === w.appId)
-                        return { ...w, appData: foundApp || w.appData }
+                        const isHidden = hiddenAppIds.includes(w.appId) && !showHiddenApps
+                        const foundApp = isHidden ? undefined : availableApps.find((a) => a.id === w.appId)
+                        if (foundApp !== w.appData) {
+                            hasChanged = true
+                            return { ...w, appData: foundApp }
+                        }
                     }
                     if (w.type === 'folder' && (w.folderAppIds || w.folderApps)) {
-                        const appIds = w.folderAppIds || w.folderApps?.map((a) => a.id) || []
-                        const foundFolderApps = apps.filter((a) => appIds.includes(a.id))
-                        return {
-                            ...w,
-                            folderAppIds: appIds,
-                            folderApps: foundFolderApps.length > 0 ? foundFolderApps : w.folderApps,
+                        const rawAppIds = w.folderAppIds || w.folderApps?.map((a) => a.id) || []
+                        const visibleAppIds = rawAppIds.filter((id) => !hiddenAppIds.includes(id) || showHiddenApps)
+                        const foundFolderApps = availableApps.filter((a) => visibleAppIds.includes(a.id))
+                        const folderAppsChanged =
+                            foundFolderApps.length !== (w.folderApps?.length || 0) ||
+                            foundFolderApps.some((a, idx) => a !== w.folderApps?.[idx])
+                        if (folderAppsChanged) {
+                            hasChanged = true
+                            return {
+                                ...w,
+                                folderAppIds: rawAppIds,
+                                folderApps: foundFolderApps,
+                            }
                         }
                     }
                     return w
                 })
-            )
+                return hasChanged ? updated : prev
+            })
         }
-    }, [apps])
+    }, [apps, availableApps, hiddenAppIds, showHiddenApps])
 
     useEffect(() => {
         const leanWidgets = widgets.map((w) => ({
@@ -154,6 +178,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
             clockFormat24: w.clockFormat24,
             clockShowSeconds: w.clockShowSeconds,
             clockDateFormat: w.clockDateFormat,
+            clockTimezone: w.clockTimezone,
             weatherLocation: w.weatherLocation,
             weatherUnit: w.weatherUnit,
         }))
@@ -251,11 +276,11 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
             expandedHeight: defaults[type].height,
             customText: type === 'text' ? 'Write your note here...' : undefined,
             isExpanded: type === 'folder' ? true : undefined,
-            clockFormat24: true,
+            clockFormat24: widgetDefaults?.clockFormat ? widgetDefaults.clockFormat !== '12h' : true,
             clockShowSeconds: false,
-            clockDateFormat: 'full',
-            weatherLocation: 'Berlin',
-            weatherUnit: 'c',
+            clockDateFormat: widgetDefaults?.dateFormat === 'none' ? 'none' : widgetDefaults?.dateFormat === 'short' ? 'short' : 'full',
+            weatherLocation: widgetDefaults?.weatherLocation || 'Berlin',
+            weatherUnit: widgetDefaults?.weatherUnit || 'c',
             ...extra,
         }
 
@@ -323,11 +348,23 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
         setClockFormat24Input(widget.clockFormat24 !== false)
         setClockShowSecondsInput(!!widget.clockShowSeconds)
         setClockDateFormatInput(widget.clockDateFormat || 'full')
+        setClockTimezoneInput(widget.clockTimezone || '')
+        setClockTimezoneError(null)
         setIsClockModalOpen(true)
     }
 
     const handleSaveClockSettings = () => {
         if (!editingClockId) return
+        const trimmed = clockTimezoneInput.trim()
+        if (trimmed) {
+            try {
+                Intl.DateTimeFormat(undefined, { timeZone: trimmed })
+            } catch {
+                setClockTimezoneError('Invalid IANA timezone (e.g. Europe/Berlin, UTC)')
+                return
+            }
+        }
+        setClockTimezoneError(null)
         setWidgets((prev) =>
             prev.map((w) =>
                 w.id === editingClockId
@@ -336,6 +373,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                           clockFormat24: clockFormat24Input,
                           clockShowSeconds: clockShowSecondsInput,
                           clockDateFormat: clockDateFormatInput,
+                          clockTimezone: trimmed || undefined,
                       }
                     : w
             )
@@ -452,7 +490,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
             ref={boardRef}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
-            className="relative w-full min-h-[calc(100vh-100px)] p-6 select-none overflow-auto"
+            className="relative w-full p-6 select-none"
         >
             {/* Click-outside backdrop for dropdown */}
             {isAddMenuOpen && (
@@ -568,8 +606,12 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
 
             {/* Canvas Container */}
             <div className="relative w-full min-h-[750px] rounded-3xl bg-black/20 border border-white/5 backdrop-blur-sm overflow-hidden p-4">
-                {widgets.map((widget) => (
-                    <div
+                {widgets.map((widget) => {
+                    if (widget.type === 'app' && widget.appId && hiddenAppIds.includes(widget.appId) && !showHiddenApps) {
+                        return null
+                    }
+                    return (
+                        <div
                         key={widget.id}
                         style={{
                             position: 'absolute',
@@ -596,7 +638,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                                     <button
                                         onClick={() => handleOpenEditClock(widget)}
                                         className="text-gray-400 hover:text-cyan-400 p-1 rounded transition"
-                                        title="Configure Clock Format"
+                                        title="Configure Clock Settings"
                                     >
                                         <Pencil className="w-3.5 h-3.5" />
                                     </button>
@@ -645,6 +687,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                                     is24Hour={widget.clockFormat24 !== false}
                                     showSeconds={!!widget.clockShowSeconds}
                                     dateFormat={widget.clockDateFormat || 'full'}
+                                    timeZone={widget.clockTimezone}
                                 />
                             )}
                             {widget.type === 'weather' && (
@@ -771,8 +814,9 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                             </div>
                         )}
                     </div>
-                ))}
-            </div>
+                )
+            })}
+        </div>
 
             {/* Dual Mode Web Preview Modal (Image Snapshot & Sandboxed Iframe) */}
             {hoverPreview && (
@@ -844,17 +888,29 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                 </div>
             )}
 
-            {/* Clock Format Configuration Modal */}
+            {/* Clock Settings Configuration Modal */}
             {isClockModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="w-full max-w-sm bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold text-white">Configure Clock Format</h3>
+                            <h3 className="text-lg font-bold text-white">Configure Clock Settings</h3>
                             <button onClick={() => setIsClockModalOpen(false)} className="text-gray-400 hover:text-white">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
                         <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-400 mb-1">Timezone (e.g. Europe/Berlin, UTC, America/New_York)</label>
+                                <input
+                                    type="text"
+                                    value={clockTimezoneInput}
+                                    onChange={(e) => setClockTimezoneInput(e.target.value)}
+                                    placeholder="Leave empty for local timezone"
+                                    className={`w-full px-3 py-2 bg-black/40 border ${clockTimezoneError ? 'border-red-500' : 'border-white/10'} rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 text-sm`}
+                                />
+                                {clockTimezoneError && <p className="text-xs text-red-400 mt-1">{clockTimezoneError}</p>}
+                            </div>
+
                             <div>
                                 <label className="block text-xs font-medium text-gray-400 mb-2">Time Format</label>
                                 <div className="grid grid-cols-2 gap-2">
@@ -863,7 +919,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                                         onClick={() => setClockFormat24Input(true)}
                                         className={`py-2 px-3 rounded-xl text-xs font-semibold transition border ${
                                             clockFormat24Input
-                                                ? 'bg-indigo-600 border-indigo-500 text-white'
+                                                ? 'bg-cyan-500 border-cyan-400 text-black'
                                                 : 'bg-black/30 border-white/10 text-gray-400 hover:text-white'
                                         }`}
                                     >
@@ -874,7 +930,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                                         onClick={() => setClockFormat24Input(false)}
                                         className={`py-2 px-3 rounded-xl text-xs font-semibold transition border ${
                                             !clockFormat24Input
-                                                ? 'bg-indigo-600 border-indigo-500 text-white'
+                                                ? 'bg-cyan-500 border-cyan-400 text-black'
                                                 : 'bg-black/30 border-white/10 text-gray-400 hover:text-white'
                                         }`}
                                     >
@@ -889,7 +945,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                                     type="checkbox"
                                     checked={clockShowSecondsInput}
                                     onChange={(e) => setClockShowSecondsInput(e.target.checked)}
-                                    className="w-4 h-4 rounded border-gray-600 text-indigo-600 focus:ring-indigo-500 accent-indigo-500 cursor-pointer"
+                                    className="w-4 h-4 rounded border-gray-600 text-cyan-500 focus:ring-cyan-500 accent-cyan-500 cursor-pointer"
                                 />
                             </div>
 
@@ -908,7 +964,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
 
                             <button
                                 onClick={handleSaveClockSettings}
-                                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-indigo-600/30"
+                                className="w-full py-2.5 bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl text-sm transition shadow-lg shadow-cyan-500/20"
                             >
                                 Save Clock Settings
                             </button>
@@ -989,7 +1045,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                             </button>
                         </div>
                         <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
-                            {apps.map((app) => (
+                            {availableApps.map((app) => (
                                 <button
                                     key={app.id}
                                     onClick={() => handleSelectAppForCanvas(app)}
@@ -1004,7 +1060,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                                     </div>
                                 </button>
                             ))}
-                            {apps.length === 0 && (
+                            {availableApps.length === 0 && (
                                 <div className="text-center text-gray-400 text-sm py-6">No applications available.</div>
                             )}
                         </div>
@@ -1045,7 +1101,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                             <div>
                                 <label className="block text-xs font-medium text-gray-400 mb-2">Select Included Apps</label>
                                 <div className="max-h-48 overflow-y-auto space-y-1.5 border border-white/10 rounded-xl p-2 bg-black/20">
-                                    {apps.map((app) => {
+                                    {availableApps.map((app) => {
                                         const isSelected = selectedFolderAppIds.includes(app.id)
                                         return (
                                             <button

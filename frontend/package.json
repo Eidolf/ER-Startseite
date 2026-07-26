@@ -1,7 +1,7 @@
 {
     "name": "er-startseite-frontend",
     "private": true,
-    "version": "2026.7.1",
+    "version": "2026.7.4",
     "type": "module",
     "scripts": {
         "dev": "vite",

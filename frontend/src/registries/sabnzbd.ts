@@ -11,6 +11,7 @@ export const SabnzbdManifest: PremiumAppManifest = {
         // SABnzbd API: api?mode=queue&output=json&apikey=...
         const baseUrl = (app.api_url || app.url || '').replace(/\/$/, '')
         const apiKey = app.api_key?.trim() || ''
+        if (!apiKey) return { top: null, bottom: null }
         const url = `${baseUrl}/api?mode=queue&output=json&apikey=${apiKey}`
 
         let status = 'Idle'

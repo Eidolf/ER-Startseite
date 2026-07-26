@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { AppIcon } from './components/AppIcon'
 import { AnimatedLogo } from './components/AnimatedLogo'
 import { Plus, Search, Settings, LayoutGrid, X, Trash, EyeOff, Folder, Pencil, PlusCircle, UserCheck, ArrowUpFromLine } from 'lucide-react'
@@ -305,6 +305,15 @@ function UnlockModal({ isOpen, onClose, onUnlock }: { isOpen: boolean, onClose: 
                     </button>
                 </form>
             </div>
+        </div>
+    )
+}
+
+function NoteWidgetTile({ text }: { text?: string }) {
+    return (
+        <div className="w-full h-full p-4 flex flex-col justify-center bg-black/40 rounded-2xl border border-white/10 backdrop-blur-md relative overflow-hidden text-white text-xs whitespace-pre-wrap">
+            <div className="font-semibold text-pink-300 mb-1">Note</div>
+            <div className="text-gray-200">{text || 'Custom Note'}</div>
         </div>
     )
 }
@@ -1087,12 +1096,21 @@ function App() {
         });
     }
 
-    // Only verify app list with customOrder on load/fetch
+    const mainScrollRef = useRef<HTMLDivElement>(null)
+    const canvasBoardRef = useRef<HTMLDivElement>(null)
+
     useEffect(() => {
-        if (apps.length > 0 && layoutConfig.customOrder.length > 0) {
-            // Logic handled in render currently, but could sync state here if needed
+        if (activeLayoutMode === 'canvas') {
+            const timer = setTimeout(() => {
+                if (canvasBoardRef.current) {
+                    canvasBoardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                } else if (mainScrollRef.current) {
+                    mainScrollRef.current.scrollTop = 240
+                }
+            }, 100)
+            return () => clearTimeout(timer)
         }
-    }, [apps, layoutConfig.customOrder])
+    }, [activeLayoutMode])
 
     const handleContextMenu = (e: React.MouseEvent, app: AppData) => {
         if (!isEditMode) {
@@ -1102,11 +1120,12 @@ function App() {
         }
     }
 
-    const handleAddWidget = (type: 'weather' | 'clock' | 'search' | 'calendar' | 'text') => {
+    const handleAddWidget = (type: 'weather' | 'clock' | 'search' | 'calendar' | 'text', customText?: string) => {
         const newWidget: WidgetData = {
             id: `widget-${type}-${generateUUID()}`,
             type,
-            x: 0, y: 0, w: 1, h: 1 // Default size
+            x: 0, y: 0, w: 1, h: 1, // Default size
+            customText: customText || (type === 'text' ? 'Synchronized Note' : undefined)
         }
         setLayoutConfig(prev => ({
             ...prev,
@@ -1124,7 +1143,17 @@ function App() {
 
     const renderContent = () => {
         if (activeLayoutMode === 'canvas') {
-            return <FreeCanvasBoard apps={apps} openInNewTab={openInNewTab} />
+            return (
+                <div ref={canvasBoardRef} className="w-full h-full pt-2">
+                    <FreeCanvasBoard
+                        apps={apps}
+                        hiddenAppIds={layoutConfig.hiddenAppIds}
+                        showHiddenApps={showHiddenApps}
+                        openInNewTab={openInNewTab}
+                        widgetDefaults={layoutConfig.widgetDefaults}
+                    />
+                </div>
+            )
         }
 
         if (activeLayoutMode === 'categories') {
@@ -1342,9 +1371,20 @@ function App() {
                                                 setContextWidget(widget)
                                             }}
                                         >
-                                            {widget.type === 'weather' && <WeatherWidget />}
-                                            {widget.type === 'clock' && <ClockWidget />}
+                                            {widget.type === 'weather' && (
+                                                <WeatherWidget
+                                                    location={layoutConfig.widgetDefaults?.weatherLocation || 'Berlin'}
+                                                    unit={layoutConfig.widgetDefaults?.weatherUnit || 'c'}
+                                                />
+                                            )}
+                                            {widget.type === 'clock' && (
+                                                <ClockWidget
+                                                    is24Hour={layoutConfig.widgetDefaults?.clockFormat !== '12h'}
+                                                    dateFormat={layoutConfig.widgetDefaults?.dateFormat === 'none' ? 'none' : layoutConfig.widgetDefaults?.dateFormat === 'short' ? 'short' : 'full'}
+                                                />
+                                            )}
                                             {widget.type === 'calendar' && <CalendarWidget />}
+                                            {widget.type === 'text' && <NoteWidgetTile text={widget.customText} />}
                                         </WidgetTile>
                                     ))}
                                 </DroppableContainer>
@@ -1458,9 +1498,20 @@ function App() {
                                 setContextWidget(widget)
                             }}
                         >
-                            {widget.type === 'weather' && <WeatherWidget />}
-                            {widget.type === 'clock' && <ClockWidget />}
+                            {widget.type === 'weather' && (
+                                <WeatherWidget
+                                    location={layoutConfig.widgetDefaults?.weatherLocation || 'Berlin'}
+                                    unit={layoutConfig.widgetDefaults?.weatherUnit || 'c'}
+                                />
+                            )}
+                            {widget.type === 'clock' && (
+                                <ClockWidget
+                                    is24Hour={layoutConfig.widgetDefaults?.clockFormat !== '12h'}
+                                    dateFormat={layoutConfig.widgetDefaults?.dateFormat === 'none' ? 'none' : layoutConfig.widgetDefaults?.dateFormat === 'short' ? 'short' : 'full'}
+                                />
+                            )}
                             {widget.type === 'calendar' && <CalendarWidget />}
+                            {widget.type === 'text' && <NoteWidgetTile text={widget.customText} />}
                         </WidgetTile>
                     ))}
 
@@ -1592,9 +1643,10 @@ function App() {
                 onTitleConfigChange={setTitleConfig}
                 openInNewTab={openInNewTab}
                 onOpenInNewTabChange={setOpenInNewTab}
-                onAddWidget={handleAddWidget}
                 layoutMode={activeLayoutMode}
                 onLayoutModeChange={handleLocalModeChange}
+                widgetDefaults={layoutConfig.widgetDefaults}
+                onWidgetDefaultsChange={(defaults) => setLayoutConfig(prev => ({ ...prev, widgetDefaults: defaults }))}
                 onSaveAsDefault={handleSaveServerDefault}
                 serverMode={layoutConfig.mode}
                 onLogout={handleLogout}
@@ -1655,6 +1707,7 @@ function App() {
                 onClose={() => { setIsAppFormOpen(false); setEditingApp(null); }}
                 editApp={editingApp}
                 categories={layoutConfig.categories}
+                onAddWidget={handleAddWidget}
                 onComplete={async (isHidden, appId, newApp, newCategoryId) => {
                     await fetchApps() // Refresh first to get the new app in state (eventually)
 
@@ -1834,27 +1887,29 @@ function App() {
             {/* Main Content (Padded) */}
             <div className="relative z-10 container mx-auto px-4 pt-[120px] md:pt-[320px] pb-4 flex flex-col h-screen overflow-hidden">
 
-                {/* Search Field */}
-                <div className="max-w-2xl w-full mx-auto mb-8 relative group shrink-0">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <Search className="h-5 w-5 text-gray-400 group-focus-within:text-neon-cyan transition-colors" />
+                {/* Search Field (Hidden strictly in Canvas view) */}
+                {activeLayoutMode !== 'canvas' && (
+                    <div className="max-w-2xl w-full mx-auto mb-8 relative group shrink-0">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <Search className="h-5 w-5 text-gray-400 group-focus-within:text-neon-cyan transition-colors" />
+                        </div>
+                        <input
+                            type="text"
+                            className="block w-full pl-10 pr-3 py-4 rounded-xl glass-panel border-white/10 text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-neon-cyan/50 focus:border-transparent transition-all"
+                            placeholder="Search the web or your apps..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    window.location.href = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`
+                                }
+                            }}
+                        />
                     </div>
-                    <input
-                        type="text"
-                        className="block w-full pl-10 pr-3 py-4 rounded-xl glass-panel border-white/10 text-lg placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-neon-cyan/50 focus:border-transparent transition-all"
-                        placeholder="Search the web or your apps..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                                window.location.href = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`
-                            }
-                        }}
-                    />
-                </div>
+                )}
 
                 {/* App Grid - Scrollable */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+                <div ref={mainScrollRef} className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
                     <DndContext
                         sensors={sensors}
                         collisionDetection={pointerWithin}
