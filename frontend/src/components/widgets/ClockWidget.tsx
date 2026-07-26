@@ -21,20 +21,36 @@ export function ClockWidget({
         return () => clearInterval(timer)
     }, [])
 
+    let validTimeZone: string | undefined = undefined
+    if (timeZone && timeZone.trim()) {
+        try {
+            Intl.DateTimeFormat(undefined, { timeZone: timeZone.trim() })
+            validTimeZone = timeZone.trim()
+        } catch {
+            validTimeZone = undefined
+        }
+    }
+
     const timeOptions: Intl.DateTimeFormatOptions = {
         hour: '2-digit',
         minute: '2-digit',
         second: showSeconds ? '2-digit' : undefined,
         hour12: !is24Hour,
-        timeZone: timeZone && timeZone.trim() ? timeZone.trim() : undefined,
+        timeZone: validTimeZone,
     }
 
     const formattedTime = time.toLocaleTimeString([], timeOptions)
 
     const getDateOptions = (): Intl.DateTimeFormatOptions | null => {
         if (dateFormat === 'none') return null
-        if (dateFormat === 'short') return { day: 'numeric', month: 'short' }
-        return { weekday: 'long', day: 'numeric', month: 'short' }
+        const opts: Intl.DateTimeFormatOptions =
+            dateFormat === 'short'
+                ? { day: 'numeric', month: 'short' }
+                : { weekday: 'long', day: 'numeric', month: 'short' }
+        if (validTimeZone) {
+            opts.timeZone = validTimeZone
+        }
+        return opts
     }
 
     const dateOptions = getDateOptions()

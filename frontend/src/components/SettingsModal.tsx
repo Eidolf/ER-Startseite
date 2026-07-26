@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github, LayoutGrid, Clock, CloudSun, Save, LogOut } from 'lucide-react'
-import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig, WidgetData, LayoutMode } from '../types'
+import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig, WidgetData, LayoutMode, WidgetDefaults } from '../types'
 
 interface MediaItem {
     name: string
@@ -214,6 +214,8 @@ interface SettingsModalProps {
     onAddWidget?: (type: WidgetData['type']) => void
     layoutMode: LayoutMode
     onLayoutModeChange: (mode: LayoutMode) => void
+    widgetDefaults?: WidgetDefaults
+    onWidgetDefaultsChange?: (defaults: WidgetDefaults) => void
     onSaveAsDefault?: () => void
     serverMode?: string
     onLogout?: () => void
@@ -236,6 +238,8 @@ export function SettingsModal({
     onOpenInNewTabChange,
     layoutMode,
     onLayoutModeChange,
+    widgetDefaults,
+    onWidgetDefaultsChange,
     onSaveAsDefault,
     serverMode,
     onLogout
@@ -249,10 +253,29 @@ export function SettingsModal({
     const [mediaUrlInput, setMediaUrlInput] = useState('')
 
     // Widget Defaults State
-    const [weatherLocationInput, setWeatherLocationInput] = useState('Berlin')
-    const [weatherUnitInput, setWeatherUnitInput] = useState<'c' | 'f'>('c')
-    const [clockFormatInput, setClockFormatInput] = useState<'24h' | '12h'>('24h')
-    const [dateFormatInput, setDateFormatInput] = useState('DD.MM.YYYY')
+    const [weatherLocationInput, setWeatherLocationInput] = useState(widgetDefaults?.weatherLocation || 'Berlin')
+    const [weatherUnitInput, setWeatherUnitInput] = useState<'c' | 'f'>(widgetDefaults?.weatherUnit || 'c')
+    const [clockFormatInput, setClockFormatInput] = useState<'24h' | '12h'>(widgetDefaults?.clockFormat || '24h')
+    const [dateFormatInput, setDateFormatInput] = useState(widgetDefaults?.dateFormat || 'DD.MM.YYYY')
+
+    useEffect(() => {
+        if (widgetDefaults) {
+            setWeatherLocationInput(widgetDefaults.weatherLocation || 'Berlin')
+            setWeatherUnitInput(widgetDefaults.weatherUnit || 'c')
+            setClockFormatInput(widgetDefaults.clockFormat || '24h')
+            setDateFormatInput(widgetDefaults.dateFormat || 'DD.MM.YYYY')
+        }
+    }, [widgetDefaults])
+
+    const updateWidgetDefaults = (updates: Partial<WidgetDefaults>) => {
+        onWidgetDefaultsChange?.({
+            weatherLocation: weatherLocationInput,
+            weatherUnit: weatherUnitInput,
+            clockFormat: clockFormatInput,
+            dateFormat: dateFormatInput,
+            ...updates,
+        })
+    }
 
     // Sync input with bgConfig.value *only* if it's external, otherwise keep what the user types or empty
     useEffect(() => {
@@ -563,7 +586,11 @@ export function SettingsModal({
                                         <input
                                             type="text"
                                             value={weatherLocationInput}
-                                            onChange={(e) => setWeatherLocationInput(e.target.value)}
+                                            onChange={(e) => {
+                                                const val = e.target.value
+                                                setWeatherLocationInput(val)
+                                                updateWidgetDefaults({ weatherLocation: val })
+                                            }}
                                             placeholder="e.g. Berlin, Munich, Vienna..."
                                             className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon-cyan"
                                         />
@@ -573,14 +600,20 @@ export function SettingsModal({
                                         <div className="flex gap-2">
                                             <button
                                                 type="button"
-                                                onClick={() => setWeatherUnitInput('c')}
+                                                onClick={() => {
+                                                    setWeatherUnitInput('c')
+                                                    updateWidgetDefaults({ weatherUnit: 'c' })
+                                                }}
                                                 className={`flex-1 py-2 text-xs font-medium rounded-xl border transition ${weatherUnitInput === 'c' ? 'bg-amber-500/20 border-amber-500 text-amber-300' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/5'}`}
                                             >
                                                 Celsius (°C)
                                             </button>
                                             <button
                                                 type="button"
-                                                onClick={() => setWeatherUnitInput('f')}
+                                                onClick={() => {
+                                                    setWeatherUnitInput('f')
+                                                    updateWidgetDefaults({ weatherUnit: 'f' })
+                                                }}
                                                 className={`flex-1 py-2 text-xs font-medium rounded-xl border transition ${weatherUnitInput === 'f' ? 'bg-amber-500/20 border-amber-500 text-amber-300' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/5'}`}
                                             >
                                                 Fahrenheit (°F)
@@ -601,14 +634,20 @@ export function SettingsModal({
                                         <div className="flex gap-2">
                                             <button
                                                 type="button"
-                                                onClick={() => setClockFormatInput('24h')}
+                                                onClick={() => {
+                                                    setClockFormatInput('24h')
+                                                    updateWidgetDefaults({ clockFormat: '24h' })
+                                                }}
                                                 className={`flex-1 py-2 text-xs font-medium rounded-xl border transition ${clockFormatInput === '24h' ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/5'}`}
                                             >
                                                 24-Hour (23:59)
                                             </button>
                                             <button
                                                 type="button"
-                                                onClick={() => setClockFormatInput('12h')}
+                                                onClick={() => {
+                                                    setClockFormatInput('12h')
+                                                    updateWidgetDefaults({ clockFormat: '12h' })
+                                                }}
                                                 className={`flex-1 py-2 text-xs font-medium rounded-xl border transition ${clockFormatInput === '12h' ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/5'}`}
                                             >
                                                 12-Hour (11:59 PM)
@@ -620,7 +659,11 @@ export function SettingsModal({
                                         <label className="block text-xs font-medium text-gray-400 mb-1">Date Format</label>
                                         <select
                                             value={dateFormatInput}
-                                            onChange={(e) => setDateFormatInput(e.target.value)}
+                                            onChange={(e) => {
+                                                const val = e.target.value
+                                                setDateFormatInput(val)
+                                                updateWidgetDefaults({ dateFormat: val })
+                                            }}
                                             className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-neon-cyan cursor-pointer"
                                         >
                                             <option value="DD.MM.YYYY">DD.MM.YYYY (e.g. 26.07.2026)</option>

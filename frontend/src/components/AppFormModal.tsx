@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X, Trash, ArrowUpFromLine, Upload, RefreshCw, Check, Film, Tv, Lock, Disc, Calendar, Clock } from 'lucide-react'
+import { X, Trash, ArrowUpFromLine, Upload, RefreshCw, Check, Film, Tv, Lock, Disc, Calendar, Clock, CloudSun } from 'lucide-react'
 import { AppData, Category, PremiumAppConfig } from '../types'
 import { AppIcon } from './AppIcon'
 import { AppRegistry } from '../registries'
@@ -75,6 +75,7 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories,
             setApiUrl('')
             setApiProtected(false)
             setApiConfig({})
+            setCustomNoteInput('')
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, editApp])
@@ -315,7 +316,7 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories,
                             className="flex flex-col items-center justify-center p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl gap-2 transition group text-center"
                         >
                             <div className="p-2.5 bg-amber-500/20 rounded-full text-amber-400 group-hover:bg-amber-500/30 transition">
-                                <Film className="w-5 h-5" />
+                                <CloudSun className="w-5 h-5" />
                             </div>
                             <span className="text-xs font-semibold text-white">Live Weather</span>
                         </button>

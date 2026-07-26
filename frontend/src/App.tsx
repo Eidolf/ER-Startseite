@@ -309,6 +309,15 @@ function UnlockModal({ isOpen, onClose, onUnlock }: { isOpen: boolean, onClose: 
     )
 }
 
+function NoteWidgetTile({ text }: { text?: string }) {
+    return (
+        <div className="w-full h-full p-4 flex flex-col justify-center bg-black/40 rounded-2xl border border-white/10 backdrop-blur-md relative overflow-hidden text-white text-xs whitespace-pre-wrap">
+            <div className="font-semibold text-pink-300 mb-1">Note</div>
+            <div className="text-gray-200">{text || 'Custom Note'}</div>
+        </div>
+    )
+}
+
 function App() {
     // Auth State (Managed below)
 
@@ -1361,15 +1370,20 @@ function App() {
                                                 setContextWidget(widget)
                                             }}
                                         >
-                                            {widget.type === 'weather' && <WeatherWidget />}
-                                            {widget.type === 'clock' && <ClockWidget />}
-                                            {widget.type === 'calendar' && <CalendarWidget />}
-                                            {widget.type === 'text' && (
-                                                <div className="w-full h-full p-4 flex flex-col justify-center bg-black/40 rounded-2xl border border-white/10 backdrop-blur-md relative overflow-hidden text-white text-xs whitespace-pre-wrap">
-                                                    <div className="font-semibold text-pink-300 mb-1">Note</div>
-                                                    <div className="text-gray-200">{widget.customText || 'Custom Note'}</div>
-                                                </div>
+                                            {widget.type === 'weather' && (
+                                                <WeatherWidget
+                                                    location={layoutConfig.widgetDefaults?.weatherLocation || 'Berlin'}
+                                                    unit={layoutConfig.widgetDefaults?.weatherUnit || 'c'}
+                                                />
                                             )}
+                                            {widget.type === 'clock' && (
+                                                <ClockWidget
+                                                    is24Hour={layoutConfig.widgetDefaults?.clockFormat !== '12h'}
+                                                    dateFormat={layoutConfig.widgetDefaults?.dateFormat === 'none' ? 'none' : layoutConfig.widgetDefaults?.dateFormat === 'short' ? 'short' : 'full'}
+                                                />
+                                            )}
+                                            {widget.type === 'calendar' && <CalendarWidget />}
+                                            {widget.type === 'text' && <NoteWidgetTile text={widget.customText} />}
                                         </WidgetTile>
                                     ))}
                                 </DroppableContainer>
@@ -1483,15 +1497,20 @@ function App() {
                                 setContextWidget(widget)
                             }}
                         >
-                            {widget.type === 'weather' && <WeatherWidget />}
-                            {widget.type === 'clock' && <ClockWidget />}
-                            {widget.type === 'calendar' && <CalendarWidget />}
-                            {widget.type === 'text' && (
-                                <div className="w-full h-full p-4 flex flex-col justify-center bg-black/40 rounded-2xl border border-white/10 backdrop-blur-md relative overflow-hidden text-white text-xs whitespace-pre-wrap">
-                                    <div className="font-semibold text-pink-300 mb-1">Note</div>
-                                    <div className="text-gray-200">{widget.customText || 'Custom Note'}</div>
-                                </div>
+                            {widget.type === 'weather' && (
+                                <WeatherWidget
+                                    location={layoutConfig.widgetDefaults?.weatherLocation || 'Berlin'}
+                                    unit={layoutConfig.widgetDefaults?.weatherUnit || 'c'}
+                                />
                             )}
+                            {widget.type === 'clock' && (
+                                <ClockWidget
+                                    is24Hour={layoutConfig.widgetDefaults?.clockFormat !== '12h'}
+                                    dateFormat={layoutConfig.widgetDefaults?.dateFormat === 'none' ? 'none' : layoutConfig.widgetDefaults?.dateFormat === 'short' ? 'short' : 'full'}
+                                />
+                            )}
+                            {widget.type === 'calendar' && <CalendarWidget />}
+                            {widget.type === 'text' && <NoteWidgetTile text={widget.customText} />}
                         </WidgetTile>
                     ))}
 
@@ -1623,9 +1642,10 @@ function App() {
                 onTitleConfigChange={setTitleConfig}
                 openInNewTab={openInNewTab}
                 onOpenInNewTabChange={setOpenInNewTab}
-                onAddWidget={handleAddWidget}
                 layoutMode={activeLayoutMode}
                 onLayoutModeChange={handleLocalModeChange}
+                widgetDefaults={layoutConfig.widgetDefaults}
+                onWidgetDefaultsChange={(defaults) => setLayoutConfig(prev => ({ ...prev, widgetDefaults: defaults }))}
                 onSaveAsDefault={handleSaveServerDefault}
                 serverMode={layoutConfig.mode}
                 onLogout={handleLogout}

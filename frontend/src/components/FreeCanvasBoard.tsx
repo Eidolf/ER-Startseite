@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { Plus, RotateCcw, Cookie, Move, Trash2, Maximize2, Search, FileText, Folder, ChevronDown, ChevronUp, AppWindow, ExternalLink, X, Pencil, Camera, Globe } from 'lucide-react'
 import { ClockWidget } from './widgets/ClockWidget'
 import { WeatherWidget } from './widgets/WeatherWidget'
@@ -8,6 +8,7 @@ import { AppData } from '../types'
 import { getJsonCookie, setJsonCookie, deleteCookie } from '../utils/cookieUtils'
 
 const COOKIE_NAME = 'er_canvas_layout_v1'
+const EMPTY_ARRAY: string[] = []
 
 export interface CanvasWidget {
     id: string
@@ -56,8 +57,11 @@ interface HoverPreviewState {
     y: number
 }
 
-export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps = false }: FreeCanvasBoardProps) {
-    const availableApps = apps.filter((a) => !hiddenAppIds.includes(a.id) || showHiddenApps)
+export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHiddenApps = false }: FreeCanvasBoardProps) {
+    const availableApps = useMemo(
+        () => apps.filter((a) => !hiddenAppIds.includes(a.id) || showHiddenApps),
+        [apps, hiddenAppIds, showHiddenApps]
+    )
     const [widgets, setWidgets] = useState<CanvasWidget[]>(() => {
         const raw = getJsonCookie<CanvasWidget[]>(COOKIE_NAME, DEFAULT_WIDGETS)
         return raw.map((w) => {
@@ -95,6 +99,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
     const [clockShowSecondsInput, setClockShowSecondsInput] = useState(false)
     const [clockDateFormatInput, setClockDateFormatInput] = useState<'full' | 'short' | 'none'>('full')
     const [clockTimezoneInput, setClockTimezoneInput] = useState('')
+    const [clockTimezoneError, setClockTimezoneError] = useState<string | null>(null)
 
     // Weather modal states
     const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false)
@@ -120,26 +125,37 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
 
     useEffect(() => {
         if (apps.length > 0) {
-            setWidgets((prev) =>
-                prev.map((w) => {
+            setWidgets((prev) => {
+                let hasChanged = false
+                const updated = prev.map((w) => {
                     if (w.type === 'app' && w.appId) {
                         const isHidden = hiddenAppIds.includes(w.appId) && !showHiddenApps
                         const foundApp = isHidden ? undefined : availableApps.find((a) => a.id === w.appId)
-                        return { ...w, appData: foundApp }
+                        if (foundApp !== w.appData) {
+                            hasChanged = true
+                            return { ...w, appData: foundApp }
+                        }
                     }
                     if (w.type === 'folder' && (w.folderAppIds || w.folderApps)) {
                         const rawAppIds = w.folderAppIds || w.folderApps?.map((a) => a.id) || []
                         const appIds = rawAppIds.filter((id) => !hiddenAppIds.includes(id) || showHiddenApps)
                         const foundFolderApps = availableApps.filter((a) => appIds.includes(a.id))
-                        return {
-                            ...w,
-                            folderAppIds: appIds,
-                            folderApps: foundFolderApps,
+                        const folderAppsChanged =
+                            foundFolderApps.length !== (w.folderApps?.length || 0) ||
+                            foundFolderApps.some((a, idx) => a !== w.folderApps?.[idx])
+                        if (folderAppsChanged) {
+                            hasChanged = true
+                            return {
+                                ...w,
+                                folderAppIds: appIds,
+                                folderApps: foundFolderApps,
+                            }
                         }
                     }
                     return w
                 })
-            )
+                return hasChanged ? updated : prev
+            })
         }
     }, [apps, availableApps, hiddenAppIds, showHiddenApps])
 
@@ -161,6 +177,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
             clockFormat24: w.clockFormat24,
             clockShowSeconds: w.clockShowSeconds,
             clockDateFormat: w.clockDateFormat,
+            clockTimezone: w.clockTimezone,
             weatherLocation: w.weatherLocation,
             weatherUnit: w.weatherUnit,
         }))
@@ -331,11 +348,22 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
         setClockShowSecondsInput(!!widget.clockShowSeconds)
         setClockDateFormatInput(widget.clockDateFormat || 'full')
         setClockTimezoneInput(widget.clockTimezone || '')
+        setClockTimezoneError(null)
         setIsClockModalOpen(true)
     }
 
     const handleSaveClockSettings = () => {
         if (!editingClockId) return
+        const trimmed = clockTimezoneInput.trim()
+        if (trimmed) {
+            try {
+                Intl.DateTimeFormat(undefined, { timeZone: trimmed })
+            } catch {
+                setClockTimezoneError('Invalid IANA timezone (e.g. Europe/Berlin, UTC)')
+                return
+            }
+        }
+        setClockTimezoneError(null)
         setWidgets((prev) =>
             prev.map((w) =>
                 w.id === editingClockId
@@ -344,7 +372,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
                           clockFormat24: clockFormat24Input,
                           clockShowSeconds: clockShowSecondsInput,
                           clockDateFormat: clockDateFormatInput,
-                          clockTimezone: clockTimezoneInput.trim() || undefined,
+                          clockTimezone: trimmed || undefined,
                       }
                     : w
             )
@@ -877,8 +905,9 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
                                     value={clockTimezoneInput}
                                     onChange={(e) => setClockTimezoneInput(e.target.value)}
                                     placeholder="Leave empty for local timezone"
-                                    className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 text-sm"
+                                    className={`w-full px-3 py-2 bg-black/40 border ${clockTimezoneError ? 'border-red-500' : 'border-white/10'} rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 text-sm`}
                                 />
+                                {clockTimezoneError && <p className="text-xs text-red-400 mt-1">{clockTimezoneError}</p>}
                             </div>
 
                             <div>

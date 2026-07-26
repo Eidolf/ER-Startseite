@@ -45,16 +45,23 @@ export function WeatherWidget({ location = 'Berlin', unit = 'c' }: WeatherWidget
     const [error, setError] = useState('')
 
     useEffect(() => {
-        let isMounted = true
         const queryCity = location.trim() || 'Berlin'
+        let activeController: AbortController | null = null
 
         const fetchWeather = async () => {
+            if (activeController) activeController.abort()
+            const controller = new AbortController()
+            activeController = controller
+
+            const timeoutId = setTimeout(() => controller.abort(), 10000)
+
             setLoading(true)
             setError('')
             try {
                 // Step 1: Geocoding via Open-Meteo Geocoding API
                 const geoRes = await fetch(
-                    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(queryCity)}&count=1&language=en&format=json`
+                    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(queryCity)}&count=1&language=en&format=json`,
+                    { signal: controller.signal }
                 )
                 if (!geoRes.ok) throw new Error('Geocoding failed')
                 const geoData = await geoRes.json()
@@ -70,38 +77,37 @@ export function WeatherWidget({ location = 'Berlin', unit = 'c' }: WeatherWidget
                 const tempUnitParam = unit === 'f' ? '&temperature_unit=fahrenheit' : ''
                 const windUnitParam = unit === 'f' ? '&wind_speed_unit=mph' : ''
                 const weatherRes = await fetch(
-                    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m${tempUnitParam}${windUnitParam}&timezone=auto`
+                    `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m${tempUnitParam}${windUnitParam}&timezone=auto`,
+                    { signal: controller.signal }
                 )
                 if (!weatherRes.ok) throw new Error('Weather fetch failed')
                 const weatherData = await weatherRes.json()
                 const current = weatherData.current
 
-                if (isMounted) {
-                    const tempFormatted = `${Math.round(current.temperature_2m)}°${unit.toUpperCase()}`
-                    const windSpeedFormatted = `${Math.round(current.wind_speed_10m)} ${unit === 'f' ? 'mph' : 'km/h'}`
+                const tempFormatted = `${Math.round(current.temperature_2m)}°${unit.toUpperCase()}`
+                const windSpeedFormatted = `${Math.round(current.wind_speed_10m)} ${unit === 'f' ? 'mph' : 'km/h'}`
 
-                    setData({
-                        city: cityName,
-                        temp: tempFormatted,
-                        description: getWeatherDescription(current.weather_code),
-                        weatherCode: current.weather_code,
-                        humidity: current.relative_humidity_2m,
-                        windSpeed: windSpeedFormatted,
-                    })
-                }
+                setData({
+                    city: cityName,
+                    temp: tempFormatted,
+                    description: getWeatherDescription(current.weather_code),
+                    weatherCode: current.weather_code,
+                    humidity: current.relative_humidity_2m,
+                    windSpeed: windSpeedFormatted,
+                })
             } catch (err: unknown) {
-                if (isMounted) {
-                    setError(err instanceof Error ? err.message : 'Weather error')
-                }
+                if (err instanceof Error && err.name === 'AbortError') return
+                setError(err instanceof Error ? err.message : 'Weather error')
             } finally {
-                if (isMounted) setLoading(false)
+                clearTimeout(timeoutId)
+                if (!controller.signal.aborted) setLoading(false)
             }
         }
 
         fetchWeather()
         const interval = setInterval(fetchWeather, 600000) // Poll every 10 minutes
         return () => {
-            isMounted = false
+            if (activeController) activeController.abort()
             clearInterval(interval)
         }
     }, [location, unit])

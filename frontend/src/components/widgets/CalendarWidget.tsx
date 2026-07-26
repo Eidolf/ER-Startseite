@@ -20,7 +20,16 @@ export function CalendarWidget() {
     const [events, setEvents] = useState<CalendarEvent[]>(() => {
         try {
             const raw = localStorage.getItem(STORAGE_KEY)
-            return raw ? JSON.parse(raw) : []
+            if (!raw) return []
+            const parsed = JSON.parse(raw)
+            if (!Array.isArray(parsed)) return []
+            return parsed.filter(
+                (item): item is CalendarEvent =>
+                    item &&
+                    typeof item === 'object' &&
+                    typeof item.id === 'string' &&
+                    typeof item.dateStr === 'string'
+            )
         } catch {
             return []
         }
@@ -50,47 +59,47 @@ export function CalendarWidget() {
             const now = Date.now()
             setCurrentDate(new Date())
 
-            setEvents((prevEvents) => {
-                let hasChanges = false
-                const newlyMissed: CalendarEvent[] = []
+            const dueEvents: CalendarEvent[] = []
+            const newlyMissed: CalendarEvent[] = []
 
-                const updated = prevEvents.map((evt) => {
-                    if (evt.reminderTime && !evt.reminderNotified) {
-                        if (evt.reminderTime <= now) {
-                            hasChanges = true
-                            // Trigger native desktop notification
-                            if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-                                try {
-                                    new Notification(`Reminder: ${evt.title}`, {
-                                        body: `Scheduled for ${evt.dateStr} ${evt.timeStr || ''}`,
-                                        icon: '/favicon.ico',
-                                    })
-                                } catch (e) {
-                                    console.error('Failed to dispatch notification', e)
-                                }
-                            }
-                            // Collect missed event for catch-up banner if overdue by > 1 minute
-                            if (now - evt.reminderTime > 60000) {
-                                newlyMissed.push(evt)
-                            }
-                            return { ...evt, reminderNotified: true }
-                        }
+            events.forEach((evt) => {
+                if (evt.reminderTime && !evt.reminderNotified && evt.reminderTime <= now) {
+                    dueEvents.push(evt)
+                    if (now - evt.reminderTime > 60000) {
+                        newlyMissed.push(evt)
                     }
-                    return evt
-                })
+                }
+            })
+
+            if (dueEvents.length > 0) {
+                if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+                    dueEvents.forEach((evt) => {
+                        try {
+                            new Notification(`Reminder: ${evt.title}`, {
+                                body: `Scheduled for ${evt.dateStr} ${evt.timeStr || ''}`,
+                                icon: '/favicon.ico',
+                            })
+                        } catch (e) {
+                            console.error('Failed to dispatch notification', e)
+                        }
+                    })
+                }
 
                 if (newlyMissed.length > 0) {
                     setMissedEvents((prev) => [...prev, ...newlyMissed])
                 }
 
-                return hasChanges ? updated : prevEvents
-            })
+                const dueIds = new Set(dueEvents.map((e) => e.id))
+                setEvents((prev) =>
+                    prev.map((e) => (dueIds.has(e.id) ? { ...e, reminderNotified: true } : e))
+                )
+            }
         }
 
         checkReminders()
         const interval = setInterval(checkReminders, 10000) // Check every 10 seconds
         return () => clearInterval(interval)
-    }, [])
+    }, [events])
 
     const requestNotificationPermission = () => {
         if (typeof Notification !== 'undefined') {
@@ -113,7 +122,7 @@ export function CalendarWidget() {
         days.push(i)
     }
 
-    const weekDays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So']
+    const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
     const formatDateStr = (dayNum: number) => {
         const m = String(month + 1).padStart(2, '0')
@@ -143,7 +152,7 @@ export function CalendarWidget() {
         }
 
         const newEvt: CalendarEvent = {
-            id: `evt-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+            id: `evt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
             title: eventTitle.trim(),
             dateStr,
             timeStr: eventTime,
@@ -177,7 +186,7 @@ export function CalendarWidget() {
 
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-bold tracking-wide">
-                        {viewDate.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}
+                        {viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                     </span>
                     {typeof Notification !== 'undefined' && Notification.permission !== 'granted' && (
                         <button

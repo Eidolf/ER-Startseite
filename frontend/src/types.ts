@@ -33,12 +33,20 @@ export interface Category {
 
 export type LayoutMode = 'grid' | 'list' | 'compact' | 'categories' | 'rich-grid' | 'canvas'
 
+export interface WidgetDefaults {
+    weatherLocation?: string
+    weatherUnit?: 'c' | 'f'
+    clockFormat?: '24h' | '12h'
+    dateFormat?: string
+}
+
 export interface LayoutConfig {
     mode: LayoutMode
     customOrder: string[] // App IDs
     widgets: WidgetData[]
     categories: Category[]
     hiddenAppIds: string[]
+    widgetDefaults?: WidgetDefaults
 }
 
 export interface WidgetData {

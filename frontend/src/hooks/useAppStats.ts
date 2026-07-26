@@ -25,6 +25,7 @@ export function useAppStats(app: AppData, isAuthenticated: boolean) {
             if (!hasApiKey || !hasUrl) {
                 setStats(null)
                 setLoading(false)
+                setError('')
                 return
             }
 
