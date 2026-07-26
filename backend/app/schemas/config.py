@@ -43,7 +43,15 @@ class WidgetData(BaseModel):
     y: int = 0
     w: int = 1
     h: int = 1
+    customText: str | None = None
     settings: dict[str, Any] = {}
+
+
+class WidgetDefaults(BaseModel):
+    weatherLocation: str | None = "Berlin"
+    weatherUnit: str | None = "c"
+    clockFormat: str | None = "24h"
+    dateFormat: str | None = "DD.MM.YYYY"
 
 
 class LayoutConfig(BaseModel):
@@ -52,6 +60,7 @@ class LayoutConfig(BaseModel):
     categories: list[Category] = []
     hiddenAppIds: list[str] = []
     widgets: list[WidgetData] = []
+    widgetDefaults: WidgetDefaults | None = None
 
 
 class AppConfig(BaseModel):
