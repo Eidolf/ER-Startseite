@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X, Trash, ArrowUpFromLine, Upload, RefreshCw, Check, Film, Tv, Lock, Disc, Calendar } from 'lucide-react'
+import { X, Trash, ArrowUpFromLine, Upload, RefreshCw, Check, Film, Tv, Lock, Disc, Calendar, Clock } from 'lucide-react'
 import { AppData, Category, PremiumAppConfig } from '../types'
 import { AppIcon } from './AppIcon'
 import { AppRegistry } from '../registries'
@@ -10,10 +10,11 @@ interface AppFormModalProps {
     onComplete: (isHidden?: boolean, appId?: string, newApp?: AppData, categoryId?: string) => void
     editApp: AppData | null
     categories?: Category[]
+    onAddWidget?: (type: 'clock' | 'weather' | 'calendar' | 'search' | 'text') => void
 }
 
-export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories }: AppFormModalProps) {
-    const [activeTab, setActiveTab] = useState<'custom' | 'store' | 'folder'>('custom')
+export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories, onAddWidget }: AppFormModalProps) {
+    const [activeTab, setActiveTab] = useState<'custom' | 'store' | 'widgets' | 'folder'>('custom')
     const [categoryId, setCategoryId] = useState<string>('')
     const [premiumApps, setPremiumApps] = useState<AppData[]>([])
     const [selectedPremiumApp, setSelectedPremiumApp] = useState<AppData | null>(null)
@@ -284,6 +285,85 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
 
     // Determine what form content to show
     const renderFormContent = () => {
+        if (activeTab === 'widgets') {
+            return (
+                <div className="space-y-4">
+                    <h3 className="text-sm font-semibold text-gray-300">Select Widget to Add</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onAddWidget?.('clock')
+                                onClose()
+                            }}
+                            className="flex flex-col items-center justify-center p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl gap-2 transition group text-center"
+                        >
+                            <div className="p-3 bg-cyan-500/20 rounded-full text-cyan-400 group-hover:bg-cyan-500/30 transition">
+                                <Clock className="w-6 h-6" />
+                            </div>
+                            <span className="text-xs font-semibold text-white">Clock Widget</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onAddWidget?.('weather')
+                                onClose()
+                            }}
+                            className="flex flex-col items-center justify-center p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl gap-2 transition group text-center"
+                        >
+                            <div className="p-3 bg-amber-500/20 rounded-full text-amber-400 group-hover:bg-amber-500/30 transition">
+                                <Film className="w-6 h-6" /> {/* Weather Icon */}
+                            </div>
+                            <span className="text-xs font-semibold text-white">Live Weather Widget</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onAddWidget?.('calendar')
+                                onClose()
+                            }}
+                            className="flex flex-col items-center justify-center p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl gap-2 transition group text-center"
+                        >
+                            <div className="p-3 bg-emerald-500/20 rounded-full text-emerald-400 group-hover:bg-emerald-500/30 transition">
+                                <Calendar className="w-6 h-6" />
+                            </div>
+                            <span className="text-xs font-semibold text-white">Calendar Widget</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onAddWidget?.('search')
+                                onClose()
+                            }}
+                            className="flex flex-col items-center justify-center p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl gap-2 transition group text-center"
+                        >
+                            <div className="p-3 bg-indigo-500/20 rounded-full text-indigo-400 group-hover:bg-indigo-500/30 transition">
+                                <ArrowUpFromLine className="w-6 h-6 rotate-90" />
+                            </div>
+                            <span className="text-xs font-semibold text-white">Search Bar Widget</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onAddWidget?.('text')
+                                onClose()
+                            }}
+                            className="flex flex-col items-center justify-center p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl gap-2 transition group text-center col-span-2"
+                        >
+                            <div className="p-3 bg-pink-500/20 rounded-full text-pink-400 group-hover:bg-pink-500/30 transition">
+                                <Disc className="w-6 h-6" />
+                            </div>
+                            <span className="text-xs font-semibold text-white">Custom Note Widget</span>
+                        </button>
+                    </div>
+                </div>
+            )
+        }
+
         if (activeTab === 'store' && !selectedPremiumApp) {
             // Store Grid
             return (
@@ -632,6 +712,13 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories 
                                     className={`text-sm font-medium transition-colors ${activeTab === 'store' ? 'text-neon-cyan' : 'text-gray-400 hover:text-white'}`}
                                 >
                                     App Store
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('widgets')}
+                                    className={`text-sm font-medium transition-colors ${activeTab === 'widgets' ? 'text-neon-cyan' : 'text-gray-400 hover:text-white'}`}
+                                >
+                                    Widgets
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('folder')}

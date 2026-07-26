@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github, LayoutGrid, Clock, CloudSun, Calendar, Save, LogOut } from 'lucide-react'
+import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github, LayoutGrid, Clock, CloudSun, Save, LogOut } from 'lucide-react'
 import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig, WidgetData, LayoutMode } from '../types'
 
 interface MediaItem {
@@ -211,7 +211,7 @@ interface SettingsModalProps {
     onTitleConfigChange: (config: TitleConfig) => void
     openInNewTab: boolean
     onOpenInNewTabChange: (enabled: boolean) => void
-    onAddWidget: (type: WidgetData['type']) => void
+    onAddWidget?: (type: WidgetData['type']) => void
     layoutMode: LayoutMode
     onLayoutModeChange: (mode: LayoutMode) => void
     onSaveAsDefault?: () => void
@@ -234,7 +234,6 @@ export function SettingsModal({
     onTitleConfigChange,
     openInNewTab,
     onOpenInNewTabChange,
-    onAddWidget,
     layoutMode,
     onLayoutModeChange,
     onSaveAsDefault,
@@ -248,6 +247,12 @@ export function SettingsModal({
 
     // Local state for Media URL to allow typing
     const [mediaUrlInput, setMediaUrlInput] = useState('')
+
+    // Widget Defaults State
+    const [weatherLocationInput, setWeatherLocationInput] = useState('Berlin')
+    const [weatherUnitInput, setWeatherUnitInput] = useState<'c' | 'f'>('c')
+    const [clockFormatInput, setClockFormatInput] = useState<'24h' | '12h'>('24h')
+    const [dateFormatInput, setDateFormatInput] = useState('DD.MM.YYYY')
 
     // Sync input with bgConfig.value *only* if it's external, otherwise keep what the user types or empty
     useEffect(() => {
@@ -538,39 +543,92 @@ export function SettingsModal({
                     )}
 
                     {activeTab === 'widgets' && (
-                        <div className="space-y-4">
+                        <div className="space-y-6">
                             <h3 className="text-lg font-semibold text-white/90 flex items-center gap-2">
                                 <LayoutGrid className="w-5 h-5 text-neon-purple" />
-                                Add Widgets
+                                Widget Defaults & Configuration
                             </h3>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                                <button
-                                    onClick={() => onAddWidget('clock')}
-                                    className="flex flex-col items-center justify-center p-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl gap-2 transition group"
-                                >
-                                    <div className="p-3 bg-blue-500/20 rounded-full text-blue-400 group-hover:bg-blue-500/30 group-hover:text-blue-300 transition">
-                                        <Clock className="w-6 h-6" />
+                            <p className="text-xs text-gray-400">
+                                Configure default global preferences for widgets (Weather location, clock & date formats).
+                            </p>
+
+                            {/* Weather Widget Defaults */}
+                            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
+                                <div className="flex items-center gap-2 text-sm font-semibold text-amber-300">
+                                    <CloudSun className="w-4 h-4" /> Weather Defaults
+                                </div>
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Default City / Location</label>
+                                        <input
+                                            type="text"
+                                            value={weatherLocationInput}
+                                            onChange={(e) => setWeatherLocationInput(e.target.value)}
+                                            placeholder="e.g. Berlin, Munich, Vienna..."
+                                            className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon-cyan"
+                                        />
                                     </div>
-                                    <span className="text-sm font-medium text-gray-300">Clock</span>
-                                </button>
-                                <button
-                                    onClick={() => onAddWidget('weather')}
-                                    className="flex flex-col items-center justify-center p-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl gap-2 transition group"
-                                >
-                                    <div className="p-3 bg-yellow-500/20 rounded-full text-yellow-400 group-hover:bg-yellow-500/30 group-hover:text-yellow-300 transition">
-                                        <CloudSun className="w-6 h-6" />
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Temperature Unit</label>
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setWeatherUnitInput('c')}
+                                                className={`flex-1 py-2 text-xs font-medium rounded-xl border transition ${weatherUnitInput === 'c' ? 'bg-amber-500/20 border-amber-500 text-amber-300' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/5'}`}
+                                            >
+                                                Celsius (°C)
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setWeatherUnitInput('f')}
+                                                className={`flex-1 py-2 text-xs font-medium rounded-xl border transition ${weatherUnitInput === 'f' ? 'bg-amber-500/20 border-amber-500 text-amber-300' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/5'}`}
+                                            >
+                                                Fahrenheit (°F)
+                                            </button>
+                                        </div>
                                     </div>
-                                    <span className="text-sm font-medium text-gray-300">Weather</span>
-                                </button>
-                                <button
-                                    onClick={() => onAddWidget('calendar')}
-                                    className="flex flex-col items-center justify-center p-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl gap-2 transition group"
-                                >
-                                    <div className="p-3 bg-green-500/20 rounded-full text-green-400 group-hover:bg-green-500/30 group-hover:text-green-300 transition">
-                                        <Calendar className="w-6 h-6" />
+                                </div>
+                            </div>
+
+                            {/* Clock Widget Defaults */}
+                            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
+                                <div className="flex items-center gap-2 text-sm font-semibold text-cyan-300">
+                                    <Clock className="w-4 h-4" /> Clock & Date Defaults
+                                </div>
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Time Format</label>
+                                        <div className="flex gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setClockFormatInput('24h')}
+                                                className={`flex-1 py-2 text-xs font-medium rounded-xl border transition ${clockFormatInput === '24h' ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/5'}`}
+                                            >
+                                                24-Hour (23:59)
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setClockFormatInput('12h')}
+                                                className={`flex-1 py-2 text-xs font-medium rounded-xl border transition ${clockFormatInput === '12h' ? 'bg-cyan-500/20 border-cyan-500 text-cyan-300' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/5'}`}
+                                            >
+                                                12-Hour (11:59 PM)
+                                            </button>
+                                        </div>
                                     </div>
-                                    <span className="text-sm font-medium text-gray-300">Calendar</span>
-                                </button>
+
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Date Format</label>
+                                        <select
+                                            value={dateFormatInput}
+                                            onChange={(e) => setDateFormatInput(e.target.value)}
+                                            className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-neon-cyan cursor-pointer"
+                                        >
+                                            <option value="DD.MM.YYYY">DD.MM.YYYY (e.g. 26.07.2026)</option>
+                                            <option value="YYYY-MM-DD">YYYY-MM-DD (e.g. 2026-07-26)</option>
+                                            <option value="MM/DD/YYYY">MM/DD/YYYY (e.g. 07/26/2026)</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}

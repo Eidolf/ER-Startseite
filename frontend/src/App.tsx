@@ -1673,6 +1673,7 @@ function App() {
                 onClose={() => { setIsAppFormOpen(false); setEditingApp(null); }}
                 editApp={editingApp}
                 categories={layoutConfig.categories}
+                onAddWidget={handleAddWidget}
                 onComplete={async (isHidden, appId, newApp, newCategoryId) => {
                     await fetchApps() // Refresh first to get the new app in state (eventually)
 
