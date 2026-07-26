@@ -732,6 +732,22 @@ function App() {
 
         if (activeId === overId) return
 
+        const isWidgetActive = layoutConfig.widgets?.some(w => w.id === activeId)
+        if (isWidgetActive) {
+            const isWidgetOver = layoutConfig.widgets?.some(w => w.id === overId)
+            if (isWidgetOver) {
+                const oldIndex = layoutConfig.widgets.findIndex(w => w.id === activeId)
+                const newIndex = layoutConfig.widgets.findIndex(w => w.id === overId)
+                if (oldIndex !== -1 && newIndex !== -1) {
+                    setLayoutConfig(prev => ({
+                        ...prev,
+                        widgets: arrayMove(prev.widgets, oldIndex, newIndex)
+                    }))
+                }
+            }
+            return
+        }
+
         // Check if dropping into folder
         let targetFolderId: string | null = null
         if (overId.startsWith('folder-drop-')) {
@@ -941,7 +957,23 @@ function App() {
         const activeAppId = active.id as string;
         const overId = over.id as string;
 
-        if (activeAppId === overId) return;
+        if (activeAppId === overId) return
+
+        const isWidgetActive = layoutConfig.widgets?.some(w => w.id === activeAppId)
+        if (isWidgetActive) {
+            const isWidgetOver = layoutConfig.widgets?.some(w => w.id === overId)
+            if (isWidgetOver) {
+                const oldIndex = layoutConfig.widgets.findIndex(w => w.id === activeAppId)
+                const newIndex = layoutConfig.widgets.findIndex(w => w.id === overId)
+                if (oldIndex !== -1 && newIndex !== -1) {
+                    setLayoutConfig(prev => ({
+                        ...prev,
+                        widgets: arrayMove(prev.widgets, oldIndex, newIndex)
+                    }))
+                }
+            }
+            return
+        };
 
         // Helper to find container of an app ID
         const findContainerId = (id: string): string => {
@@ -1329,7 +1361,7 @@ function App() {
                                     </button>
                                 )}
                             </div>
-                            <SortableContext items={uncategorized.map(a => a.id)} strategy={rectSortingStrategy}>
+                            <SortableContext items={[...uncategorized.map(a => a.id), ...(layoutConfig.widgets || []).map(w => w.id)]} strategy={rectSortingStrategy}>
                                 <DroppableContainer id="uncategorized" className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                                     {uncategorized.map((app: AppData) => (
                                         <SortableAppTile
@@ -1397,7 +1429,7 @@ function App() {
 
         // Default Grid/List View
         return (
-            <SortableContext items={displayApps.map(app => app.id)} strategy={rectSortingStrategy}>
+            <SortableContext items={[...displayApps.map(app => app.id), ...(layoutConfig.widgets || []).map(w => w.id)]} strategy={rectSortingStrategy}>
                 <DroppableContainer
                     id="uncategorized"
                     className={`p-6 pb-24 gap-6 ${activeLayoutMode === 'list'
