@@ -1364,6 +1364,12 @@ function App() {
                                             {widget.type === 'weather' && <WeatherWidget />}
                                             {widget.type === 'clock' && <ClockWidget />}
                                             {widget.type === 'calendar' && <CalendarWidget />}
+                                            {widget.type === 'text' && (
+                                                <div className="w-full h-full p-4 flex flex-col justify-center bg-black/40 rounded-2xl border border-white/10 backdrop-blur-md relative overflow-hidden text-white text-xs whitespace-pre-wrap">
+                                                    <div className="font-semibold text-pink-300 mb-1">Note</div>
+                                                    <div className="text-gray-200">{widget.customText || 'Custom Note'}</div>
+                                                </div>
+                                            )}
                                         </WidgetTile>
                                     ))}
                                 </DroppableContainer>
@@ -1480,6 +1486,12 @@ function App() {
                             {widget.type === 'weather' && <WeatherWidget />}
                             {widget.type === 'clock' && <ClockWidget />}
                             {widget.type === 'calendar' && <CalendarWidget />}
+                            {widget.type === 'text' && (
+                                <div className="w-full h-full p-4 flex flex-col justify-center bg-black/40 rounded-2xl border border-white/10 backdrop-blur-md relative overflow-hidden text-white text-xs whitespace-pre-wrap">
+                                    <div className="font-semibold text-pink-300 mb-1">Note</div>
+                                    <div className="text-gray-200">{widget.customText || 'Custom Note'}</div>
+                                </div>
+                            )}
                         </WidgetTile>
                     ))}
 
