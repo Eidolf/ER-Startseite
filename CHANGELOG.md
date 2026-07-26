@@ -5,7 +5,7 @@ All notable changes to the **ER-Startseite** dashboard project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.M.PATCH`).
 
-## [2026.7.4] - 2026-07-26
+## [2026.7.5] - 2026-07-26
 
 ### Added
 - **Open-Meteo Live Weather Integration**: Integrated real-time live weather data fetching via the free Open-Meteo API (temperature, WMO condition text/icons, humidity, wind speed) supporting location queries and °C/°F units.
