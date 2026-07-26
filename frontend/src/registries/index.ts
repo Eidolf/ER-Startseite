@@ -9,7 +9,7 @@ import {
     EmbyManifest, BitwardenManifest, RocketChatManifest, PaperlessManifest,
     AmpManifest, EmulatorJSManifest, NextcloudManifest, CalibreManifest,
     PortainerManifest, JDownloaderManifest, GrocyManifest, HomeAssistantManifest,
-    MediawikiManifest, AudiobookshelfManifest
+    MediawikiManifest, AudiobookshelfManifest, TrekManifest
 } from './generic'
 
 export const AppRegistry: Record<string, PremiumAppManifest> = {
@@ -32,5 +32,6 @@ export const AppRegistry: Record<string, PremiumAppManifest> = {
     [GrocyManifest.id]: GrocyManifest,
     [HomeAssistantManifest.id]: HomeAssistantManifest,
     [MediawikiManifest.id]: MediawikiManifest,
-    [AudiobookshelfManifest.id]: AudiobookshelfManifest
+    [AudiobookshelfManifest.id]: AudiobookshelfManifest,
+    [TrekManifest.id]: TrekManifest
 }

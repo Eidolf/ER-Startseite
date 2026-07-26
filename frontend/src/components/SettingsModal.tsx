@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github, LayoutGrid, Clock, CloudSun, Save, LogOut } from 'lucide-react'
+import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github, LayoutGrid, Clock, CloudSun, Palmtree, Save, LogOut } from 'lucide-react'
 import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig, WidgetData, LayoutMode, WidgetDefaults } from '../types'
 
 interface MediaItem {
@@ -257,6 +257,10 @@ export function SettingsModal({
     const [weatherUnitInput, setWeatherUnitInput] = useState<'c' | 'f'>(widgetDefaults?.weatherUnit || 'c')
     const [clockFormatInput, setClockFormatInput] = useState<'24h' | '12h'>(widgetDefaults?.clockFormat || '24h')
     const [dateFormatInput, setDateFormatInput] = useState(widgetDefaults?.dateFormat || 'DD.MM.YYYY')
+    const [vacationTitleInput, setVacationTitleInput] = useState(widgetDefaults?.vacationTitle || 'Nächster Urlaub')
+    const [vacationDateInput, setVacationDateInput] = useState(widgetDefaults?.vacationDate || '')
+    const [vacationApiUrlInput, setVacationApiUrlInput] = useState(widgetDefaults?.vacationApiUrl || '')
+    const [vacationApiKeyInput, setVacationApiKeyInput] = useState(widgetDefaults?.vacationApiKey || '')
 
     useEffect(() => {
         if (widgetDefaults) {
@@ -264,6 +268,10 @@ export function SettingsModal({
             setWeatherUnitInput(widgetDefaults.weatherUnit || 'c')
             setClockFormatInput(widgetDefaults.clockFormat || '24h')
             setDateFormatInput(widgetDefaults.dateFormat || 'DD.MM.YYYY')
+            setVacationTitleInput(widgetDefaults.vacationTitle || 'Nächster Urlaub')
+            setVacationDateInput(widgetDefaults.vacationDate || '')
+            setVacationApiUrlInput(widgetDefaults.vacationApiUrl || '')
+            setVacationApiKeyInput(widgetDefaults.vacationApiKey || '')
         }
     }, [widgetDefaults])
 
@@ -273,6 +281,10 @@ export function SettingsModal({
             weatherUnit: weatherUnitInput,
             clockFormat: clockFormatInput,
             dateFormat: dateFormatInput,
+            vacationTitle: vacationTitleInput,
+            vacationDate: vacationDateInput,
+            vacationApiUrl: vacationApiUrlInput,
+            vacationApiKey: vacationApiKeyInput,
             ...updates,
         })
     }
@@ -670,6 +682,70 @@ export function SettingsModal({
                                             <option value="YYYY-MM-DD">YYYY-MM-DD (e.g. 2026-07-26)</option>
                                             <option value="MM/DD/YYYY">MM/DD/YYYY (e.g. 07/26/2026)</option>
                                         </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Vacation Widget Defaults */}
+                            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-4">
+                                <div className="flex items-center gap-2 text-sm font-semibold text-emerald-300">
+                                    <Palmtree className="w-4 h-4" /> Vacation & Countdown Defaults
+                                </div>
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Vacation Title</label>
+                                        <input
+                                            type="text"
+                                            value={vacationTitleInput}
+                                            onChange={(e) => {
+                                                const val = e.target.value
+                                                setVacationTitleInput(val)
+                                                updateWidgetDefaults({ vacationTitle: val })
+                                            }}
+                                            placeholder="e.g. Sommerurlaub 2026"
+                                            className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon-cyan"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">Target Date & Time</label>
+                                        <input
+                                            type="datetime-local"
+                                            value={vacationDateInput}
+                                            onChange={(e) => {
+                                                const val = e.target.value
+                                                setVacationDateInput(val)
+                                                updateWidgetDefaults({ vacationDate: val })
+                                            }}
+                                            className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-neon-cyan"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">TREK / Custom API Endpoint URL (Optional)</label>
+                                        <input
+                                            type="text"
+                                            value={vacationApiUrlInput}
+                                            onChange={(e) => {
+                                                const val = e.target.value
+                                                setVacationApiUrlInput(val)
+                                                updateWidgetDefaults({ vacationApiUrl: val })
+                                            }}
+                                            placeholder="e.g. https://trek.yourdomain.de/api/v1/trips"
+                                            className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon-cyan"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1">API Token / Key (Optional)</label>
+                                        <input
+                                            type="password"
+                                            value={vacationApiKeyInput}
+                                            onChange={(e) => {
+                                                const val = e.target.value
+                                                setVacationApiKeyInput(val)
+                                                updateWidgetDefaults({ vacationApiKey: val })
+                                            }}
+                                            placeholder="Bearer token or API key"
+                                            className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon-cyan"
+                                        />
                                     </div>
                                 </div>
                             </div>

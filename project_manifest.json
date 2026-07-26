@@ -140,7 +140,22 @@
         "y": "int",
         "w": "int",
         "h": "int",
+        "customText": "str | None",
         "settings": "dict[str, Any]"
+      },
+      "relationships": []
+    },
+    "WidgetDefaults": {
+      "file": "backend/app/schemas/config.py",
+      "fields": {
+        "weatherLocation": "str | None",
+        "weatherUnit": "str | None",
+        "clockFormat": "str | None",
+        "dateFormat": "str | None",
+        "vacationTitle": "str | None",
+        "vacationDate": "str | None",
+        "vacationApiUrl": "str | None",
+        "vacationApiKey": "str | None"
       },
       "relationships": []
     },
@@ -151,7 +166,8 @@
         "customOrder": "list[str]",
         "categories": "list[Category]",
         "hiddenAppIds": "list[str]",
-        "widgets": "list[WidgetData]"
+        "widgets": "list[WidgetData]",
+        "widgetDefaults": "WidgetDefaults | None"
       },
       "relationships": []
     },
@@ -544,6 +560,10 @@
       "ClockWidget": {
         "file": "frontend/src/components/widgets/ClockWidget.tsx",
         "description": "UI Component ClockWidget for dashboard view or modal dialog"
+      },
+      "VacationWidget": {
+        "file": "frontend/src/components/widgets/VacationWidget.tsx",
+        "description": "UI Component VacationWidget for dashboard view or modal dialog"
       },
       "WeatherWidget": {
         "file": "frontend/src/components/widgets/WeatherWidget.tsx",

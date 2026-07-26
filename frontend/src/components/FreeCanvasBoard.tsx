@@ -3,6 +3,7 @@ import { Plus, RotateCcw, Cookie, Move, Trash2, Maximize2, Search, FileText, Fol
 import { ClockWidget } from './widgets/ClockWidget'
 import { WeatherWidget } from './widgets/WeatherWidget'
 import { CalendarWidget } from './widgets/CalendarWidget'
+import { VacationWidget } from './widgets/VacationWidget'
 import { AppIcon } from './AppIcon'
 import { AppData, WidgetDefaults } from '../types'
 import { getJsonCookie, setJsonCookie, deleteCookie } from '../utils/cookieUtils'
@@ -12,7 +13,7 @@ const EMPTY_ARRAY: string[] = []
 
 export interface CanvasWidget {
     id: string
-    type: 'clock' | 'weather' | 'calendar' | 'search' | 'text' | 'app' | 'folder'
+    type: 'clock' | 'weather' | 'calendar' | 'search' | 'text' | 'app' | 'folder' | 'vacation'
     title: string
     x: number
     y: number
@@ -32,6 +33,10 @@ export interface CanvasWidget {
     clockTimezone?: string
     weatherLocation?: string
     weatherUnit?: 'c' | 'f'
+    vacationTitle?: string
+    vacationDate?: string
+    vacationApiUrl?: string
+    vacationApiKey?: string
 }
 
 const DEFAULT_WIDGETS: CanvasWidget[] = [
@@ -295,6 +300,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
             text: 'Note',
             app: extra?.title || 'App Shortcut',
             folder: extra?.title || 'Folder Container',
+            vacation: extra?.title || 'Urlaubs-Countdown',
         }
         const defaults: Record<CanvasWidget['type'], { width: number; height: number }> = {
             clock: { width: 280, height: 150 },
@@ -303,7 +309,8 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
             search: { width: 500, height: 90 },
             text: { width: 360, height: 160 },
             app: { width: 200, height: 120 },
-            folder: { width: 380, height: 240 },
+            folder: { width: 380, height: 220 },
+            vacation: { width: 340, height: 170 },
         }
 
         const newWidget: CanvasWidget = {
@@ -604,6 +611,12 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
                                 >
                                     <span className="w-2 h-2 rounded-full bg-pink-400" /> Custom Note
                                 </button>
+                                <button
+                                    onClick={() => addWidget('vacation')}
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 rounded-xl flex items-center gap-2"
+                                >
+                                    <span className="w-2 h-2 rounded-full bg-emerald-400" /> Vacation Countdown
+                                </button>
 
                                 <div className="h-px bg-white/10 my-1.5" />
                                 <div className="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
@@ -737,6 +750,14 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
                                 />
                             )}
                             {widget.type === 'calendar' && <CalendarWidget />}
+                            {widget.type === 'vacation' && (
+                                <VacationWidget
+                                    title={widget.vacationTitle || widgetDefaults?.vacationTitle || 'Nächster Urlaub'}
+                                    targetDate={widget.vacationDate || widgetDefaults?.vacationDate}
+                                    apiUrl={widget.vacationApiUrl || widgetDefaults?.vacationApiUrl}
+                                    apiKey={widget.vacationApiKey || widgetDefaults?.vacationApiKey}
+                                />
+                            )}
                             {widget.type === 'search' && (
                                 <div className="w-full h-full bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-4 flex items-center gap-3">
                                     <Search className="w-5 h-5 text-gray-400" />

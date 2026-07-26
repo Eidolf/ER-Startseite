@@ -17,6 +17,7 @@ import { WidgetTile } from './components/WidgetTile'
 import { WeatherWidget } from './components/widgets/WeatherWidget'
 import { ClockWidget } from './components/widgets/ClockWidget'
 import { CalendarWidget } from './components/widgets/CalendarWidget'
+import { VacationWidget } from './components/widgets/VacationWidget'
 import { WidgetContextModal } from './components/WidgetContextModal'
 import { FreeCanvasBoard } from './components/FreeCanvasBoard'
 
@@ -1116,7 +1117,7 @@ function App() {
         return [...appItems, ...widgetItems]
     }
 
-    const handleAddWidget = (type: 'weather' | 'clock' | 'search' | 'calendar' | 'text', customText?: string) => {
+    const handleAddWidget = (type: WidgetData['type'], customText?: string) => {
         const newWidget: WidgetData = {
             id: `widget-${type}-${generateUUID()}`,
             type,
@@ -1127,6 +1128,13 @@ function App() {
             ...prev,
             widgets: [...(prev.widgets || []), newWidget],
             customOrder: [...(prev.customOrder || []), newWidget.id]
+        }))
+    }
+
+    const handleUpdateWidget = (updated: WidgetData) => {
+        setLayoutConfig(prev => ({
+            ...prev,
+            widgets: prev.widgets.map(w => w.id === updated.id ? updated : w)
         }))
     }
 
@@ -1525,6 +1533,14 @@ function App() {
                                     )}
                                     {widget.type === 'calendar' && <CalendarWidget />}
                                     {widget.type === 'text' && <NoteWidgetTile text={widget.customText} />}
+                                    {widget.type === 'vacation' && (
+                                        <VacationWidget
+                                            title={widget.vacationTitle || layoutConfig.widgetDefaults?.vacationTitle || 'Nächster Urlaub'}
+                                            targetDate={widget.vacationDate || layoutConfig.widgetDefaults?.vacationDate}
+                                            apiUrl={widget.vacationApiUrl || layoutConfig.widgetDefaults?.vacationApiUrl}
+                                            apiKey={widget.vacationApiKey || layoutConfig.widgetDefaults?.vacationApiKey}
+                                        />
+                                    )}
                                 </WidgetTile>
                             )
                         }
@@ -1532,65 +1548,54 @@ function App() {
 
                     {/* Hidden Apps Area */}
                     {showHiddenApps && (
-                        <div className={`glass-panel rounded-2xl p-6 border border-red-500/30 bg-red-900/10 ${layoutConfig.mode === 'list' ? 'col-span-full' : 'col-span-full'}`}>
+                        <div className={`glass-panel rounded-2xl p-6 border border-red-500/30 bg-red-900/10 ${activeLayoutMode === 'list' ? 'col-span-full' : 'col-span-full'}`}>
                             <div className="flex justify-between items-center mb-4">
                                 <h2 className="text-xl font-bold text-red-400 flex items-center gap-2">
-                                    <EyeOff className="w-5 h-5" />
-                                    Hidden Apps
+                                    <EyeOff className="w-5 h-5" /> Hidden Apps (Private)
                                 </h2>
-                                <p className="text-xs text-red-300/70">
-                                    Visible because you are authenticated.
-                                </p>
                             </div>
-                            <SortableContext items={layoutConfig.hiddenAppIds || []} strategy={rectSortingStrategy}>
-                                <DroppableContainer id="hidden-apps" className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 min-h-[100px] p-2 rounded-xl bg-black/20 border-dashed border border-red-500/20">
-                                    {(layoutConfig.hiddenAppIds || []).map((id) => {
-                                        const app = apps.find(a => a.id === id);
-                                        if (!app) return null;
-                                        // Filter by search query
-                                        if (searchQuery && !app.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-                                            return null;
-                                        }
-                                        return (
-                                            <SortableAppTile
-                                                key={app.id}
-                                                app={app}
-                                                isEditMode={isEditMode}
-                                                tileClass={tileClass}
-                                                style={getIconStyle()}
-                                                onClick={(e: React.MouseEvent) => {
-                                                    if (app.type === 'folder') {
-                                                        e.preventDefault();
-                                                        setOpenFolder(app);
-                                                        return;
-                                                    }
-                                                    if (isEditMode) e.preventDefault();
-                                                    else if (app.url) {
-                                                        if (openInNewTab) window.open(app.url, '_blank', 'noopener,noreferrer');
-                                                        else window.location.href = app.url;
-                                                    }
-                                                }}
-                                                onDelete={handleDeleteApp}
-                                                onEdit={(_e, app) => {
-                                                    setEditingApp(app);
-                                                    setIsAppFormOpen(true);
-                                                }}
-                                                onContextMenu={handleContextMenu}
-                                            >
-                                                <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0 opacity-70">
-                                                    <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain grayscale" />
-                                                </div>
-                                                <span className="font-medium text-gray-400 text-center text-sm truncate w-full px-2">{app.name}</span>
-                                            </SortableAppTile>
-                                        )
-                                    })}
-                                    {(!layoutConfig.hiddenAppIds || layoutConfig.hiddenAppIds.length === 0) && (
-                                        <div className="col-span-full h-full flex items-center justify-center text-red-400/50 text-sm italic py-8">
-                                            Drag apps here to hide them
+                            <div className={`gap-6 ${activeLayoutMode === 'list' ? 'flex flex-col' : 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6'}`}>
+                                {(layoutConfig.hiddenAppIds || []).map(id => apps.find(a => a.id === id)).filter((a): a is AppData => !!a).map((app) => (
+                                    <SortableAppTile
+                                        key={app.id}
+                                        app={app}
+                                        isEditMode={isEditMode}
+                                        tileClass={activeLayoutMode === 'rich-grid' ? '' : (activeLayoutMode === 'list'
+                                            ? "relative rounded-xl p-4 flex items-center gap-4 transition-all duration-300 cursor-pointer group hover:bg-white/5 glass-panel w-full"
+                                            : tileClass)}
+                                        style={activeLayoutMode === 'rich-grid' ? {
+                                            backgroundColor: 'transparent',
+                                            boxShadow: 'none',
+                                            border: 'none'
+                                        } : getIconStyle()}
+                                        onClick={(e: React.MouseEvent) => {
+                                            if (app.type === 'folder') {
+                                                e.preventDefault();
+                                                setOpenFolder(app);
+                                                return;
+                                            }
+                                            if (isEditMode) e.preventDefault();
+                                            else if (app.url) {
+                                                if (openInNewTab) window.open(app.url, '_blank', 'noopener,noreferrer');
+                                                else window.location.href = app.url;
+                                            }
+                                        }}
+                                        onDelete={handleDeleteApp}
+                                        onEdit={(_e, app) => {
+                                            setEditingApp(app);
+                                            setIsAppFormOpen(true);
+                                        }}
+                                        onContextMenu={handleContextMenu}
+                                    >
+                                        <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0 opacity-60">
+                                            <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain" />
                                         </div>
-                                    )}
-                                </DroppableContainer>
-                            </SortableContext>
+                                        <span className="font-medium text-gray-400 group-hover:text-white text-center text-sm truncate w-full px-2">
+                                            {app.name}
+                                        </span>
+                                    </SortableAppTile>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </DroppableContainer>
@@ -1641,6 +1646,7 @@ function App() {
                 widget={contextWidget}
                 onClose={() => setContextWidget(null)}
                 onDelete={handleDeleteWidget}
+                onUpdateWidget={handleUpdateWidget}
             />
 
             <SettingsModal
