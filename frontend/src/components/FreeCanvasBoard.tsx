@@ -4,7 +4,7 @@ import { ClockWidget } from './widgets/ClockWidget'
 import { WeatherWidget } from './widgets/WeatherWidget'
 import { CalendarWidget } from './widgets/CalendarWidget'
 import { AppIcon } from './AppIcon'
-import { AppData } from '../types'
+import { AppData, WidgetDefaults } from '../types'
 import { getJsonCookie, setJsonCookie, deleteCookie } from '../utils/cookieUtils'
 
 const COOKIE_NAME = 'er_canvas_layout_v1'
@@ -47,6 +47,7 @@ interface FreeCanvasBoardProps {
     hiddenAppIds?: string[]
     showHiddenApps?: boolean
     openInNewTab?: boolean
+    widgetDefaults?: WidgetDefaults
 }
 
 interface HoverPreviewState {
@@ -57,7 +58,7 @@ interface HoverPreviewState {
     y: number
 }
 
-export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHiddenApps = false }: FreeCanvasBoardProps) {
+export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHiddenApps = false, widgetDefaults }: FreeCanvasBoardProps) {
     const availableApps = useMemo(
         () => apps.filter((a) => !hiddenAppIds.includes(a.id) || showHiddenApps),
         [apps, hiddenAppIds, showHiddenApps]
@@ -275,11 +276,11 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
             expandedHeight: defaults[type].height,
             customText: type === 'text' ? 'Write your note here...' : undefined,
             isExpanded: type === 'folder' ? true : undefined,
-            clockFormat24: true,
+            clockFormat24: widgetDefaults?.clockFormat ? widgetDefaults.clockFormat !== '12h' : true,
             clockShowSeconds: false,
-            clockDateFormat: 'full',
-            weatherLocation: 'Berlin',
-            weatherUnit: 'c',
+            clockDateFormat: widgetDefaults?.dateFormat === 'none' ? 'none' : widgetDefaults?.dateFormat === 'short' ? 'short' : 'full',
+            weatherLocation: widgetDefaults?.weatherLocation || 'Berlin',
+            weatherUnit: widgetDefaults?.weatherUnit || 'c',
             ...extra,
         }
 

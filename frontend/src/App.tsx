@@ -1150,6 +1150,7 @@ function App() {
                         hiddenAppIds={layoutConfig.hiddenAppIds}
                         showHiddenApps={showHiddenApps}
                         openInNewTab={openInNewTab}
+                        widgetDefaults={layoutConfig.widgetDefaults}
                     />
                 </div>
             )
