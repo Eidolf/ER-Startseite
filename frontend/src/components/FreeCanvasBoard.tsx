@@ -67,16 +67,18 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
         const raw = getJsonCookie<CanvasWidget[]>(COOKIE_NAME, DEFAULT_WIDGETS)
         return raw.map((w) => {
             if (w.type === 'app' && w.appId) {
-                const foundApp = apps.find((a) => a.id === w.appId)
-                return { ...w, appData: foundApp || w.appData }
+                const isHidden = hiddenAppIds.includes(w.appId) && !showHiddenApps
+                const foundApp = isHidden ? undefined : apps.find((a) => a.id === w.appId && (!hiddenAppIds.includes(a.id) || showHiddenApps))
+                return { ...w, appData: foundApp || (isHidden ? undefined : w.appData) }
             }
             if (w.type === 'folder' && (w.folderAppIds || w.folderApps)) {
-                const appIds = w.folderAppIds || w.folderApps?.map((a) => a.id) || []
-                const foundFolderApps = apps.filter((a) => appIds.includes(a.id))
+                const rawAppIds = w.folderAppIds || w.folderApps?.map((a) => a.id) || []
+                const visibleAppIds = rawAppIds.filter((id) => !hiddenAppIds.includes(id) || showHiddenApps)
+                const foundFolderApps = apps.filter((a) => visibleAppIds.includes(a.id))
                 return {
                     ...w,
-                    folderAppIds: appIds,
-                    folderApps: foundFolderApps.length > 0 ? foundFolderApps : w.folderApps,
+                    folderAppIds: rawAppIds,
+                    folderApps: apps.length > 0 ? foundFolderApps : (w.folderApps?.filter((a) => !hiddenAppIds.includes(a.id) || showHiddenApps) || []),
                 }
             }
             return w
