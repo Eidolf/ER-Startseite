@@ -259,8 +259,6 @@ export function SettingsModal({
     const [dateFormatInput, setDateFormatInput] = useState(widgetDefaults?.dateFormat || 'DD.MM.YYYY')
     const [vacationTitleInput, setVacationTitleInput] = useState(widgetDefaults?.vacationTitle || 'Nächster Urlaub')
     const [vacationDateInput, setVacationDateInput] = useState(widgetDefaults?.vacationDate || '')
-    const [vacationApiUrlInput, setVacationApiUrlInput] = useState(widgetDefaults?.vacationApiUrl || '')
-    const [vacationApiKeyInput, setVacationApiKeyInput] = useState(widgetDefaults?.vacationApiKey || '')
 
     useEffect(() => {
         if (widgetDefaults) {
@@ -270,8 +268,6 @@ export function SettingsModal({
             setDateFormatInput(widgetDefaults.dateFormat || 'DD.MM.YYYY')
             setVacationTitleInput(widgetDefaults.vacationTitle || 'Nächster Urlaub')
             setVacationDateInput(widgetDefaults.vacationDate || '')
-            setVacationApiUrlInput(widgetDefaults.vacationApiUrl || '')
-            setVacationApiKeyInput(widgetDefaults.vacationApiKey || '')
         }
     }, [widgetDefaults])
 
@@ -283,8 +279,6 @@ export function SettingsModal({
             dateFormat: dateFormatInput,
             vacationTitle: vacationTitleInput,
             vacationDate: vacationDateInput,
-            vacationApiUrl: vacationApiUrlInput,
-            vacationApiKey: vacationApiKeyInput,
             ...updates,
         })
     }
@@ -717,34 +711,6 @@ export function SettingsModal({
                                                 updateWidgetDefaults({ vacationDate: val })
                                             }}
                                             className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-neon-cyan"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-400 mb-1">TREK / Custom API Endpoint URL (Optional)</label>
-                                        <input
-                                            type="text"
-                                            value={vacationApiUrlInput}
-                                            onChange={(e) => {
-                                                const val = e.target.value
-                                                setVacationApiUrlInput(val)
-                                                updateWidgetDefaults({ vacationApiUrl: val })
-                                            }}
-                                            placeholder="e.g. https://trek.yourdomain.de/api/v1/trips"
-                                            className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon-cyan"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-400 mb-1">API Token / Key (Optional)</label>
-                                        <input
-                                            type="password"
-                                            value={vacationApiKeyInput}
-                                            onChange={(e) => {
-                                                const val = e.target.value
-                                                setVacationApiKeyInput(val)
-                                                updateWidgetDefaults({ vacationApiKey: val })
-                                            }}
-                                            placeholder="Bearer token or API key"
-                                            className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:border-neon-cyan"
                                         />
                                     </div>
                                 </div>
