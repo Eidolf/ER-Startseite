@@ -19,11 +19,12 @@ export function useAppStats(app: AppData, isAuthenticated: boolean) {
                 return
             }
 
-            // Minimal validation - URL or API Key often needed, but depends on manifest logic.
-            // We'll let the manifest handle empty strings if it wants, 
-            // but usually we need at least a URL.
-            const hasUrl = app.url || app.api_url
-            if (!hasUrl && !app.api_key) {
+            // API stats should ONLY be fetched if an API key is explicitly configured and non-empty
+            const hasApiKey = !!app.api_key && app.api_key.trim().length > 0
+            const hasUrl = !!(app.url || app.api_url)
+            if (!hasApiKey || !hasUrl) {
+                setStats(null)
+                setLoading(false)
                 return
             }
 
