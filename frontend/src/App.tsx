@@ -734,16 +734,18 @@ function App() {
 
         const isWidgetActive = layoutConfig.widgets?.some(w => w.id === activeId)
         if (isWidgetActive) {
-            const isWidgetOver = layoutConfig.widgets?.some(w => w.id === overId)
-            if (isWidgetOver) {
-                const oldIndex = layoutConfig.widgets.findIndex(w => w.id === activeId)
-                const newIndex = layoutConfig.widgets.findIndex(w => w.id === overId)
-                if (oldIndex !== -1 && newIndex !== -1) {
-                    setLayoutConfig(prev => ({
-                        ...prev,
-                        widgets: arrayMove(prev.widgets, oldIndex, newIndex)
-                    }))
+            const oldIndex = layoutConfig.widgets.findIndex(w => w.id === activeId)
+            let newIndex = layoutConfig.widgets.findIndex(w => w.id === overId)
+            if (newIndex === -1) {
+                if (apps.some(a => a.id === overId)) {
+                    newIndex = 0
                 }
+            }
+            if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+                setLayoutConfig(prev => ({
+                    ...prev,
+                    widgets: arrayMove(prev.widgets, oldIndex, newIndex)
+                }))
             }
             return
         }
@@ -818,8 +820,16 @@ function App() {
         if (active.id !== over.id) {
             setApps((items) => {
                 const oldIndex = items.findIndex(item => item.id === active.id)
-                const newIndex = items.findIndex(item => item.id === over.id)
-                if (oldIndex === -1 || newIndex === -1) return items
+                if (oldIndex === -1) return items
+
+                let newIndex = items.findIndex(item => item.id === over.id)
+                if (newIndex === -1) {
+                    if (layoutConfig.widgets?.some(w => w.id === over.id)) {
+                        newIndex = items.length - 1
+                    } else {
+                        return items
+                    }
+                }
 
                 const newOrder = arrayMove(items, oldIndex, newIndex)
 
@@ -961,16 +971,18 @@ function App() {
 
         const isWidgetActive = layoutConfig.widgets?.some(w => w.id === activeAppId)
         if (isWidgetActive) {
-            const isWidgetOver = layoutConfig.widgets?.some(w => w.id === overId)
-            if (isWidgetOver) {
-                const oldIndex = layoutConfig.widgets.findIndex(w => w.id === activeAppId)
-                const newIndex = layoutConfig.widgets.findIndex(w => w.id === overId)
-                if (oldIndex !== -1 && newIndex !== -1) {
-                    setLayoutConfig(prev => ({
-                        ...prev,
-                        widgets: arrayMove(prev.widgets, oldIndex, newIndex)
-                    }))
+            const oldIndex = layoutConfig.widgets.findIndex(w => w.id === activeAppId)
+            let newIndex = layoutConfig.widgets.findIndex(w => w.id === overId)
+            if (newIndex === -1) {
+                if (apps.some(a => a.id === overId)) {
+                    newIndex = 0
                 }
+            }
+            if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+                setLayoutConfig(prev => ({
+                    ...prev,
+                    widgets: arrayMove(prev.widgets, oldIndex, newIndex)
+                }))
             }
             return
         };
