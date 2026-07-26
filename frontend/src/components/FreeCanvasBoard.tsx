@@ -139,8 +139,8 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
                     }
                     if (w.type === 'folder' && (w.folderAppIds || w.folderApps)) {
                         const rawAppIds = w.folderAppIds || w.folderApps?.map((a) => a.id) || []
-                        const appIds = rawAppIds.filter((id) => !hiddenAppIds.includes(id) || showHiddenApps)
-                        const foundFolderApps = availableApps.filter((a) => appIds.includes(a.id))
+                        const visibleAppIds = rawAppIds.filter((id) => !hiddenAppIds.includes(id) || showHiddenApps)
+                        const foundFolderApps = availableApps.filter((a) => visibleAppIds.includes(a.id))
                         const folderAppsChanged =
                             foundFolderApps.length !== (w.folderApps?.length || 0) ||
                             foundFolderApps.some((a, idx) => a !== w.folderApps?.[idx])
@@ -148,7 +148,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
                             hasChanged = true
                             return {
                                 ...w,
-                                folderAppIds: appIds,
+                                folderAppIds: rawAppIds,
                                 folderApps: foundFolderApps,
                             }
                         }
