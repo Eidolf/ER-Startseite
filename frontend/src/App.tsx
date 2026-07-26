@@ -1537,8 +1537,6 @@ function App() {
                                         <VacationWidget
                                             title={widget.vacationTitle || layoutConfig.widgetDefaults?.vacationTitle || 'Nächster Urlaub'}
                                             targetDate={widget.vacationDate || layoutConfig.widgetDefaults?.vacationDate}
-                                            apiUrl={widget.vacationApiUrl || layoutConfig.widgetDefaults?.vacationApiUrl}
-                                            apiKey={widget.vacationApiKey || layoutConfig.widgetDefaults?.vacationApiKey}
                                         />
                                     )}
                                 </WidgetTile>

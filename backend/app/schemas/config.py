@@ -54,8 +54,8 @@ class WidgetDefaults(BaseModel):
     dateFormat: str | None = "DD.MM.YYYY"
     vacationTitle: str | None = "Nächster Urlaub"
     vacationDate: str | None = None
-    vacationApiUrl: str | None = None
-    vacationApiKey: str | None = None
+    vacationDestination: str | None = None
+    vacationSecret: str | None = None
 
 
 class LayoutConfig(BaseModel):

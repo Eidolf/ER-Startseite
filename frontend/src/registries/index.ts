@@ -5,11 +5,12 @@ import { RadarrManifest } from './radarr'
 import { SonarrManifest } from './sonarr'
 import { ReadarrManifest } from './readarr'
 import { SabnzbdManifest } from './sabnzbd'
+import { TrekManifest } from './trek'
 import {
     EmbyManifest, BitwardenManifest, RocketChatManifest, PaperlessManifest,
     AmpManifest, EmulatorJSManifest, NextcloudManifest, CalibreManifest,
     PortainerManifest, JDownloaderManifest, GrocyManifest, HomeAssistantManifest,
-    MediawikiManifest, AudiobookshelfManifest, TrekManifest
+    MediawikiManifest, AudiobookshelfManifest
 } from './generic'
 
 export const AppRegistry: Record<string, PremiumAppManifest> = {

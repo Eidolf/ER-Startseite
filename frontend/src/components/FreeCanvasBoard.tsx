@@ -754,8 +754,6 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
                                 <VacationWidget
                                     title={widget.vacationTitle || widgetDefaults?.vacationTitle || 'Nächster Urlaub'}
                                     targetDate={widget.vacationDate || widgetDefaults?.vacationDate}
-                                    apiUrl={widget.vacationApiUrl || widgetDefaults?.vacationApiUrl}
-                                    apiKey={widget.vacationApiKey || widgetDefaults?.vacationApiKey}
                                 />
                             )}
                             {widget.type === 'search' && (

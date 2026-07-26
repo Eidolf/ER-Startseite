@@ -154,8 +154,8 @@
         "dateFormat": "str | None",
         "vacationTitle": "str | None",
         "vacationDate": "str | None",
-        "vacationApiUrl": "str | None",
-        "vacationApiKey": "str | None"
+        "vacationDestination": "str | None",
+        "vacationSecret": "str | None"
       },
       "relationships": []
     },
@@ -482,6 +482,15 @@
       "request_model": null,
       "response_model": "dict",
       "file": "backend/app/api/v1/endpoints/registry.py"
+    },
+    {
+      "path": "/api/v1/vacation",
+      "method": "POST",
+      "summary": "POST /api/v1/vacation",
+      "description": "POST /api/v1/vacation",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/webhooks.py"
     },
     {
       "path": "/health",

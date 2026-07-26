@@ -12,15 +12,11 @@ interface WidgetContextModalProps {
 export function WidgetContextModal({ widget, onClose, onDelete, onUpdateWidget }: WidgetContextModalProps) {
     const [titleInput, setTitleInput] = useState('')
     const [dateInput, setDateInput] = useState('')
-    const [apiUrlInput, setApiUrlInput] = useState('')
-    const [apiKeyInput, setApiKeyInput] = useState('')
 
     useEffect(() => {
         if (widget) {
             setTitleInput(widget.vacationTitle || '')
             setDateInput(widget.vacationDate || '')
-            setApiUrlInput(widget.vacationApiUrl || '')
-            setApiKeyInput(widget.vacationApiKey || '')
         }
     }, [widget])
 
@@ -35,8 +31,6 @@ export function WidgetContextModal({ widget, onClose, onDelete, onUpdateWidget }
             ...widget,
             vacationTitle: titleInput.trim() || undefined,
             vacationDate: dateInput.trim() || undefined,
-            vacationApiUrl: apiUrlInput.trim() || undefined,
-            vacationApiKey: apiKeyInput.trim() || undefined,
         })
         onClose()
     }
@@ -72,26 +66,6 @@ export function WidgetContextModal({ widget, onClose, onDelete, onUpdateWidget }
                                     type="datetime-local"
                                     value={dateInput}
                                     onChange={(e) => setDateInput(e.target.value)}
-                                    className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-neon-cyan"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-400 mb-1">TREK / Custom API URL (Optional)</label>
-                                <input
-                                    type="text"
-                                    value={apiUrlInput}
-                                    onChange={(e) => setApiUrlInput(e.target.value)}
-                                    placeholder="e.g. https://trek.home.arpa/api/v1/trips"
-                                    className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-neon-cyan"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium text-gray-400 mb-1">API Key / Token (Optional)</label>
-                                <input
-                                    type="password"
-                                    value={apiKeyInput}
-                                    onChange={(e) => setApiKeyInput(e.target.value)}
-                                    placeholder="Bearer Token"
                                     className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-neon-cyan"
                                 />
                             </div>
