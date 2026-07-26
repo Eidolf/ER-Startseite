@@ -188,63 +188,102 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
         setIsSavedInCookie(true)
     }, [widgets])
 
-    const handleMouseDown = (e: React.MouseEvent, id: string) => {
+    const getCoordinates = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
+        if ('touches' in e && e.touches && e.touches.length > 0) {
+            return { clientX: e.touches[0].clientX, clientY: e.touches[0].clientY }
+        }
+        if ('clientX' in e) {
+            return { clientX: (e as MouseEvent).clientX, clientY: (e as MouseEvent).clientY }
+        }
+        return { clientX: 0, clientY: 0 }
+    }
+
+    const handleStartDrag = (e: React.MouseEvent | React.TouchEvent, id: string) => {
         e.stopPropagation()
         const widget = widgets.find((w) => w.id === id)
         if (!widget) return
 
+        const coords = getCoordinates(e)
         setDraggingId(id)
         dragOffset.current = {
-            x: e.clientX - widget.x,
-            y: e.clientY - widget.y,
+            x: coords.clientX - widget.x,
+            y: coords.clientY - widget.y,
         }
     }
 
-    const handleResizeMouseDown = (e: React.MouseEvent, id: string) => {
+    const handleStartResize = (e: React.MouseEvent | React.TouchEvent, id: string) => {
         e.stopPropagation()
         const widget = widgets.find((w) => w.id === id)
         if (!widget || widget.isExpanded === false) return
 
+        const coords = getCoordinates(e)
         setResizingId(id)
         initialSize.current = {
             width: widget.width,
             height: widget.height,
-            mouseX: e.clientX,
-            mouseY: e.clientY,
+            mouseX: coords.clientX,
+            mouseY: coords.clientY,
         }
     }
 
-    const handleMouseMove = (e: React.MouseEvent) => {
-        if (draggingId) {
-            const rawX = e.clientX - dragOffset.current.x
-            const rawY = e.clientY - dragOffset.current.y
-            const snappedX = Math.max(10, Math.round(rawX / 10) * 10)
-            const snappedY = Math.max(10, Math.round(rawY / 10) * 10)
+    useEffect(() => {
+        const handleMove = (e: MouseEvent | TouchEvent) => {
+            if (!draggingId && !resizingId) return
 
-            setWidgets((prev) =>
-                prev.map((w) => (w.id === draggingId ? { ...w, x: snappedX, y: snappedY } : w))
-            )
-        } else if (resizingId) {
-            const deltaX = e.clientX - initialSize.current.mouseX
-            const deltaY = e.clientY - initialSize.current.mouseY
+            const coords = getCoordinates(e)
+            if (draggingId) {
+                if ('touches' in e && e.cancelable) {
+                    e.preventDefault()
+                }
+                const rawX = coords.clientX - dragOffset.current.x
+                const rawY = coords.clientY - dragOffset.current.y
+                const snappedX = Math.max(10, Math.round(rawX / 10) * 10)
+                const snappedY = Math.max(10, Math.round(rawY / 10) * 10)
 
-            const newWidth = Math.max(180, Math.round((initialSize.current.width + deltaX) / 10) * 10)
-            const newHeight = Math.max(80, Math.round((initialSize.current.height + deltaY) / 10) * 10)
-
-            setWidgets((prev) =>
-                prev.map((w) =>
-                    w.id === resizingId
-                        ? { ...w, width: newWidth, height: newHeight, expandedHeight: newHeight }
-                        : w
+                setWidgets((prev) =>
+                    prev.map((w) => (w.id === draggingId ? { ...w, x: snappedX, y: snappedY } : w))
                 )
-            )
-        }
-    }
+            } else if (resizingId) {
+                if ('touches' in e && e.cancelable) {
+                    e.preventDefault()
+                }
+                const deltaX = coords.clientX - initialSize.current.mouseX
+                const deltaY = coords.clientY - initialSize.current.mouseY
 
-    const handleMouseUp = () => {
-        setDraggingId(null)
-        setResizingId(null)
-    }
+                const newWidth = Math.max(180, Math.round((initialSize.current.width + deltaX) / 10) * 10)
+                const newHeight = Math.max(80, Math.round((initialSize.current.height + deltaY) / 10) * 10)
+
+                setWidgets((prev) =>
+                    prev.map((w) =>
+                        w.id === resizingId
+                            ? { ...w, width: newWidth, height: newHeight, expandedHeight: newHeight }
+                            : w
+                    )
+                )
+            }
+        }
+
+        const handleEnd = () => {
+            setDraggingId(null)
+            setResizingId(null)
+        }
+
+        if (draggingId || resizingId) {
+            window.addEventListener('mousemove', handleMove)
+            window.addEventListener('mouseup', handleEnd)
+            window.addEventListener('touchmove', handleMove, { passive: false })
+            window.addEventListener('touchend', handleEnd)
+            window.addEventListener('touchcancel', handleEnd)
+        }
+
+        return () => {
+            window.removeEventListener('mousemove', handleMove)
+            window.removeEventListener('mouseup', handleEnd)
+            window.removeEventListener('touchmove', handleMove)
+            window.removeEventListener('touchend', handleEnd)
+            window.removeEventListener('touchcancel', handleEnd)
+        }
+    }, [draggingId, resizingId])
 
     const addWidget = (type: CanvasWidget['type'], extra?: Partial<CanvasWidget>) => {
         const id = `w-${type}-${Date.now()}`
@@ -490,8 +529,6 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
     return (
         <div
             ref={boardRef}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
             className="relative w-full p-6 select-none"
         >
             {/* Click-outside backdrop for dropdown */}
@@ -628,8 +665,9 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
                     >
                         {/* Widget Control Header Overlay */}
                         <div
-                            onMouseDown={(e) => handleMouseDown(e, widget.id)}
-                            className="absolute top-0 left-0 right-0 h-8 bg-black/60 backdrop-blur-md rounded-t-2xl border-b border-white/10 px-3 flex items-center justify-between cursor-move opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                            onMouseDown={(e) => handleStartDrag(e, widget.id)}
+                            onTouchStart={(e) => handleStartDrag(e, widget.id)}
+                            className="absolute top-0 left-0 right-0 h-8 bg-black/60 backdrop-blur-md rounded-t-2xl border-b border-white/10 px-3 flex items-center justify-between cursor-move opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-20 touch-none select-none"
                         >
                             <div className="flex items-center gap-2 text-xs font-semibold text-gray-300 truncate">
                                 <Move className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
@@ -808,8 +846,9 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
                         {/* Resize handle (Hidden when folder is collapsed) */}
                         {widget.isExpanded !== false && (
                             <div
-                                onMouseDown={(e) => handleResizeMouseDown(e, widget.id)}
-                                className="absolute bottom-1 right-1 p-1 text-gray-400 hover:text-white cursor-se-resize opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                                onMouseDown={(e) => handleStartResize(e, widget.id)}
+                                onTouchStart={(e) => handleStartResize(e, widget.id)}
+                                className="absolute bottom-1 right-1 p-1 text-gray-400 hover:text-white cursor-se-resize opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-20 touch-none select-none"
                                 title="Resize item"
                             >
                                 <Maximize2 className="w-3.5 h-3.5 rotate-90" />
@@ -827,17 +866,18 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
                     onMouseLeave={handlePopupMouseLeave}
                     style={{
                         position: 'fixed',
-                        left: `${hoverPreview.x}px`,
-                        top: `${hoverPreview.y}px`,
+                        left: typeof window !== 'undefined' && window.innerWidth < 640 ? '16px' : `${Math.min(hoverPreview.x, (typeof window !== 'undefined' ? window.innerWidth : 800) - 440)}px`,
+                        top: typeof window !== 'undefined' && window.innerWidth < 640 ? 'auto' : `${Math.min(hoverPreview.y, (typeof window !== 'undefined' ? window.innerHeight : 600) - 300)}px`,
+                        bottom: typeof window !== 'undefined' && window.innerWidth < 640 ? '16px' : 'auto',
                     }}
-                    className="z-[200] w-[420px] h-[280px] bg-slate-900/95 border border-indigo-500/50 rounded-2xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 pointer-events-auto"
+                    className="z-[200] w-[calc(100vw-32px)] sm:w-[420px] h-[280px] bg-slate-900/95 border border-indigo-500/50 rounded-2xl shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 pointer-events-auto"
                 >
-                    <div className="px-3 py-1.5 bg-black/80 border-b border-white/10 flex items-center justify-between text-xs text-gray-300 font-semibold shrink-0">
+                    <div className="px-3 py-1.5 bg-black/80 border-b border-white/10 flex items-center justify-between text-xs text-gray-300 font-semibold shrink-0 gap-2">
                         <div className="flex items-center gap-1.5 truncate">
                             <Camera className="w-4 h-4 text-cyan-400 shrink-0" />
                             <span className="truncate">{hoverPreview.name}</span>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 shrink-0">
                             <button
                                 onClick={() => setPreviewMode('snapshot')}
                                 className={`px-2 py-0.5 rounded text-[10px] font-medium transition flex items-center gap-1 ${
@@ -857,6 +897,13 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
                                 }`}
                             >
                                 <Globe className="w-3 h-3" /> Live
+                            </button>
+                            <button
+                                onClick={() => setHoverPreview(null)}
+                                className="p-1 text-gray-400 hover:text-white rounded transition ml-1"
+                                title="Close preview"
+                            >
+                                <X className="w-4 h-4" />
                             </button>
                         </div>
                     </div>
