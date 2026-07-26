@@ -609,16 +609,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
                                     <button
                                         onClick={() => handleOpenEditClock(widget)}
                                         className="text-gray-400 hover:text-cyan-400 p-1 rounded transition"
-                                        title="Configure Clock Format"
-                                    >
-                                        <Pencil className="w-3.5 h-3.5" />
-                                    </button>
-                                )}
-                                {widget.type === 'clock' && (
-                                    <button
-                                        onClick={() => handleOpenEditClock(widget)}
-                                        className="text-gray-400 hover:text-cyan-400 p-1 rounded transition"
-                                        title="Configure Clock Timezone"
+                                        title="Configure Clock Settings"
                                     >
                                         <Pencil className="w-3.5 h-3.5" />
                                     </button>
@@ -868,17 +859,28 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
                 </div>
             )}
 
-            {/* Clock Format Configuration Modal */}
+            {/* Clock Settings Configuration Modal */}
             {isClockModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="w-full max-w-sm bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold text-white">Configure Clock Format</h3>
+                            <h3 className="text-lg font-bold text-white">Configure Clock Settings</h3>
                             <button onClick={() => setIsClockModalOpen(false)} className="text-gray-400 hover:text-white">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
                         <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-400 mb-1">Timezone (e.g. Europe/Berlin, UTC, America/New_York)</label>
+                                <input
+                                    type="text"
+                                    value={clockTimezoneInput}
+                                    onChange={(e) => setClockTimezoneInput(e.target.value)}
+                                    placeholder="Leave empty for local timezone"
+                                    className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 text-sm"
+                                />
+                            </div>
+
                             <div>
                                 <label className="block text-xs font-medium text-gray-400 mb-2">Time Format</label>
                                 <div className="grid grid-cols-2 gap-2">
@@ -887,7 +889,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
                                         onClick={() => setClockFormat24Input(true)}
                                         className={`py-2 px-3 rounded-xl text-xs font-semibold transition border ${
                                             clockFormat24Input
-                                                ? 'bg-indigo-600 border-indigo-500 text-white'
+                                                ? 'bg-cyan-500 border-cyan-400 text-black'
                                                 : 'bg-black/30 border-white/10 text-gray-400 hover:text-white'
                                         }`}
                                     >
@@ -898,7 +900,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
                                         onClick={() => setClockFormat24Input(false)}
                                         className={`py-2 px-3 rounded-xl text-xs font-semibold transition border ${
                                             !clockFormat24Input
-                                                ? 'bg-indigo-600 border-indigo-500 text-white'
+                                                ? 'bg-cyan-500 border-cyan-400 text-black'
                                                 : 'bg-black/30 border-white/10 text-gray-400 hover:text-white'
                                         }`}
                                     >
@@ -913,7 +915,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
                                     type="checkbox"
                                     checked={clockShowSecondsInput}
                                     onChange={(e) => setClockShowSecondsInput(e.target.checked)}
-                                    className="w-4 h-4 rounded border-gray-600 text-indigo-600 focus:ring-indigo-500 accent-indigo-500 cursor-pointer"
+                                    className="w-4 h-4 rounded border-gray-600 text-cyan-500 focus:ring-cyan-500 accent-cyan-500 cursor-pointer"
                                 />
                             </div>
 
@@ -932,7 +934,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
 
                             <button
                                 onClick={handleSaveClockSettings}
-                                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-sm transition shadow-lg shadow-indigo-600/30"
+                                className="w-full py-2.5 bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl text-sm transition shadow-lg shadow-cyan-500/20"
                             >
                                 Save Clock Settings
                             </button>
@@ -996,39 +998,6 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
                                 className="w-full py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-xl text-sm transition shadow-lg shadow-yellow-500/20"
                             >
                                 Save Weather Settings
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Clock Timezone Config Modal */}
-            {isClockModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-                    <div className="w-full max-w-sm bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-bold text-white">Clock Timezone Config</h3>
-                            <button onClick={() => setIsClockModalOpen(false)} className="text-gray-400 hover:text-white">
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-medium text-gray-400 mb-1">Timezone (e.g. Europe/Berlin, UTC, America/New_York)</label>
-                                <input
-                                    type="text"
-                                    value={clockTimezoneInput}
-                                    onChange={(e) => setClockTimezoneInput(e.target.value)}
-                                    placeholder="Leave empty for local timezone"
-                                    className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 text-sm"
-                                />
-                            </div>
-
-                            <button
-                                onClick={handleSaveClockSettings}
-                                className="w-full py-2.5 bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl text-sm transition shadow-lg shadow-cyan-500/20"
-                            >
-                                Save Clock Settings
                             </button>
                         </div>
                     </div>
