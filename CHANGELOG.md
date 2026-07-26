@@ -5,6 +5,23 @@ All notable changes to the **ER-Startseite** dashboard project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.M.PATCH`).
 
+## [2026.7.4] - 2026-07-26
+
+### Added
+- **Open-Meteo Live Weather Integration**: Integrated real-time live weather data fetching via the free Open-Meteo API (temperature, WMO condition text/icons, humidity, wind speed) supporting location queries and °C/°F units.
+- **Interactive Calendar Events & Desktop Notifications**: Added event management to the Calendar widget with native OS desktop pop-up notifications (HTML5 Web Notifications API) and missed reminders catch-up on browser startup.
+- **Synchronized Custom Note Widget**: Added support for creating synchronized custom text notes via the `+` Add Item modal that persist across all site visitors.
+- **Clock Widget Timezone Support**: Added custom IANA timezone configuration to the Clock widget (e.g. `Europe/Berlin`, `UTC`, `America/New_York`).
+- **Global Widget Defaults**: Introduced default settings for Weather location/unit and Clock time/date formats in the main Settings modal.
+
+### Changed
+- **Unified Clock Settings Interface**: Combined time format, seconds toggle, date format, and timezone configuration into a single, clean Clock Settings modal window.
+- **Canvas Board Refinements**: Adjusted Canvas View layout header positioning and single-scroll container behavior.
+
+### Security
+- **Canvas Access Control Improvements**: Restricted hidden apps from appearing in Canvas Board selectors and folders for unauthenticated visitors.
+- **API Key Verification**: Enforced non-empty API key checks prior to executing external app proxy fetches to prevent unauthorized or redundant external network requests.
+
 ---
 
 ## [2026.7.1] - 2026-07-26
