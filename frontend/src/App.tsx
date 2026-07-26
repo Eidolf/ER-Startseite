@@ -1135,7 +1135,12 @@ function App() {
         if (activeLayoutMode === 'canvas') {
             return (
                 <div ref={canvasBoardRef} className="w-full h-full pt-2">
-                    <FreeCanvasBoard apps={apps} openInNewTab={openInNewTab} />
+                    <FreeCanvasBoard
+                        apps={apps}
+                        hiddenAppIds={layoutConfig.hiddenAppIds}
+                        showHiddenApps={showHiddenApps}
+                        openInNewTab={openInNewTab}
+                    />
                 </div>
             )
         }

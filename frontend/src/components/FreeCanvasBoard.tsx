@@ -42,6 +42,8 @@ const DEFAULT_WIDGETS: CanvasWidget[] = [
 
 interface FreeCanvasBoardProps {
     apps?: AppData[]
+    hiddenAppIds?: string[]
+    showHiddenApps?: boolean
     openInNewTab?: boolean
 }
 
@@ -53,7 +55,8 @@ interface HoverPreviewState {
     y: number
 }
 
-export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
+export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps = false }: FreeCanvasBoardProps) {
+    const availableApps = apps.filter((a) => !hiddenAppIds.includes(a.id) || showHiddenApps)
     const [widgets, setWidgets] = useState<CanvasWidget[]>(() => {
         const raw = getJsonCookie<CanvasWidget[]>(COOKIE_NAME, DEFAULT_WIDGETS)
         return raw.map((w) => {
@@ -118,23 +121,25 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
             setWidgets((prev) =>
                 prev.map((w) => {
                     if (w.type === 'app' && w.appId) {
-                        const foundApp = apps.find((a) => a.id === w.appId)
-                        return { ...w, appData: foundApp || w.appData }
+                        const isHidden = hiddenAppIds.includes(w.appId) && !showHiddenApps
+                        const foundApp = isHidden ? undefined : availableApps.find((a) => a.id === w.appId)
+                        return { ...w, appData: foundApp }
                     }
                     if (w.type === 'folder' && (w.folderAppIds || w.folderApps)) {
-                        const appIds = w.folderAppIds || w.folderApps?.map((a) => a.id) || []
-                        const foundFolderApps = apps.filter((a) => appIds.includes(a.id))
+                        const rawAppIds = w.folderAppIds || w.folderApps?.map((a) => a.id) || []
+                        const appIds = rawAppIds.filter((id) => !hiddenAppIds.includes(id) || showHiddenApps)
+                        const foundFolderApps = availableApps.filter((a) => appIds.includes(a.id))
                         return {
                             ...w,
                             folderAppIds: appIds,
-                            folderApps: foundFolderApps.length > 0 ? foundFolderApps : w.folderApps,
+                            folderApps: foundFolderApps,
                         }
                     }
                     return w
                 })
             )
         }
-    }, [apps])
+    }, [apps, availableApps, hiddenAppIds, showHiddenApps])
 
     useEffect(() => {
         const leanWidgets = widgets.map((w) => ({
@@ -568,8 +573,12 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
 
             {/* Canvas Container */}
             <div className="relative w-full min-h-[750px] rounded-3xl bg-black/20 border border-white/5 backdrop-blur-sm overflow-hidden p-4">
-                {widgets.map((widget) => (
-                    <div
+                {widgets.map((widget) => {
+                    if (widget.type === 'app' && widget.appId && hiddenAppIds.includes(widget.appId) && !showHiddenApps) {
+                        return null
+                    }
+                    return (
+                        <div
                         key={widget.id}
                         style={{
                             position: 'absolute',
@@ -771,8 +780,9 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                             </div>
                         )}
                     </div>
-                ))}
-            </div>
+                )
+            })}
+        </div>
 
             {/* Dual Mode Web Preview Modal (Image Snapshot & Sandboxed Iframe) */}
             {hoverPreview && (
@@ -989,7 +999,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                             </button>
                         </div>
                         <div className="max-h-80 overflow-y-auto space-y-2 pr-1">
-                            {apps.map((app) => (
+                            {availableApps.map((app) => (
                                 <button
                                     key={app.id}
                                     onClick={() => handleSelectAppForCanvas(app)}
@@ -1004,7 +1014,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                                     </div>
                                 </button>
                             ))}
-                            {apps.length === 0 && (
+                            {availableApps.length === 0 && (
                                 <div className="text-center text-gray-400 text-sm py-6">No applications available.</div>
                             )}
                         </div>
@@ -1045,7 +1055,7 @@ export function FreeCanvasBoard({ apps = [] }: FreeCanvasBoardProps) {
                             <div>
                                 <label className="block text-xs font-medium text-gray-400 mb-2">Select Included Apps</label>
                                 <div className="max-h-48 overflow-y-auto space-y-1.5 border border-white/10 rounded-xl p-2 bg-black/20">
-                                    {apps.map((app) => {
+                                    {availableApps.map((app) => {
                                         const isSelected = selectedFolderAppIds.includes(app.id)
                                         return (
                                             <button
