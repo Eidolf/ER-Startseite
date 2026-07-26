@@ -1111,11 +1111,12 @@ function App() {
         }
     }
 
-    const handleAddWidget = (type: 'weather' | 'clock' | 'search' | 'calendar' | 'text') => {
+    const handleAddWidget = (type: 'weather' | 'clock' | 'search' | 'calendar' | 'text', customText?: string) => {
         const newWidget: WidgetData = {
             id: `widget-${type}-${generateUUID()}`,
             type,
-            x: 0, y: 0, w: 1, h: 1 // Default size
+            x: 0, y: 0, w: 1, h: 1, // Default size
+            customText: customText || (type === 'text' ? 'Synchronized Note' : undefined)
         }
         setLayoutConfig(prev => ({
             ...prev,

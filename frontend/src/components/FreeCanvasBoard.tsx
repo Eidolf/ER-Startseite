@@ -28,6 +28,7 @@ export interface CanvasWidget {
     clockFormat24?: boolean
     clockShowSeconds?: boolean
     clockDateFormat?: 'full' | 'short' | 'none'
+    clockTimezone?: string
     weatherLocation?: string
     weatherUnit?: 'c' | 'f'
 }
@@ -93,6 +94,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
     const [clockFormat24Input, setClockFormat24Input] = useState(true)
     const [clockShowSecondsInput, setClockShowSecondsInput] = useState(false)
     const [clockDateFormatInput, setClockDateFormatInput] = useState<'full' | 'short' | 'none'>('full')
+    const [clockTimezoneInput, setClockTimezoneInput] = useState('')
 
     // Weather modal states
     const [isWeatherModalOpen, setIsWeatherModalOpen] = useState(false)
@@ -328,6 +330,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
         setClockFormat24Input(widget.clockFormat24 !== false)
         setClockShowSecondsInput(!!widget.clockShowSeconds)
         setClockDateFormatInput(widget.clockDateFormat || 'full')
+        setClockTimezoneInput(widget.clockTimezone || '')
         setIsClockModalOpen(true)
     }
 
@@ -341,6 +344,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
                           clockFormat24: clockFormat24Input,
                           clockShowSeconds: clockShowSecondsInput,
                           clockDateFormat: clockDateFormatInput,
+                          clockTimezone: clockTimezoneInput.trim() || undefined,
                       }
                     : w
             )
@@ -610,6 +614,15 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
                                         <Pencil className="w-3.5 h-3.5" />
                                     </button>
                                 )}
+                                {widget.type === 'clock' && (
+                                    <button
+                                        onClick={() => handleOpenEditClock(widget)}
+                                        className="text-gray-400 hover:text-cyan-400 p-1 rounded transition"
+                                        title="Configure Clock Timezone"
+                                    >
+                                        <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
                                 {widget.type === 'weather' && (
                                     <button
                                         onClick={() => handleOpenEditWeather(widget)}
@@ -654,6 +667,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
                                     is24Hour={widget.clockFormat24 !== false}
                                     showSeconds={!!widget.clockShowSeconds}
                                     dateFormat={widget.clockDateFormat || 'full'}
+                                    timeZone={widget.clockTimezone}
                                 />
                             )}
                             {widget.type === 'weather' && (
@@ -982,6 +996,39 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = [], showHiddenApps =
                                 className="w-full py-2.5 bg-yellow-500 hover:bg-yellow-400 text-black font-bold rounded-xl text-sm transition shadow-lg shadow-yellow-500/20"
                             >
                                 Save Weather Settings
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Clock Timezone Config Modal */}
+            {isClockModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="w-full max-w-sm bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-white">Clock Timezone Config</h3>
+                            <button onClick={() => setIsClockModalOpen(false)} className="text-gray-400 hover:text-white">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-400 mb-1">Timezone (e.g. Europe/Berlin, UTC, America/New_York)</label>
+                                <input
+                                    type="text"
+                                    value={clockTimezoneInput}
+                                    onChange={(e) => setClockTimezoneInput(e.target.value)}
+                                    placeholder="Leave empty for local timezone"
+                                    className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 text-sm"
+                                />
+                            </div>
+
+                            <button
+                                onClick={handleSaveClockSettings}
+                                className="w-full py-2.5 bg-cyan-500 hover:bg-cyan-400 text-black font-bold rounded-xl text-sm transition shadow-lg shadow-cyan-500/20"
+                            >
+                                Save Clock Settings
                             </button>
                         </div>
                     </div>

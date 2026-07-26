@@ -48,6 +48,7 @@ export interface WidgetData {
     y?: number
     w?: number
     h?: number
+    customText?: string
     settings?: Record<string, unknown>
 }
 

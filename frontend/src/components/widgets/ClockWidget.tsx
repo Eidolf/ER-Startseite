@@ -5,12 +5,14 @@ interface ClockWidgetProps {
     is24Hour?: boolean
     showSeconds?: boolean
     dateFormat?: 'full' | 'short' | 'none'
+    timeZone?: string
 }
 
 export function ClockWidget({
     is24Hour = true,
     showSeconds = false,
     dateFormat = 'full',
+    timeZone,
 }: ClockWidgetProps) {
     const [time, setTime] = useState(new Date())
 
@@ -24,6 +26,7 @@ export function ClockWidget({
         minute: '2-digit',
         second: showSeconds ? '2-digit' : undefined,
         hour12: !is24Hour,
+        timeZone: timeZone && timeZone.trim() ? timeZone.trim() : undefined,
     }
 
     const formattedTime = time.toLocaleTimeString([], timeOptions)

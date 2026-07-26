@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Bell, Plus, X, Trash2, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
 
 export interface CalendarEvent {
@@ -250,9 +251,9 @@ export function CalendarWidget() {
                 })}
             </div>
 
-            {/* Day Events Modal */}
-            {isEventModalOpen && selectedDay && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            {/* Day Events Modal (Portaled to document.body) */}
+            {isEventModalOpen && selectedDay && createPortal(
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="w-full max-w-sm bg-slate-900 border border-white/10 rounded-2xl shadow-2xl p-5 space-y-4">
                         <div className="flex justify-between items-center border-b border-white/10 pb-3">
                             <h3 className="text-sm font-bold text-white">
@@ -352,7 +353,8 @@ export function CalendarWidget() {
                             </button>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     )
