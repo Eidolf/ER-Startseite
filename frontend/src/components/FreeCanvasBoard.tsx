@@ -168,6 +168,19 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
             })
         }
     }, [apps, availableApps, hiddenAppIds, showHiddenApps])
+    const [, setWindowSize] = useState({ width: 0, height: 0 })
+
+    useEffect(() => {
+        const handleResize = () => {
+            setWindowSize({ width: window.innerWidth, height: window.innerHeight })
+        }
+        window.addEventListener('resize', handleResize)
+        window.addEventListener('orientationchange', handleResize)
+        return () => {
+            window.removeEventListener('resize', handleResize)
+            window.removeEventListener('orientationchange', handleResize)
+        }
+    }, [])
 
     useEffect(() => {
         const leanWidgets = widgets.map((w) => ({
@@ -190,6 +203,8 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
             clockTimezone: w.clockTimezone,
             weatherLocation: w.weatherLocation,
             weatherUnit: w.weatherUnit,
+            vacationTitle: w.vacationTitle,
+            vacationDate: w.vacationDate,
         }))
         setJsonCookie(COOKIE_NAME, leanWidgets)
         setIsSavedInCookie(true)

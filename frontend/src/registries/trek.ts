@@ -53,10 +53,11 @@ export const TrekManifest: PremiumAppManifest = {
             tripName = String(config.vacationTitle || tripName)
         }
 
-        if (!targetDate) {
+        const parsedDate = targetDate ? new Date(targetDate) : null
+        if (!parsedDate || isNaN(parsedDate.getTime())) {
             return {
                 top: {
-                    label: 'Urlaub',
+                    label: tripName,
                     value: 'Geplant',
                     icon: 'Palmtree',
                     color: 'text-emerald-400'
@@ -65,7 +66,7 @@ export const TrekManifest: PremiumAppManifest = {
             }
         }
 
-        const diffMs = new Date(targetDate).getTime() - new Date().getTime()
+        const diffMs = parsedDate.getTime() - new Date().getTime()
         const daysLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)))
 
         return {
@@ -77,7 +78,7 @@ export const TrekManifest: PremiumAppManifest = {
             },
             bottom: {
                 label: 'Ziel-Datum',
-                value: new Date(targetDate).toLocaleDateString('de-DE', { day: '2-digit', month: 'short' }),
+                value: parsedDate.toLocaleDateString(undefined, { day: '2-digit', month: 'short' }),
                 icon: 'Calendar',
                 color: 'text-cyan-400'
             }

@@ -27,6 +27,10 @@ export const VacationWidget: React.FC<VacationWidgetProps> = ({
         }
 
         const target = new Date(targetDate).getTime()
+        if (isNaN(target)) {
+            return { days: 0, hours: 0, minutes: 0, seconds: 0, isPast: true }
+        }
+
         const now = new Date().getTime()
         const difference = target - now
 
@@ -53,8 +57,9 @@ export const VacationWidget: React.FC<VacationWidgetProps> = ({
         return () => clearInterval(timer)
     }, [calculateTimeLeft])
 
-    const formattedTargetDate = targetDate
-        ? new Date(targetDate).toLocaleDateString('de-DE', {
+    const parsedDate = targetDate ? new Date(targetDate) : null
+    const formattedTargetDate = parsedDate && !isNaN(parsedDate.getTime())
+        ? parsedDate.toLocaleDateString(undefined, {
               day: '2-digit',
               month: '2-digit',
               year: 'numeric',
@@ -87,7 +92,7 @@ export const VacationWidget: React.FC<VacationWidgetProps> = ({
                             onEdit()
                         }}
                         className="p-1.5 rounded-lg bg-black/40 hover:bg-black/80 border border-white/10 text-cyan-300 hover:text-white transition shadow shrink-0 z-20"
-                        title="Countdown bearbeiten"
+                        title="Edit Countdown"
                     >
                         <Pencil className="w-3.5 h-3.5" />
                     </button>
@@ -99,15 +104,15 @@ export const VacationWidget: React.FC<VacationWidgetProps> = ({
                 {!targetDate ? (
                     <div className="flex flex-col items-center justify-center text-center py-2">
                         <Calendar className="w-6 h-6 text-cyan-400/60 mb-1" />
-                        <p className="text-xs text-gray-400 font-medium">Kein Zieldatum konfiguriert</p>
-                        <span className="text-[10px] text-cyan-300 underline mt-1">Klicke zum Einstellen des Zieldatums</span>
+                        <p className="text-xs text-gray-400 font-medium">No target date configured</p>
+                        <span className="text-[10px] text-cyan-300 underline mt-1">Click to set target date</span>
                     </div>
                 ) : timeLeft.isPast ? (
                     <div className="text-center py-2 animate-pulse">
                         <span className="text-xl font-black bg-gradient-to-r from-emerald-400 via-teal-200 to-cyan-400 bg-clip-text text-transparent">
-                            Event ist da! 🎉
+                            Event is here! 🎉
                         </span>
-                        <p className="text-[10px] text-emerald-300 mt-1">Zielzeit erreicht!</p>
+                        <p className="text-[10px] text-emerald-300 mt-1">Target time reached!</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-4 gap-1.5 text-center">
@@ -116,7 +121,7 @@ export const VacationWidget: React.FC<VacationWidgetProps> = ({
                                 {timeLeft.days}
                             </span>
                             <span className="text-[9px] uppercase tracking-wider text-gray-400 mt-1 font-medium">
-                                Tage
+                                Days
                             </span>
                         </div>
                         <div className="p-2 rounded-xl bg-black/40 border border-white/5 flex flex-col items-center justify-center">
@@ -124,7 +129,7 @@ export const VacationWidget: React.FC<VacationWidgetProps> = ({
                                 {String(timeLeft.hours).padStart(2, '0')}
                             </span>
                             <span className="text-[9px] uppercase tracking-wider text-gray-400 mt-1 font-medium">
-                                Std
+                                Hours
                             </span>
                         </div>
                         <div className="p-2 rounded-xl bg-black/40 border border-white/5 flex flex-col items-center justify-center">
@@ -132,7 +137,7 @@ export const VacationWidget: React.FC<VacationWidgetProps> = ({
                                 {String(timeLeft.minutes).padStart(2, '0')}
                             </span>
                             <span className="text-[9px] uppercase tracking-wider text-gray-400 mt-1 font-medium">
-                                Min
+                                Mins
                             </span>
                         </div>
                         <div className="p-2 rounded-xl bg-black/40 border border-white/5 flex flex-col items-center justify-center">
@@ -140,7 +145,7 @@ export const VacationWidget: React.FC<VacationWidgetProps> = ({
                                 {String(timeLeft.seconds).padStart(2, '0')}
                             </span>
                             <span className="text-[9px] uppercase tracking-wider text-gray-400 mt-1 font-medium">
-                                Sek
+                                Secs
                             </span>
                         </div>
                     </div>

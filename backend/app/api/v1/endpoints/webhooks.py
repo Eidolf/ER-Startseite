@@ -1,9 +1,11 @@
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, Header, HTTPException, Query, status
+from fastapi import APIRouter, Header, Query
 
+from app.core.exceptions import AuthException, ValidationException
 from app.repositories.repos import AppRepository, ConfigRepository
+from app.schemas.config import WidgetDefaults
 
 logger = structlog.get_logger()
 
@@ -40,13 +42,8 @@ async def receive_vacation_webhook(
     provided_secret = secret or x_webhook_secret
 
     if not provided_secret or provided_secret not in valid_secrets:
-        logger.warning(
-            "Unauthorized vacation webhook attempt", provided=provided_secret
-        )
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing webhook secret token",
-        )
+        logger.warning("Unauthorized vacation webhook attempt", provided="***")
+        raise AuthException("Invalid or missing webhook secret token")
 
     # Extract trip info from TREK payload, ntfy payload, or generic JSON
     trip_data = payload
@@ -72,18 +69,18 @@ async def receive_vacation_webhook(
     )
 
     if not target_date:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Missing startDate / date in payload",
-        )
+        raise ValidationException("Missing startDate / date in payload")
 
     # Update widgetDefaults in config securely
-    if config.layoutConfig.widgetDefaults:
-        config.layoutConfig.widgetDefaults.vacationTitle = str(title)
-        config.layoutConfig.widgetDefaults.vacationDate = str(target_date)
-        if destination:
-            config.layoutConfig.widgetDefaults.vacationDestination = str(destination)
-        await config_repo.save_config(config)
+    if not config.layoutConfig.widgetDefaults:
+        config.layoutConfig.widgetDefaults = WidgetDefaults()
+
+    config.layoutConfig.widgetDefaults.vacationTitle = str(title)
+    config.layoutConfig.widgetDefaults.vacationDate = str(target_date)
+    if destination:
+        config.layoutConfig.widgetDefaults.vacationDestination = str(destination)
+
+    await config_repo.save_config(config)
 
     logger.info("Vacation webhook updated successfully", title=title, date=target_date)
 

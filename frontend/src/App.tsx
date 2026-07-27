@@ -1134,7 +1134,7 @@ function App() {
     const handleUpdateWidget = (updated: WidgetData) => {
         setLayoutConfig(prev => ({
             ...prev,
-            widgets: prev.widgets.map(w => w.id === updated.id ? updated : w)
+            widgets: (prev.widgets || []).map(w => w.id === updated.id ? updated : w)
         }))
     }
 
@@ -1142,7 +1142,7 @@ function App() {
         if (!confirm("Remove this widget?")) return
         setLayoutConfig(prev => ({
             ...prev,
-            widgets: prev.widgets.filter(w => w.id !== id)
+            widgets: (prev.widgets || []).filter(w => w.id !== id)
         }))
     }
 
@@ -1397,6 +1397,13 @@ function App() {
                                                             )}
                                                             {widget.type === 'calendar' && <CalendarWidget />}
                                                             {widget.type === 'text' && <NoteWidgetTile text={widget.customText} />}
+                                                            {widget.type === 'vacation' && (
+                                                                 <VacationWidget
+                                                                     title={widget.vacationTitle || 'Countdown Event'}
+                                                                     targetDate={widget.vacationDate}
+                                                                     onEdit={() => setContextWidget(widget)}
+                                                                 />
+                                                             )}
                                                         </WidgetTile>
                                                     )
                                                 }

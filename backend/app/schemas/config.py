@@ -52,8 +52,10 @@ class WidgetDefaults(BaseModel):
     weatherUnit: str | None = "c"
     clockFormat: str | None = "24h"
     dateFormat: str | None = "DD.MM.YYYY"
-    vacationTitle: str | None = "Nächster Urlaub"
+    vacationTitle: str | None = "Countdown Event"
     vacationDate: str | None = None
+    vacationApiUrl: str | None = None
+    vacationApiKey: str | None = None
     vacationDestination: str | None = None
     vacationSecret: str | None = None
 

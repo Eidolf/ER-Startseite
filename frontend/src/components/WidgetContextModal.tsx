@@ -18,7 +18,8 @@ export function WidgetContextModal({ widget, onClose, onDelete, onUpdateWidget }
             setTitleInput(widget.vacationTitle || '')
             setDateInput(widget.vacationDate || '')
         }
-    }, [widget])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [widget?.id])
 
     if (!widget) return null
 

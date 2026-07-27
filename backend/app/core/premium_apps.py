@@ -480,7 +480,7 @@ AppRegistry.register(
         description=(
             "Self-hosted travel & trip planning platform with live vacation countdown."
         ),
-        default_icon="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJdQtFXGYYIM80P9vHqevrCEv2WU-VgsHeXyIYSmvIFA&s=10",
+        default_icon="https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/trek.png",
         fields=[],
     )
 )

@@ -154,6 +154,8 @@
         "dateFormat": "str | None",
         "vacationTitle": "str | None",
         "vacationDate": "str | None",
+        "vacationApiUrl": "str | None",
+        "vacationApiKey": "str | None",
         "vacationDestination": "str | None",
         "vacationSecret": "str | None"
       },
