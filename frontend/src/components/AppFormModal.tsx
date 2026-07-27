@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X, Trash, ArrowUpFromLine, Upload, RefreshCw, Check, Film, Tv, Lock, Disc, Calendar, Clock, CloudSun } from 'lucide-react'
+import { X, Trash, ArrowUpFromLine, Upload, RefreshCw, Check, Film, Tv, Lock, Disc, Calendar, Clock, CloudSun, Palmtree } from 'lucide-react'
 import { AppData, Category, PremiumAppConfig } from '../types'
 import { AppIcon } from './AppIcon'
 import { AppRegistry } from '../registries'
@@ -562,26 +562,57 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories,
                                         </div>
 
                                         <div className="space-y-3 p-3 bg-neon-cyan/5 border border-neon-cyan/10 rounded-xl animate-in fade-in slide-in-from-top-2">
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-medium text-neon-cyan uppercase tracking-wider">API URL (Optional)</label>
-                                                <input
-                                                    type="text"
-                                                    value={apiUrl}
-                                                    onChange={(e) => setApiUrl(e.target.value)}
-                                                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-neon-cyan/50"
-                                                    placeholder="https://app.example.com (Leave empty to use App URL)"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-medium text-neon-cyan uppercase tracking-wider">API Key</label>
-                                                <input
-                                                    type="password"
-                                                    value={apiKey}
-                                                    onChange={(e) => setApiKey(e.target.value)}
-                                                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-neon-cyan/50"
-                                                    placeholder="API Key"
-                                                />
-                                            </div>
+                                            {integration === 'trek' ? (
+                                                <div className="space-y-3 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+                                                    <div className="flex items-center gap-2 text-xs font-semibold text-emerald-300 uppercase tracking-wider">
+                                                        <Palmtree className="w-4 h-4" /> Webhook Empfänger-URL
+                                                    </div>
+                                                    <p className="text-xs text-gray-300">
+                                                        Füge diese Webhook-URL in deinen TREK-Einstellungen oder Webhook-Benachrichtigungen ein, um deinen nächsten Urlaub automatisch zu synchronisieren:
+                                                    </p>
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="text"
+                                                            readOnly
+                                                            value={`${window.location.origin}/api/v1/webhooks/vacation?secret=er-vacation-secret`}
+                                                            className="w-full bg-black/50 border border-emerald-500/30 rounded-lg px-3 py-2 text-xs text-emerald-200 font-mono select-all"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                navigator.clipboard.writeText(`${window.location.origin}/api/v1/webhooks/vacation?secret=er-vacation-secret`)
+                                                                alert("Webhook-URL in die Zwischenablage kopiert!")
+                                                            }}
+                                                            className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium shrink-0 transition"
+                                                        >
+                                                            Kopieren
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-medium text-neon-cyan uppercase tracking-wider">API URL (Optional)</label>
+                                                        <input
+                                                            type="text"
+                                                            value={apiUrl}
+                                                            onChange={(e) => setApiUrl(e.target.value)}
+                                                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-neon-cyan/50"
+                                                            placeholder="https://app.example.com (Leave empty to use App URL)"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-medium text-neon-cyan uppercase tracking-wider">API Key</label>
+                                                        <input
+                                                            type="password"
+                                                            value={apiKey}
+                                                            onChange={(e) => setApiKey(e.target.value)}
+                                                            className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-neon-cyan/50"
+                                                            placeholder="API Key"
+                                                        />
+                                                    </div>
+                                                </>
+                                            )}
 
                                             {/* Feature Toggles - Filtered by Manifest */}
                                             <div className="pt-2 border-t border-white/5 space-y-2">
