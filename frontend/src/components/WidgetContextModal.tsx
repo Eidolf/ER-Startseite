@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Trash2, Settings, Palmtree, Save } from 'lucide-react'
+import { X, Trash2, Settings, Hourglass, Save } from 'lucide-react'
 import { WidgetData } from '../types'
 
 interface WidgetContextModalProps {
@@ -40,8 +40,8 @@ export function WidgetContextModal({ widget, onClose, onDelete, onUpdateWidget }
             <div className="w-full max-w-sm bg-[#0a0a0a] border border-white/10 rounded-2xl shadow-2xl overflow-hidden glass-panel scale-95 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
                 <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
                     <div className="flex items-center gap-2">
-                        {widget.type === 'vacation' ? <Palmtree className="w-4 h-4 text-emerald-400" /> : <Settings className="w-4 h-4 text-neon-cyan" />}
-                        <h3 className="font-medium text-white capitalize">{widget.type === 'vacation' ? 'Vacation Countdown' : `${widget.type} Widget`}</h3>
+                        {widget.type === 'vacation' ? <Hourglass className="w-4 h-4 text-emerald-400" /> : <Settings className="w-4 h-4 text-neon-cyan" />}
+                        <h3 className="font-medium text-white capitalize">{widget.type === 'vacation' ? 'Countdown Widget' : `${widget.type} Widget`}</h3>
                     </div>
                     <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
                         <X className="w-5 h-5" />
@@ -51,12 +51,12 @@ export function WidgetContextModal({ widget, onClose, onDelete, onUpdateWidget }
                     {widget.type === 'vacation' ? (
                         <div className="space-y-3">
                             <div>
-                                <label className="block text-xs font-medium text-gray-400 mb-1">Vacation Title</label>
+                                <label className="block text-xs font-medium text-gray-400 mb-1">Countdown / Event Titel</label>
                                 <input
                                     type="text"
                                     value={titleInput}
                                     onChange={(e) => setTitleInput(e.target.value)}
-                                    placeholder="e.g. Sommerurlaub 2026"
+                                    placeholder="e.g. Geburtstag, Event oder Urlaub"
                                     className="w-full px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-neon-cyan"
                                 />
                             </div>

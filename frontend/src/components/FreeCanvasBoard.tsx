@@ -615,7 +615,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
                                     onClick={() => addWidget('vacation')}
                                     className="w-full text-left px-3 py-2 text-sm text-gray-200 hover:bg-white/10 rounded-xl flex items-center gap-2"
                                 >
-                                    <span className="w-2 h-2 rounded-full bg-emerald-400" /> Vacation Countdown
+                                    <span className="w-2 h-2 rounded-full bg-emerald-400" /> Countdown Widget
                                 </button>
 
                                 <div className="h-px bg-white/10 my-1.5" />

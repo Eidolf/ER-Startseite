@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Palmtree, Calendar } from 'lucide-react'
+import { Hourglass, Calendar } from 'lucide-react'
 
 interface VacationWidgetProps {
     title?: string
@@ -15,7 +15,7 @@ interface TimeLeft {
 }
 
 export const VacationWidget: React.FC<VacationWidgetProps> = ({
-    title = 'Nächster Urlaub',
+    title = 'Countdown Event',
     targetDate,
 }) => {
     // Calculate time left
@@ -68,7 +68,7 @@ export const VacationWidget: React.FC<VacationWidgetProps> = ({
             <div className="flex items-center justify-between z-10">
                 <div className="flex items-center gap-2 text-cyan-400 min-w-0">
                     <div className="p-1.5 rounded-lg bg-cyan-500/20 border border-cyan-500/30 shrink-0">
-                        <Palmtree className="w-4 h-4 text-cyan-300" />
+                        <Hourglass className="w-4 h-4 text-cyan-300" />
                     </div>
                     <span className="font-semibold text-xs tracking-wider uppercase text-cyan-200 truncate">
                         {title}
@@ -81,15 +81,15 @@ export const VacationWidget: React.FC<VacationWidgetProps> = ({
                 {!targetDate ? (
                     <div className="flex flex-col items-center justify-center text-center py-2">
                         <Calendar className="w-6 h-6 text-cyan-400/60 mb-1" />
-                        <p className="text-xs text-gray-400">Kein Datum konfiguriert</p>
-                        <span className="text-[10px] text-gray-500">Klicke zum Einstellen des Urlaubsdatums</span>
+                        <p className="text-xs text-gray-400">Kein Zieldatum konfiguriert</p>
+                        <span className="text-[10px] text-gray-500">Klicke zum Einstellen des Zieldatums</span>
                     </div>
                 ) : timeLeft.isPast ? (
                     <div className="text-center py-2 animate-pulse">
                         <span className="text-xl font-black bg-gradient-to-r from-emerald-400 via-teal-200 to-cyan-400 bg-clip-text text-transparent">
-                            Urlaub läuft! 🎉✈️
+                            Event ist da! 🎉
                         </span>
-                        <p className="text-[10px] text-emerald-300 mt-1">Gute Reise & Erholung!</p>
+                        <p className="text-[10px] text-emerald-300 mt-1">Zielzeit erreicht!</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-4 gap-1.5 text-center">
@@ -137,7 +137,7 @@ export const VacationWidget: React.FC<VacationWidgetProps> = ({
                         <span>{formattedTargetDate}</span>
                     </div>
                 ) : (
-                    <span>Manuelles Urlaubs-Widget</span>
+                    <span>Countdown Widget</span>
                 )}
             </div>
         </div>
