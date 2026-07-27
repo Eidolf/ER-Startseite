@@ -38,6 +38,10 @@ export interface WidgetDefaults {
     weatherUnit?: 'c' | 'f'
     clockFormat?: '24h' | '12h'
     dateFormat?: string
+    vacationTitle?: string
+    vacationDate?: string
+    vacationApiUrl?: string
+    vacationApiKey?: string
 }
 
 export interface LayoutConfig {
@@ -51,12 +55,16 @@ export interface LayoutConfig {
 
 export interface WidgetData {
     id: string
-    type: 'weather' | 'clock' | 'search' | 'calendar' | 'text'
+    type: 'weather' | 'clock' | 'search' | 'calendar' | 'text' | 'vacation'
     x?: number // For grid positioning if we were using RGL, but here maybe just order?
     y?: number
     w?: number
     h?: number
     customText?: string
+    vacationTitle?: string
+    vacationDate?: string
+    vacationApiUrl?: string
+    vacationApiKey?: string
     settings?: Record<string, unknown>
 }
 

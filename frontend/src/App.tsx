@@ -17,6 +17,7 @@ import { WidgetTile } from './components/WidgetTile'
 import { WeatherWidget } from './components/widgets/WeatherWidget'
 import { ClockWidget } from './components/widgets/ClockWidget'
 import { CalendarWidget } from './components/widgets/CalendarWidget'
+import { VacationWidget } from './components/widgets/VacationWidget'
 import { WidgetContextModal } from './components/WidgetContextModal'
 import { FreeCanvasBoard } from './components/FreeCanvasBoard'
 
@@ -732,87 +733,30 @@ function App() {
 
         if (activeId === overId) return
 
-        // Check if dropping into folder
-        let targetFolderId: string | null = null
-        if (overId.startsWith('folder-drop-')) {
-            targetFolderId = overId.replace('folder-drop-', '')
-        } else {
-            const potentialFolder = apps.find(a => a.id === overId)
-            if (potentialFolder?.type === 'folder') {
-                targetFolderId = overId
+        if (activeId !== overId) {
+            const currentGridItems = buildGridItems(displayApps, layoutConfig.widgets || [], layoutConfig.customOrder)
+            const oldIndex = currentGridItems.findIndex(item => item.id === activeId)
+            const newIndex = currentGridItems.findIndex(item => item.id === overId)
+
+            if (oldIndex !== -1 && newIndex !== -1) {
+                const newGridItems = arrayMove(currentGridItems, oldIndex, newIndex)
+                const newCustomOrder = newGridItems.map(item => item.id)
+
+                const newAppsOrder = newGridItems
+                    .filter((item): item is { kind: 'app'; id: string; app: AppData } => item.kind === 'app')
+                    .map(item => item.app)
+
+                const newWidgetsOrder = newGridItems
+                    .filter((item): item is { kind: 'widget'; id: string; widget: WidgetData } => item.kind === 'widget')
+                    .map(item => item.widget)
+
+                setApps(newAppsOrder)
+                setLayoutConfig(prev => ({
+                    ...prev,
+                    customOrder: newCustomOrder,
+                    widgets: newWidgetsOrder
+                }))
             }
-        }
-
-        if (targetFolderId) {
-            const folder = apps.find(a => a.id === targetFolderId)
-            const activeApp = apps.find(a => a.id === activeId)
-
-            if (folder && activeApp && activeApp.id !== folder.id) {
-                if (activeApp.type === 'folder') {
-                    alert("Nested folders are not supported yet.")
-                    return
-                }
-                moveAppToFolder(activeApp, folder)
-                return
-            }
-        }
-
-        // Check for Hidden Apps Interaction (Grid/List Mode)
-        const isHiddenAppsDrop = overId === 'hidden-apps' || (layoutConfig.hiddenAppIds || []).includes(overId)
-        const isFromHiddenApps = (layoutConfig.hiddenAppIds || []).includes(activeId)
-
-        if (isHiddenAppsDrop || isFromHiddenApps) {
-            // Moving TO Hidden Apps
-            if (!isFromHiddenApps && isHiddenAppsDrop) {
-                if (confirm("Hide this app?")) {
-                    setLayoutConfig(prev => ({
-                        ...prev,
-                        hiddenAppIds: [...(prev.hiddenAppIds || []), activeId]
-                    }))
-                }
-                return
-            }
-
-            // Moving FROM Hidden Apps TO Grid (Uncategorized)
-            if (isFromHiddenApps && !isHiddenAppsDrop) {
-                if (confirm("Unhide this app?")) {
-                    setLayoutConfig(prev => ({
-                        ...prev,
-                        hiddenAppIds: prev.hiddenAppIds?.filter(id => id !== activeId) || []
-                    }))
-                }
-                return
-            }
-
-            // Reordering WITHIN Hidden Apps
-            if (isFromHiddenApps && isHiddenAppsDrop && activeId !== overId) {
-                const oldIndex = layoutConfig.hiddenAppIds?.indexOf(activeId) ?? -1
-                const newIndex = layoutConfig.hiddenAppIds?.indexOf(overId) ?? -1
-
-                if (oldIndex !== -1 && newIndex !== -1) {
-                    setLayoutConfig(prev => ({
-                        ...prev,
-                        hiddenAppIds: arrayMove(prev.hiddenAppIds || [], oldIndex, newIndex)
-                    }))
-                }
-                return
-            }
-        }
-
-        if (active.id !== over.id) {
-            setApps((items) => {
-                const oldIndex = items.findIndex(item => item.id === active.id)
-                const newIndex = items.findIndex(item => item.id === over.id)
-                if (oldIndex === -1 || newIndex === -1) return items
-
-                const newOrder = arrayMove(items, oldIndex, newIndex)
-
-                // Update customOrder in layoutConfig
-                const newOrderIds = newOrder.map(app => app.id)
-                setLayoutConfig(prev => ({ ...prev, customOrder: newOrderIds }))
-
-                return newOrder
-            })
         }
     }
 
@@ -941,7 +885,7 @@ function App() {
         const activeAppId = active.id as string;
         const overId = over.id as string;
 
-        if (activeAppId === overId) return;
+        if (activeAppId === overId) return
 
         // Helper to find container of an app ID
         const findContainerId = (id: string): string => {
@@ -999,7 +943,29 @@ function App() {
         if (activeContainer === targetContainer) {
             // Reorder within same container
             if (activeContainer === 'uncategorized') {
-                return; // already handled or n/a
+                const uncategorizedAppItems = apps.filter(app => {
+                    const inCategory = layoutConfig.categories.some(c => c.app_ids.includes(app.id));
+                    const inHidden = layoutConfig.hiddenAppIds && layoutConfig.hiddenAppIds.includes(app.id);
+                    return !inCategory && !inHidden;
+                });
+                const uncategorizedGridItems = buildGridItems(uncategorizedAppItems, layoutConfig.widgets || [], layoutConfig.customOrder);
+                const oldIndex = uncategorizedGridItems.findIndex(item => item.id === activeAppId);
+                const newIndex = uncategorizedGridItems.findIndex(item => item.id === overId);
+
+                if (oldIndex !== -1 && newIndex !== -1) {
+                    const newItems = arrayMove(uncategorizedGridItems, oldIndex, newIndex);
+                    const newCustomOrder = newItems.map(item => item.id);
+                    const newWidgetsOrder = newItems
+                        .filter((item): item is { kind: 'widget'; id: string; widget: WidgetData } => item.kind === 'widget')
+                        .map(item => item.widget);
+
+                    setLayoutConfig(prev => ({
+                        ...prev,
+                        customOrder: newCustomOrder,
+                        widgets: newWidgetsOrder
+                    }));
+                }
+                return;
             } else if (activeContainer === 'hidden-apps') {
                 // Reorder within hidden apps
                 setLayoutConfig(prev => {
@@ -1120,7 +1086,38 @@ function App() {
         }
     }
 
-    const handleAddWidget = (type: 'weather' | 'clock' | 'search' | 'calendar' | 'text', customText?: string) => {
+    type GridItem =
+        | { kind: 'app'; id: string; app: AppData }
+        | { kind: 'widget'; id: string; widget: WidgetData }
+
+    const buildGridItems = (
+        appList: AppData[],
+        widgetList: WidgetData[],
+        customOrder: string[]
+    ): GridItem[] => {
+        const appItems: GridItem[] = appList.map(app => ({ kind: 'app', id: app.id, app }))
+        const widgetItems: GridItem[] = widgetList.map(widget => ({ kind: 'widget', id: widget.id, widget }))
+
+        const itemMap = new Map<string, GridItem>()
+        appItems.forEach(item => itemMap.set(item.id, item))
+        widgetItems.forEach(item => itemMap.set(item.id, item))
+
+        if (customOrder && customOrder.length > 0) {
+            const ordered: GridItem[] = []
+            customOrder.forEach(id => {
+                const item = itemMap.get(id)
+                if (item) {
+                    ordered.push(item)
+                    itemMap.delete(id)
+                }
+            })
+            itemMap.forEach(item => ordered.push(item))
+            return ordered
+        }
+        return [...appItems, ...widgetItems]
+    }
+
+    const handleAddWidget = (type: WidgetData['type'], customText?: string) => {
         const newWidget: WidgetData = {
             id: `widget-${type}-${generateUUID()}`,
             type,
@@ -1129,7 +1126,15 @@ function App() {
         }
         setLayoutConfig(prev => ({
             ...prev,
-            widgets: [...(prev.widgets || []), newWidget]
+            widgets: [...(prev.widgets || []), newWidget],
+            customOrder: [...(prev.customOrder || []), newWidget.id]
+        }))
+    }
+
+    const handleUpdateWidget = (updated: WidgetData) => {
+        setLayoutConfig(prev => ({
+            ...prev,
+            widgets: (prev.widgets || []).map(w => w.id === updated.id ? updated : w)
         }))
     }
 
@@ -1137,7 +1142,7 @@ function App() {
         if (!confirm("Remove this widget?")) return
         setLayoutConfig(prev => ({
             ...prev,
-            widgets: prev.widgets.filter(w => w.id !== id)
+            widgets: (prev.widgets || []).filter(w => w.id !== id)
         }))
     }
 
@@ -1329,66 +1334,84 @@ function App() {
                                     </button>
                                 )}
                             </div>
-                            <SortableContext items={uncategorized.map(a => a.id)} strategy={rectSortingStrategy}>
-                                <DroppableContainer id="uncategorized" className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                                    {uncategorized.map((app: AppData) => (
-                                        <SortableAppTile
-                                            key={app.id}
-                                            app={app}
-                                            isEditMode={isEditMode}
-                                            tileClass={tileClass}
-                                            style={getIconStyle()}
-                                            onClick={(e: React.MouseEvent) => {
-                                                if (isEditMode) e.preventDefault();
-                                                else if (app.type === 'folder') setOpenFolder(app);
-                                                else if (app.url) {
-                                                    if (openInNewTab) window.open(app.url, '_blank', 'noopener,noreferrer');
-                                                    else window.location.href = app.url;
+                            {(() => {
+                                const uncategorizedGridItems = buildGridItems(uncategorized, layoutConfig.widgets || [], layoutConfig.customOrder)
+                                return (
+                                    <SortableContext items={uncategorizedGridItems.map(i => i.id)} strategy={rectSortingStrategy}>
+                                        <DroppableContainer id="uncategorized" className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                            {uncategorizedGridItems.map(item => {
+                                                if (item.kind === 'app') {
+                                                    const app = item.app
+                                                    return (
+                                                        <SortableAppTile
+                                                            key={app.id}
+                                                            app={app}
+                                                            isEditMode={isEditMode}
+                                                            tileClass={tileClass}
+                                                            style={getIconStyle()}
+                                                            onClick={(e: React.MouseEvent) => {
+                                                                if (isEditMode) e.preventDefault();
+                                                                else if (app.type === 'folder') setOpenFolder(app);
+                                                                else if (app.url) {
+                                                                    if (openInNewTab) window.open(app.url, '_blank', 'noopener,noreferrer');
+                                                                    else window.location.href = app.url;
+                                                                }
+                                                            }}
+                                                            onDelete={handleDeleteApp}
+                                                            onEdit={(_e, app) => {
+                                                                setEditingApp(app);
+                                                                setIsAppFormOpen(true);
+                                                            }}
+                                                            onContextMenu={handleContextMenu}
+                                                        >
+                                                            <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0">
+                                                                <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain" />
+                                                            </div>
+                                                            <span className="font-medium text-gray-200 text-center text-sm truncate w-full px-2">{app.name}</span>
+                                                        </SortableAppTile>
+                                                    )
+                                                } else {
+                                                    const widget = item.widget
+                                                    return (
+                                                        <WidgetTile
+                                                            key={widget.id}
+                                                            widget={widget}
+                                                            isEditMode={isEditMode}
+                                                            onDelete={handleDeleteWidget}
+                                                            onContextMenu={(e) => {
+                                                                e.preventDefault()
+                                                                setContextWidget(widget)
+                                                            }}
+                                                        >
+                                                            {widget.type === 'weather' && (
+                                                                <WeatherWidget
+                                                                    location={layoutConfig.widgetDefaults?.weatherLocation || 'Berlin'}
+                                                                    unit={layoutConfig.widgetDefaults?.weatherUnit || 'c'}
+                                                                />
+                                                            )}
+                                                            {widget.type === 'clock' && (
+                                                                <ClockWidget
+                                                                    is24Hour={layoutConfig.widgetDefaults?.clockFormat !== '12h'}
+                                                                    dateFormat={layoutConfig.widgetDefaults?.dateFormat === 'none' ? 'none' : layoutConfig.widgetDefaults?.dateFormat === 'short' ? 'short' : 'full'}
+                                                                />
+                                                            )}
+                                                            {widget.type === 'calendar' && <CalendarWidget />}
+                                                            {widget.type === 'text' && <NoteWidgetTile text={widget.customText} />}
+                                                            {widget.type === 'vacation' && (
+                                                                 <VacationWidget
+                                                                     title={widget.vacationTitle || 'Countdown Event'}
+                                                                     targetDate={widget.vacationDate}
+                                                                     onEdit={() => setContextWidget(widget)}
+                                                                 />
+                                                             )}
+                                                        </WidgetTile>
+                                                    )
                                                 }
-                                            }}
-                                            onDelete={handleDeleteApp}
-                                            onEdit={(_e, app) => {
-                                                setEditingApp(app);
-                                                setIsAppFormOpen(true);
-                                            }}
-                                            onContextMenu={handleContextMenu}
-                                        >
-                                            <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0">
-                                                <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain" />
-                                            </div>
-                                            <span className="font-medium text-gray-200 text-center text-sm truncate w-full px-2">{app.name}</span>
-                                        </SortableAppTile>
-                                    ))}
-                                    {/* Widgets in Category Mode (Uncategorized Area) */}
-                                    {layoutConfig.widgets && layoutConfig.widgets.map(widget => (
-                                        <WidgetTile
-                                            key={widget.id}
-                                            widget={widget}
-                                            isEditMode={isEditMode}
-                                            onDelete={handleDeleteWidget}
-                                            onContextMenu={(e) => {
-                                                e.preventDefault()
-                                                setContextWidget(widget)
-                                            }}
-                                        >
-                                            {widget.type === 'weather' && (
-                                                <WeatherWidget
-                                                    location={layoutConfig.widgetDefaults?.weatherLocation || 'Berlin'}
-                                                    unit={layoutConfig.widgetDefaults?.weatherUnit || 'c'}
-                                                />
-                                            )}
-                                            {widget.type === 'clock' && (
-                                                <ClockWidget
-                                                    is24Hour={layoutConfig.widgetDefaults?.clockFormat !== '12h'}
-                                                    dateFormat={layoutConfig.widgetDefaults?.dateFormat === 'none' ? 'none' : layoutConfig.widgetDefaults?.dateFormat === 'short' ? 'short' : 'full'}
-                                                />
-                                            )}
-                                            {widget.type === 'calendar' && <CalendarWidget />}
-                                            {widget.type === 'text' && <NoteWidgetTile text={widget.customText} />}
-                                        </WidgetTile>
-                                    ))}
-                                </DroppableContainer>
-                            </SortableContext>
+                                            })}
+                                        </DroppableContainer>
+                                    </SortableContext>
+                                )
+                            })()}
                         </div>
                     )}
                 </div>
@@ -1396,8 +1419,10 @@ function App() {
         }
 
         // Default Grid/List View
+        const gridItems = buildGridItems(displayApps, layoutConfig.widgets || [], layoutConfig.customOrder)
+
         return (
-            <SortableContext items={displayApps.map(app => app.id)} strategy={rectSortingStrategy}>
+            <SortableContext items={gridItems.map(item => item.id)} strategy={rectSortingStrategy}>
                 <DroppableContainer
                     id="uncategorized"
                     className={`p-6 pb-24 gap-6 ${activeLayoutMode === 'list'
@@ -1405,177 +1430,178 @@ function App() {
                         : 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6'
                         }`}
                 >
-                    {displayApps.map((app) => (
-                        <SortableAppTile
-                            key={app.id}
-                            app={app}
-                            isEditMode={isEditMode}
-                            tileClass={activeLayoutMode === 'rich-grid' ? '' : (activeLayoutMode === 'list'
-                                ? "relative rounded-xl p-4 flex items-center gap-4 transition-all duration-300 cursor-pointer group hover:bg-white/5 glass-panel w-full"
-                                : tileClass)}
-                            style={activeLayoutMode === 'rich-grid' ? {
-                                backgroundColor: 'transparent',
-                                boxShadow: 'none',
-                                border: 'none'
-                            } : getIconStyle()}
-                            onClick={(e: React.MouseEvent) => {
-                                if (app.type === 'folder') {
-                                    e.preventDefault();
-                                    setOpenFolder(app);
-                                    return;
-                                }
-                                if (isEditMode) e.preventDefault();
-                                else if (app.url) {
-                                    if (openInNewTab) window.open(app.url, '_blank', 'noopener,noreferrer');
-                                    else window.location.href = app.url;
-                                }
-                            }}
-                            onDelete={handleDeleteApp}
-                            onEdit={(_e, app) => {
-                                setEditingApp(app);
-                                setIsAppFormOpen(true);
-                            }}
-                            onContextMenu={handleContextMenu}
-                        >
-                            {activeLayoutMode === 'rich-grid' ? (
-                                <RichAppTile
+                    {gridItems.map((item) => {
+                        if (item.kind === 'app') {
+                            const app = item.app
+                            return (
+                                <SortableAppTile
+                                    key={app.id}
                                     app={app}
-                                    onClick={() => {
+                                    isEditMode={isEditMode}
+                                    tileClass={activeLayoutMode === 'rich-grid' ? '' : (activeLayoutMode === 'list'
+                                        ? "relative rounded-xl p-4 flex items-center gap-4 transition-all duration-300 cursor-pointer group hover:bg-white/5 glass-panel w-full"
+                                        : tileClass)}
+                                    style={activeLayoutMode === 'rich-grid' ? {
+                                        backgroundColor: 'transparent',
+                                        boxShadow: 'none',
+                                        border: 'none'
+                                    } : getIconStyle()}
+                                    onClick={(e: React.MouseEvent) => {
                                         if (app.type === 'folder') {
+                                            e.preventDefault();
                                             setOpenFolder(app);
                                             return;
                                         }
-                                        if (!isEditMode && app.url) {
+                                        if (isEditMode) e.preventDefault();
+                                        else if (app.url) {
                                             if (openInNewTab) window.open(app.url, '_blank', 'noopener,noreferrer');
                                             else window.location.href = app.url;
                                         }
                                     }}
-                                    onContextMenu={(e) => { e.preventDefault(); }}
-                                    isEditMode={isEditMode}
-                                    isAuthenticated={isAuthenticated}
-                                    iconConfig={iconConfig}
-                                />
-                            ) : activeLayoutMode === 'compact' ? (
-                                <div className="flex items-center gap-3 w-full h-full p-2">
-                                    <div className="w-8 h-8 rounded-lg bg-white/10 p-1.5 flex-shrink-0">
-                                        <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain" />
-                                    </div>
-                                    <span className="font-medium text-gray-200 text-sm truncate">{app.name}</span>
-                                </div>
-                            ) : (
-                                <>
-                                    <div className={`${activeLayoutMode === 'list' ? 'w-12 h-12' : 'w-16 h-16'} rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0`}>
-                                        <AppIcon
-                                            src={app.icon_url}
-                                            alt={app.name}
-                                            className="w-full h-full object-contain"
+                                    onDelete={handleDeleteApp}
+                                    onEdit={(_e, app) => {
+                                        setEditingApp(app);
+                                        setIsAppFormOpen(true);
+                                    }}
+                                    onContextMenu={handleContextMenu}
+                                >
+                                    {activeLayoutMode === 'rich-grid' ? (
+                                        <RichAppTile
+                                            app={app}
+                                            onClick={() => {
+                                                if (app.type === 'folder') {
+                                                    setOpenFolder(app);
+                                                    return;
+                                                }
+                                                if (!isEditMode && app.url) {
+                                                    if (openInNewTab) window.open(app.url, '_blank', 'noopener,noreferrer');
+                                                    else window.location.href = app.url;
+                                                }
+                                            }}
+                                            onContextMenu={(e) => { e.preventDefault(); }}
+                                            isEditMode={isEditMode}
+                                            isAuthenticated={isAuthenticated}
+                                            iconConfig={iconConfig}
                                         />
-                                    </div>
-                                    <div className={`flex flex-col min-w-0 ${activeLayoutMode === 'list' ? 'flex-1 items-start' : 'items-center w-full'}`}>
-                                        <span className={`font-medium text-gray-200 group-hover:text-white ${activeLayoutMode === 'list' ? 'text-lg text-left' : 'text-center text-sm'} truncate w-full px-2`}>
-                                            {app.name}
-                                        </span>
-                                        {activeLayoutMode === 'list' && app.description && (
-                                            <span className="text-sm text-gray-400 truncate w-full px-2 text-left">
-                                                {app.description}
-                                            </span>
-                                        )}
-                                    </div>
-                                </>
-                            )}
-                        </SortableAppTile>
-                    ))}
-
-                    {/* Widgets in Grid Mode */}
-                    {layoutConfig.widgets?.map(widget => (
-                        <WidgetTile
-                            key={widget.id}
-                            widget={widget}
-                            isEditMode={isEditMode}
-                            onDelete={handleDeleteWidget}
-                            onContextMenu={(e) => {
-                                e.preventDefault()
-                                setContextWidget(widget)
-                            }}
-                        >
-                            {widget.type === 'weather' && (
-                                <WeatherWidget
-                                    location={layoutConfig.widgetDefaults?.weatherLocation || 'Berlin'}
-                                    unit={layoutConfig.widgetDefaults?.weatherUnit || 'c'}
-                                />
-                            )}
-                            {widget.type === 'clock' && (
-                                <ClockWidget
-                                    is24Hour={layoutConfig.widgetDefaults?.clockFormat !== '12h'}
-                                    dateFormat={layoutConfig.widgetDefaults?.dateFormat === 'none' ? 'none' : layoutConfig.widgetDefaults?.dateFormat === 'short' ? 'short' : 'full'}
-                                />
-                            )}
-                            {widget.type === 'calendar' && <CalendarWidget />}
-                            {widget.type === 'text' && <NoteWidgetTile text={widget.customText} />}
-                        </WidgetTile>
-                    ))}
+                                    ) : activeLayoutMode === 'compact' ? (
+                                        <div className="flex items-center gap-3 w-full h-full p-2">
+                                            <div className="w-8 h-8 rounded-lg bg-white/10 p-1.5 flex-shrink-0">
+                                                <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain" />
+                                            </div>
+                                            <span className="font-medium text-gray-200 text-sm truncate">{app.name}</span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className={`${activeLayoutMode === 'list' ? 'w-12 h-12' : 'w-16 h-16'} rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0`}>
+                                                <AppIcon
+                                                    src={app.icon_url}
+                                                    alt={app.name}
+                                                    className="w-full h-full object-contain"
+                                                />
+                                            </div>
+                                            <div className={`flex flex-col min-w-0 ${activeLayoutMode === 'list' ? 'flex-1 items-start' : 'items-center w-full'}`}>
+                                                <span className={`font-medium text-gray-200 group-hover:text-white ${activeLayoutMode === 'list' ? 'text-lg text-left' : 'text-center text-sm'} truncate w-full px-2`}>
+                                                    {app.name}
+                                                </span>
+                                                {activeLayoutMode === 'list' && app.description && (
+                                                    <span className="text-sm text-gray-400 truncate w-full px-2 text-left">
+                                                        {app.description}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
+                                </SortableAppTile>
+                            )
+                        } else {
+                            const widget = item.widget
+                            return (
+                                <WidgetTile
+                                    key={widget.id}
+                                    widget={widget}
+                                    isEditMode={isEditMode}
+                                    onDelete={handleDeleteWidget}
+                                    onContextMenu={(e) => {
+                                        e.preventDefault()
+                                        setContextWidget(widget)
+                                    }}
+                                >
+                                    {widget.type === 'weather' && (
+                                        <WeatherWidget
+                                            location={layoutConfig.widgetDefaults?.weatherLocation || 'Berlin'}
+                                            unit={layoutConfig.widgetDefaults?.weatherUnit || 'c'}
+                                        />
+                                    )}
+                                    {widget.type === 'clock' && (
+                                        <ClockWidget
+                                            is24Hour={layoutConfig.widgetDefaults?.clockFormat !== '12h'}
+                                            dateFormat={layoutConfig.widgetDefaults?.dateFormat === 'none' ? 'none' : layoutConfig.widgetDefaults?.dateFormat === 'short' ? 'short' : 'full'}
+                                        />
+                                    )}
+                                    {widget.type === 'calendar' && <CalendarWidget />}
+                                    {widget.type === 'text' && <NoteWidgetTile text={widget.customText} />}
+                                    {widget.type === 'vacation' && (
+                                        <VacationWidget
+                                            title={widget.vacationTitle || 'Countdown Event'}
+                                            targetDate={widget.vacationDate}
+                                            onEdit={() => setContextWidget(widget)}
+                                        />
+                                    )}
+                                </WidgetTile>
+                            )
+                        }
+                    })}
 
                     {/* Hidden Apps Area */}
                     {showHiddenApps && (
-                        <div className={`glass-panel rounded-2xl p-6 border border-red-500/30 bg-red-900/10 ${layoutConfig.mode === 'list' ? 'col-span-full' : 'col-span-full'}`}>
+                        <div className={`glass-panel rounded-2xl p-6 border border-red-500/30 bg-red-900/10 ${activeLayoutMode === 'list' ? 'col-span-full' : 'col-span-full'}`}>
                             <div className="flex justify-between items-center mb-4">
                                 <h2 className="text-xl font-bold text-red-400 flex items-center gap-2">
-                                    <EyeOff className="w-5 h-5" />
-                                    Hidden Apps
+                                    <EyeOff className="w-5 h-5" /> Hidden Apps (Private)
                                 </h2>
-                                <p className="text-xs text-red-300/70">
-                                    Visible because you are authenticated.
-                                </p>
                             </div>
-                            <SortableContext items={layoutConfig.hiddenAppIds || []} strategy={rectSortingStrategy}>
-                                <DroppableContainer id="hidden-apps" className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 min-h-[100px] p-2 rounded-xl bg-black/20 border-dashed border border-red-500/20">
-                                    {(layoutConfig.hiddenAppIds || []).map((id) => {
-                                        const app = apps.find(a => a.id === id);
-                                        if (!app) return null;
-                                        // Filter by search query
-                                        if (searchQuery && !app.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-                                            return null;
-                                        }
-                                        return (
-                                            <SortableAppTile
-                                                key={app.id}
-                                                app={app}
-                                                isEditMode={isEditMode}
-                                                tileClass={tileClass}
-                                                style={getIconStyle()}
-                                                onClick={(e: React.MouseEvent) => {
-                                                    if (app.type === 'folder') {
-                                                        e.preventDefault();
-                                                        setOpenFolder(app);
-                                                        return;
-                                                    }
-                                                    if (isEditMode) e.preventDefault();
-                                                    else if (app.url) {
-                                                        if (openInNewTab) window.open(app.url, '_blank', 'noopener,noreferrer');
-                                                        else window.location.href = app.url;
-                                                    }
-                                                }}
-                                                onDelete={handleDeleteApp}
-                                                onEdit={(_e, app) => {
-                                                    setEditingApp(app);
-                                                    setIsAppFormOpen(true);
-                                                }}
-                                                onContextMenu={handleContextMenu}
-                                            >
-                                                <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0 opacity-70">
-                                                    <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain grayscale" />
-                                                </div>
-                                                <span className="font-medium text-gray-400 text-center text-sm truncate w-full px-2">{app.name}</span>
-                                            </SortableAppTile>
-                                        )
-                                    })}
-                                    {(!layoutConfig.hiddenAppIds || layoutConfig.hiddenAppIds.length === 0) && (
-                                        <div className="col-span-full h-full flex items-center justify-center text-red-400/50 text-sm italic py-8">
-                                            Drag apps here to hide them
+                            <div className={`gap-6 ${activeLayoutMode === 'list' ? 'flex flex-col' : 'grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6'}`}>
+                                {(layoutConfig.hiddenAppIds || []).map(id => apps.find(a => a.id === id)).filter((a): a is AppData => !!a).map((app) => (
+                                    <SortableAppTile
+                                        key={app.id}
+                                        app={app}
+                                        isEditMode={isEditMode}
+                                        tileClass={activeLayoutMode === 'rich-grid' ? '' : (activeLayoutMode === 'list'
+                                            ? "relative rounded-xl p-4 flex items-center gap-4 transition-all duration-300 cursor-pointer group hover:bg-white/5 glass-panel w-full"
+                                            : tileClass)}
+                                        style={activeLayoutMode === 'rich-grid' ? {
+                                            backgroundColor: 'transparent',
+                                            boxShadow: 'none',
+                                            border: 'none'
+                                        } : getIconStyle()}
+                                        onClick={(e: React.MouseEvent) => {
+                                            if (app.type === 'folder') {
+                                                e.preventDefault();
+                                                setOpenFolder(app);
+                                                return;
+                                            }
+                                            if (isEditMode) e.preventDefault();
+                                            else if (app.url) {
+                                                if (openInNewTab) window.open(app.url, '_blank', 'noopener,noreferrer');
+                                                else window.location.href = app.url;
+                                            }
+                                        }}
+                                        onDelete={handleDeleteApp}
+                                        onEdit={(_e, app) => {
+                                            setEditingApp(app);
+                                            setIsAppFormOpen(true);
+                                        }}
+                                        onContextMenu={handleContextMenu}
+                                    >
+                                        <div className="w-16 h-16 rounded-2xl bg-black/20 flex items-center justify-center p-2 overflow-hidden bg-white/5 shrink-0 opacity-60">
+                                            <AppIcon src={app.icon_url} alt={app.name} className="w-full h-full object-contain" />
                                         </div>
-                                    )}
-                                </DroppableContainer>
-                            </SortableContext>
+                                        <span className="font-medium text-gray-400 group-hover:text-white text-center text-sm truncate w-full px-2">
+                                            {app.name}
+                                        </span>
+                                    </SortableAppTile>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </DroppableContainer>
@@ -1626,6 +1652,7 @@ function App() {
                 widget={contextWidget}
                 onClose={() => setContextWidget(null)}
                 onDelete={handleDeleteWidget}
+                onUpdateWidget={handleUpdateWidget}
             />
 
             <SettingsModal

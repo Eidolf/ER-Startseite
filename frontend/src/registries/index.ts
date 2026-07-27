@@ -5,6 +5,7 @@ import { RadarrManifest } from './radarr'
 import { SonarrManifest } from './sonarr'
 import { ReadarrManifest } from './readarr'
 import { SabnzbdManifest } from './sabnzbd'
+import { TrekManifest } from './trek'
 import {
     EmbyManifest, BitwardenManifest, RocketChatManifest, PaperlessManifest,
     AmpManifest, EmulatorJSManifest, NextcloudManifest, CalibreManifest,
@@ -32,5 +33,6 @@ export const AppRegistry: Record<string, PremiumAppManifest> = {
     [GrocyManifest.id]: GrocyManifest,
     [HomeAssistantManifest.id]: HomeAssistantManifest,
     [MediawikiManifest.id]: MediawikiManifest,
-    [AudiobookshelfManifest.id]: AudiobookshelfManifest
+    [AudiobookshelfManifest.id]: AudiobookshelfManifest,
+    [TrekManifest.id]: TrekManifest
 }

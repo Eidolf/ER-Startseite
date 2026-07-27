@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class BackgroundConfig(BaseModel):
@@ -43,7 +43,21 @@ class WidgetData(BaseModel):
     y: int = 0
     w: int = 1
     h: int = 1
+    customText: str | None = None
     settings: dict[str, Any] = {}
+
+
+class WidgetDefaults(BaseModel):
+    weatherLocation: str | None = "Berlin"
+    weatherUnit: str | None = "c"
+    clockFormat: str | None = "24h"
+    dateFormat: str | None = "DD.MM.YYYY"
+    vacationTitle: str | None = "Countdown Event"
+    vacationDate: str | None = None
+    vacationApiUrl: str | None = None
+    vacationApiKey: str | None = Field(default=None, exclude=True)
+    vacationDestination: str | None = None
+    vacationSecret: str | None = Field(default=None, exclude=True)
 
 
 class LayoutConfig(BaseModel):
@@ -52,6 +66,7 @@ class LayoutConfig(BaseModel):
     categories: list[Category] = []
     hiddenAppIds: list[str] = []
     widgets: list[WidgetData] = []
+    widgetDefaults: WidgetDefaults | None = None
 
 
 class AppConfig(BaseModel):

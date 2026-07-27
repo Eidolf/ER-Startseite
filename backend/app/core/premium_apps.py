@@ -471,3 +471,16 @@ AppRegistry.register(
         fields=[URL_FIELD],
     )
 )
+
+# 26. TREK
+AppRegistry.register(
+    PremiumAppDefinition(
+        id="trek",
+        name="TREK Vacation Planner",
+        description=(
+            "Self-hosted travel & trip planning platform with live vacation countdown."
+        ),
+        default_icon="https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/trek.png",
+        fields=[],
+    )
+)
