@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Hourglass, Calendar } from 'lucide-react'
+import { Hourglass, Calendar, Pencil } from 'lucide-react'
 
 interface VacationWidgetProps {
     title?: string
     targetDate?: string
+    onEdit?: () => void
 }
 
 interface TimeLeft {
@@ -17,6 +18,7 @@ interface TimeLeft {
 export const VacationWidget: React.FC<VacationWidgetProps> = ({
     title = 'Countdown Event',
     targetDate,
+    onEdit,
 }) => {
     // Calculate time left
     const calculateTimeLeft = useCallback((): TimeLeft => {
@@ -60,13 +62,16 @@ export const VacationWidget: React.FC<VacationWidgetProps> = ({
         : null
 
     return (
-        <div className="relative w-full h-full p-4 rounded-2xl bg-gradient-to-br from-cyan-950/70 via-slate-900/90 to-emerald-950/70 border border-cyan-500/30 backdrop-blur-xl shadow-xl flex flex-col justify-between overflow-hidden group select-none">
+        <div
+            onClick={onEdit}
+            className={`relative w-full h-full p-4 rounded-2xl bg-gradient-to-br from-cyan-950/70 via-slate-900/90 to-emerald-950/70 border border-cyan-500/30 backdrop-blur-xl shadow-xl flex flex-col justify-between overflow-hidden group select-none ${onEdit ? 'cursor-pointer hover:border-cyan-400/60 transition-all' : ''}`}
+        >
             {/* Ambient Glow */}
             <div className="absolute -top-12 -right-12 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
 
             {/* Header */}
             <div className="flex items-center justify-between z-10">
-                <div className="flex items-center gap-2 text-cyan-400 min-w-0">
+                <div className="flex items-center gap-2 text-cyan-400 min-w-0 pr-6">
                     <div className="p-1.5 rounded-lg bg-cyan-500/20 border border-cyan-500/30 shrink-0">
                         <Hourglass className="w-4 h-4 text-cyan-300" />
                     </div>
@@ -74,6 +79,19 @@ export const VacationWidget: React.FC<VacationWidgetProps> = ({
                         {title}
                     </span>
                 </div>
+                {onEdit && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            onEdit()
+                        }}
+                        className="p-1.5 rounded-lg bg-black/40 hover:bg-black/80 border border-white/10 text-cyan-300 hover:text-white transition shadow shrink-0 z-20"
+                        title="Countdown bearbeiten"
+                    >
+                        <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                )}
             </div>
 
             {/* Countdown Display */}
@@ -81,8 +99,8 @@ export const VacationWidget: React.FC<VacationWidgetProps> = ({
                 {!targetDate ? (
                     <div className="flex flex-col items-center justify-center text-center py-2">
                         <Calendar className="w-6 h-6 text-cyan-400/60 mb-1" />
-                        <p className="text-xs text-gray-400">Kein Zieldatum konfiguriert</p>
-                        <span className="text-[10px] text-gray-500">Klicke zum Einstellen des Zieldatums</span>
+                        <p className="text-xs text-gray-400 font-medium">Kein Zieldatum konfiguriert</p>
+                        <span className="text-[10px] text-cyan-300 underline mt-1">Klicke zum Einstellen des Zieldatums</span>
                     </div>
                 ) : timeLeft.isPast ? (
                     <div className="text-center py-2 animate-pulse">

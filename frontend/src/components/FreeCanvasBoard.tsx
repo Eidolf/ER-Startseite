@@ -4,6 +4,7 @@ import { ClockWidget } from './widgets/ClockWidget'
 import { WeatherWidget } from './widgets/WeatherWidget'
 import { CalendarWidget } from './widgets/CalendarWidget'
 import { VacationWidget } from './widgets/VacationWidget'
+import { WidgetContextModal } from './WidgetContextModal'
 import { AppIcon } from './AppIcon'
 import { AppData, WidgetDefaults } from '../types'
 import { getJsonCookie, setJsonCookie, deleteCookie } from '../utils/cookieUtils'
@@ -99,6 +100,7 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
     const [editingFolderId, setEditingFolderId] = useState<string | null>(null)
     const [folderTitleInput, setFolderTitleInput] = useState('')
     const [selectedFolderAppIds, setSelectedFolderAppIds] = useState<string[]>([])
+    const [editingVacationWidget, setEditingVacationWidget] = useState<CanvasWidget | null>(null)
 
     // Clock modal states
     const [isClockModalOpen, setIsClockModalOpen] = useState(false)
@@ -752,8 +754,9 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
                             {widget.type === 'calendar' && <CalendarWidget />}
                             {widget.type === 'vacation' && (
                                 <VacationWidget
-                                    title={widget.vacationTitle || 'Nächster Urlaub'}
+                                    title={widget.vacationTitle || 'Countdown Event'}
                                     targetDate={widget.vacationDate}
+                                    onEdit={() => setEditingVacationWidget(widget)}
                                 />
                             )}
                             {widget.type === 'search' && (
@@ -1204,6 +1207,33 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Countdown Widget Context Modal */}
+            {editingVacationWidget && (
+                <WidgetContextModal
+                    widget={{
+                        id: editingVacationWidget.id,
+                        type: 'vacation',
+                        vacationTitle: editingVacationWidget.vacationTitle,
+                        vacationDate: editingVacationWidget.vacationDate,
+                    }}
+                    onClose={() => setEditingVacationWidget(null)}
+                    onDelete={(id) => {
+                        setWidgets((prev) => prev.filter((w) => w.id !== id))
+                        setEditingVacationWidget(null)
+                    }}
+                    onUpdateWidget={(updated) => {
+                        setWidgets((prev) =>
+                            prev.map((w) =>
+                                w.id === updated.id
+                                    ? { ...w, vacationTitle: updated.vacationTitle, vacationDate: updated.vacationDate }
+                                    : w
+                            )
+                        )
+                        setEditingVacationWidget(null)
+                    }}
+                />
             )}
         </div>
     )

@@ -1535,8 +1535,9 @@ function App() {
                                     {widget.type === 'text' && <NoteWidgetTile text={widget.customText} />}
                                     {widget.type === 'vacation' && (
                                         <VacationWidget
-                                            title={widget.vacationTitle || 'Nächster Urlaub'}
+                                            title={widget.vacationTitle || 'Countdown Event'}
                                             targetDate={widget.vacationDate}
+                                            onEdit={() => setContextWidget(widget)}
                                         />
                                     )}
                                 </WidgetTile>
