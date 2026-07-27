@@ -752,8 +752,8 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
                             {widget.type === 'calendar' && <CalendarWidget />}
                             {widget.type === 'vacation' && (
                                 <VacationWidget
-                                    title={widget.vacationTitle || widgetDefaults?.vacationTitle || 'Nächster Urlaub'}
-                                    targetDate={widget.vacationDate || widgetDefaults?.vacationDate}
+                                    title={widget.vacationTitle || 'Nächster Urlaub'}
+                                    targetDate={widget.vacationDate}
                                 />
                             )}
                             {widget.type === 'search' && (

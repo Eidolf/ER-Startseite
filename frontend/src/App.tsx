@@ -1535,8 +1535,8 @@ function App() {
                                     {widget.type === 'text' && <NoteWidgetTile text={widget.customText} />}
                                     {widget.type === 'vacation' && (
                                         <VacationWidget
-                                            title={widget.vacationTitle || layoutConfig.widgetDefaults?.vacationTitle || 'Nächster Urlaub'}
-                                            targetDate={widget.vacationDate || layoutConfig.widgetDefaults?.vacationDate}
+                                            title={widget.vacationTitle || 'Nächster Urlaub'}
+                                            targetDate={widget.vacationDate}
                                         />
                                     )}
                                 </WidgetTile>
