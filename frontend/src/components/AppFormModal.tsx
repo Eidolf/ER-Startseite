@@ -34,6 +34,14 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories,
     const [apiUrl, setApiUrl] = useState('')
     const [apiProtected, setApiProtected] = useState(false)
     const [apiConfig, setApiConfig] = useState<PremiumAppConfig>({})
+    const [webhookEnabled, setWebhookEnabled] = useState(false)
+    const [vacationSecret, setVacationSecret] = useState('')
+
+    const generateSecret = () => {
+        const arr = new Uint8Array(12)
+        crypto.getRandomValues(arr)
+        return 'sec_' + Array.from(arr, b => b.toString(16).padStart(2, '0')).join('')
+    }
 
     // App Store Search & Sort State
     const [storeSearchQuery, setStoreSearchQuery] = useState('')
@@ -60,6 +68,9 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories,
             setApiUrl(editApp.api_url || '')
             setApiProtected(editApp.api_protected || false)
             setApiConfig(editApp.api_config || {})
+            setWebhookEnabled(!!editApp.api_config?.webhookEnabled)
+            const sec = editApp.api_config?.vacationSecret
+            setVacationSecret(typeof sec === 'string' ? sec : '')
         } else if (isOpen) {
             // Reset
             setName('')
@@ -75,6 +86,8 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories,
             setApiUrl('')
             setApiProtected(false)
             setApiConfig({})
+            setWebhookEnabled(false)
+            setVacationSecret('')
             setCustomNoteInput('')
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -211,7 +224,15 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories,
                 api_key: apiKey.trim() || undefined,
                 api_url: apiUrl.trim() || undefined,
                 api_protected: apiProtected,
-                api_config: apiConfig
+                api_config: {
+                    ...apiConfig,
+                    ...(integration === 'trek'
+                        ? {
+                              webhookEnabled,
+                              vacationSecret: webhookEnabled ? (vacationSecret || generateSecret()) : undefined,
+                          }
+                        : {}),
+                }
             }
 
             if (activeTab !== 'folder') {
@@ -564,30 +585,72 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories,
                                         <div className="space-y-3 p-3 bg-neon-cyan/5 border border-neon-cyan/10 rounded-xl animate-in fade-in slide-in-from-top-2">
                                             {integration === 'trek' ? (
                                                 <div className="space-y-3 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
-                                                    <div className="flex items-center gap-2 text-xs font-semibold text-emerald-300 uppercase tracking-wider">
-                                                        <Palmtree className="w-4 h-4" /> Webhook Empfänger-URL
-                                                    </div>
-                                                    <p className="text-xs text-gray-300">
-                                                        Füge diese Webhook-URL in deinen TREK-Einstellungen oder Webhook-Benachrichtigungen ein, um deinen nächsten Urlaub automatisch zu synchronisieren:
-                                                    </p>
-                                                    <div className="flex gap-2">
-                                                        <input
-                                                            type="text"
-                                                            readOnly
-                                                            value={`${window.location.origin}/api/v1/webhooks/vacation?secret=er-vacation-secret`}
-                                                            className="w-full bg-black/50 border border-emerald-500/30 rounded-lg px-3 py-2 text-xs text-emerald-200 font-mono select-all"
-                                                        />
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2 text-xs font-semibold text-emerald-300 uppercase tracking-wider">
+                                                            <Palmtree className="w-4 h-4" /> Webhook Empfänger
+                                                        </div>
                                                         <button
                                                             type="button"
                                                             onClick={() => {
-                                                                navigator.clipboard.writeText(`${window.location.origin}/api/v1/webhooks/vacation?secret=er-vacation-secret`)
-                                                                alert("Webhook-URL in die Zwischenablage kopiert!")
+                                                                if (!webhookEnabled) {
+                                                                    setWebhookEnabled(true)
+                                                                    if (!vacationSecret) {
+                                                                        setVacationSecret(generateSecret())
+                                                                    }
+                                                                } else {
+                                                                    setWebhookEnabled(false)
+                                                                }
                                                             }}
-                                                            className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium shrink-0 transition"
+                                                            className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                                                                webhookEnabled
+                                                                    ? 'bg-emerald-500 text-black font-semibold shadow-lg shadow-emerald-500/30'
+                                                                    : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                                                            }`}
                                                         >
-                                                            Kopieren
+                                                            {webhookEnabled ? 'Webhook Aktiviert ✓' : 'Webhook Aktivieren'}
                                                         </button>
                                                     </div>
+
+                                                    {webhookEnabled ? (
+                                                        <div className="space-y-2 pt-2 border-t border-emerald-500/20 animate-in fade-in">
+                                                            <p className="text-xs text-gray-300">
+                                                                Kopiere diese Webhook-URL in deine TREK-Einstellungen oder Webhook-Benachrichtigungen. Jede App erhält ihr eigenes, sicheres Token:
+                                                            </p>
+                                                            <div className="flex gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    readOnly
+                                                                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/webhooks/vacation?secret=${vacationSecret}`}
+                                                                    className="w-full bg-black/60 border border-emerald-500/40 rounded-lg px-3 py-2 text-xs text-emerald-200 font-mono select-all"
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        const urlToCopy = `${window.location.origin}/api/v1/webhooks/vacation?secret=${vacationSecret}`
+                                                                        navigator.clipboard.writeText(urlToCopy)
+                                                                        alert("Webhook-URL in die Zwischenablage kopiert!")
+                                                                    }}
+                                                                    className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium shrink-0 transition"
+                                                                >
+                                                                    Kopieren
+                                                                </button>
+                                                            </div>
+                                                            <div className="flex items-center justify-between text-[11px] text-gray-400 pt-1">
+                                                                <span>Secret Token: <code className="text-emerald-300 font-mono">{vacationSecret}</code></span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setVacationSecret(generateSecret())}
+                                                                    className="text-emerald-400 hover:underline"
+                                                                >
+                                                                    Neues Secret
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-xs text-gray-400 italic">
+                                                            Der Webhook ist aktuell deaktiviert. Klicke auf "Webhook Aktivieren", um ein eindeutiges Secret und eine Empfänger-URL zu generieren.
+                                                        </p>
+                                                    )}
                                                 </div>
                                             ) : (
                                                 <>

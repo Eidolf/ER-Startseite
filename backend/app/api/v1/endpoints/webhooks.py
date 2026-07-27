@@ -3,7 +3,7 @@ from typing import Any
 import structlog
 from fastapi import APIRouter, Header, HTTPException, Query, status
 
-from app.repositories.repos import ConfigRepository
+from app.repositories.repos import AppRepository, ConfigRepository
 
 logger = structlog.get_logger()
 
@@ -16,19 +16,30 @@ async def receive_vacation_webhook(
     secret: str | None = Query(None),
     x_webhook_secret: str | None = Header(None, alias="X-Webhook-Secret"),
 ) -> dict[str, str]:
-    repo = ConfigRepository()
-    config = await repo.get_config()
+    config_repo = ConfigRepository()
+    config = await config_repo.get_config()
 
-    # Secret validation (configured in settings or widgetDefaults)
-    expected_secret = (
-        config.layoutConfig.widgetDefaults.vacationSecret
-        if config.layoutConfig.widgetDefaults
-        else None
-    ) or "er-vacation-secret"
+    app_repo = AppRepository()
+    apps = await app_repo.read_all()
+
+    # Collect all active secrets from TREK app configurations and widgetDefaults
+    valid_secrets = set()
+    if (
+        config.layoutConfig.widgetDefaults
+        and config.layoutConfig.widgetDefaults.vacationSecret
+    ):
+        valid_secrets.add(config.layoutConfig.widgetDefaults.vacationSecret)
+
+    for app in apps:
+        if app.api_config and isinstance(app.api_config, dict):
+            sec = app.api_config.get("vacationSecret")
+            enabled = app.api_config.get("webhookEnabled", True)
+            if sec and enabled:
+                valid_secrets.add(str(sec))
 
     provided_secret = secret or x_webhook_secret
 
-    if not provided_secret or provided_secret != expected_secret:
+    if not provided_secret or provided_secret not in valid_secrets:
         logger.warning(
             "Unauthorized vacation webhook attempt", provided=provided_secret
         )
@@ -72,7 +83,7 @@ async def receive_vacation_webhook(
         config.layoutConfig.widgetDefaults.vacationDate = str(target_date)
         if destination:
             config.layoutConfig.widgetDefaults.vacationDestination = str(destination)
-        await repo.save_config(config)
+        await config_repo.save_config(config)
 
     logger.info("Vacation webhook updated successfully", title=title, date=target_date)
 
