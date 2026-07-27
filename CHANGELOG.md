@@ -5,6 +5,20 @@ All notable changes to the **ER-Startseite** dashboard project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.M.PATCH`).
 
+## [2026.7.6] - 2026-07-27
+
+### Added
+- **TREK Premium App & Protected Webhook Endpoint**: Integrated TREK Vacation Planner app preset (`/api/v1/apps/premium`) with built-in live travel countdown stats (`registries/trek.ts`) and a secure webhook receiver endpoint (`POST /api/v1/webhooks/vacation`).
+- **Dynamic Per-App Webhook Secrets**: Added opt-in Webhook switch in App Store modal with dynamic host URL generation (`window.location.origin`) and isolated, cryptographically secure secret tokens (`sec_...`).
+- **Generic Countdown Event Widget**: Refactored Vacation widget into a versatile Countdown Event widget supporting custom titles (birthdays, holidays, events, deadlines), target dates, direct click-to-edit, pencil edit icon buttons, and localized `DD.MM.YYYY` date formatting.
+- **Canvas & Category Board Persistence**: Extended Free Canvas Board cookie serialization (`leanWidgets`) and Category Mode rendering to fully support Countdown widgets across reloads.
+
+### Security
+- **Per-App Webhook Token Revocation**: Deleting a TREK app instance immediately invalidates its associated secret token, blocking unauthorized incoming webhook attempts with `401 Unauthorized`.
+- **Public Schema Serialization Protection**: Excluded sensitive credentials (`vacationApiKey`, `vacationSecret`) from public `WidgetDefaults` JSON responses via Pydantic `Field(exclude=True)`.
+
+---
+
 ## [2026.7.5] - 2026-07-26
 
 ### Added

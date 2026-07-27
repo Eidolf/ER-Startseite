@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class BackgroundConfig(BaseModel):
@@ -55,9 +55,9 @@ class WidgetDefaults(BaseModel):
     vacationTitle: str | None = "Countdown Event"
     vacationDate: str | None = None
     vacationApiUrl: str | None = None
-    vacationApiKey: str | None = None
+    vacationApiKey: str | None = Field(default=None, exclude=True)
     vacationDestination: str | None = None
-    vacationSecret: str | None = None
+    vacationSecret: str | None = Field(default=None, exclude=True)
 
 
 class LayoutConfig(BaseModel):
