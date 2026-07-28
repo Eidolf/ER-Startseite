@@ -774,18 +774,25 @@ export function SettingsModal({
 
                             {/* Click to Reset Setting */}
                             <div className="pt-2">
-                                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition">
-                                    <input
-                                        type="checkbox"
-                                        checked={logoConfig.clickToResetView !== false}
-                                        onChange={(e) => onLogoChange({ ...logoConfig, clickToResetView: e.target.checked })}
-                                        className="w-4 h-4 rounded text-neon-cyan focus:ring-neon-cyan bg-black/40 border-white/20"
-                                    />
+                                <div className="flex items-center justify-between gap-4 p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition">
                                     <div className="flex-1">
                                         <div className="text-xs font-medium text-white">Logo/Titel-Klick springt zur Standard-View</div>
                                         <div className="text-[11px] text-gray-400">Beim Klick auf das Logo oder den Titel wird von Canvas / Sub-Views zurück zur Hauptansicht gesprungen.</div>
                                     </div>
-                                </label>
+                                    <button
+                                        type="button"
+                                        onClick={() => onLogoChange({ ...logoConfig, clickToResetView: logoConfig.clickToResetView === false })}
+                                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                                            logoConfig.clickToResetView !== false ? 'bg-neon-cyan' : 'bg-gray-700'
+                                        }`}
+                                    >
+                                        <span
+                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                                logoConfig.clickToResetView !== false ? 'translate-x-6' : 'translate-x-1'
+                                            }`}
+                                        />
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="space-y-4 pt-4 border-t border-white/10">

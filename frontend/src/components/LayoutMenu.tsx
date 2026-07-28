@@ -97,13 +97,25 @@ export function LayoutMenu({
                     {onToggleClickToResetView && (
                         <button
                             onClick={onToggleClickToResetView}
-                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
-                                clickToResetView ? 'bg-emerald-500/20 text-emerald-400 font-medium' : 'hover:bg-white/5 text-gray-300'
+                            className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-colors ${
+                                clickToResetView ? 'bg-neon-cyan/10 text-neon-cyan font-medium' : 'hover:bg-white/5 text-gray-300'
                             }`}
                         >
-                            <RotateCcw className="w-4 h-4" />
-                            <span className="flex-1 text-left text-xs">Logo Click = Home View</span>
-                            <div className={`w-2.5 h-2.5 rounded-full transition-all ${clickToResetView ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-gray-600'}`} />
+                            <div className="flex items-center gap-3">
+                                <RotateCcw className="w-4 h-4 text-neon-cyan" />
+                                <span className="text-left text-xs">Logo-Klick = Home</span>
+                            </div>
+                            <div
+                                className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+                                    clickToResetView ? 'bg-neon-cyan' : 'bg-gray-700'
+                                }`}
+                            >
+                                <span
+                                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                                        clickToResetView ? 'translate-x-4.5' : 'translate-x-1'
+                                    }`}
+                                />
+                            </div>
                         </button>
                     )}
 
