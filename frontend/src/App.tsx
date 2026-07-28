@@ -350,6 +350,17 @@ function App() {
         // Auto-save useEffect will pick this up
     }
 
+    const handleResetToHome = () => {
+        if (logoConfig.clickToResetView === false) return
+        setLocalMode(null)
+        setSearchQuery('')
+        setIsEditMode(false)
+        setShowHiddenApps(false)
+        if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+        }
+    }
+
     const [configLoaded, setConfigLoaded] = useState(false)
 
     const [searchQuery, setSearchQuery] = useState('')
@@ -1703,6 +1714,8 @@ function App() {
                     onToggleEditMode={() => handleProtectedAction('edit_mode')}
                     showHidden={showHiddenApps}
                     onToggleShowHidden={() => handleProtectedAction('show_hidden')}
+                    clickToResetView={logoConfig.clickToResetView !== false}
+                    onToggleClickToResetView={() => setLogoConfig(prev => ({ ...prev, clickToResetView: prev.clickToResetView === false }))}
                 />
             )}
 
@@ -1817,7 +1830,15 @@ function App() {
             {/* ================= MOBILE HEADER (Visible only on mobile) ================= */}
             <div className="md:hidden fixed top-0 left-0 w-full z-50 h-14 pointer-events-none">
                 {/* Left: Logo & Title */}
-                <div className="absolute top-2 left-2 flex items-center pointer-events-auto gap-2">
+                <div
+                    onClick={handleResetToHome}
+                    className={`absolute top-2 left-2 flex items-center pointer-events-auto gap-2 ${
+                        logoConfig.clickToResetView !== false
+                            ? 'cursor-pointer hover:opacity-90 transition-all active:scale-95'
+                            : ''
+                    }`}
+                    title={logoConfig.clickToResetView !== false ? 'Zurück zur Standard-View' : undefined}
+                >
                     <AnimatedLogo
                         className="w-12 h-12"
                         src={logoConfig.type === 'image' ? logoConfig.value : undefined}
@@ -1865,10 +1886,18 @@ function App() {
                 <div className="w-40"></div>
 
                 {/* Center: Logo & Title */}
-                <div className="flex flex-col items-center pointer-events-auto pt-2">
+                <div
+                    onClick={handleResetToHome}
+                    className={`flex flex-col items-center pointer-events-auto pt-2 ${
+                        logoConfig.clickToResetView !== false
+                            ? 'cursor-pointer hover:opacity-90 transition-all hover:scale-[1.02] group'
+                            : ''
+                    }`}
+                    title={logoConfig.clickToResetView !== false ? 'Zurück zur Standard-View' : undefined}
+                >
                     <div className="h-32 w-auto flex items-end justify-center pb-2">
                         <AnimatedLogo
-                            className="h-full w-auto max-w-[250px]"
+                            className="h-full w-auto max-w-[250px] group-hover:drop-shadow-[0_0_20px_rgba(6,182,212,0.6)] transition-all"
                             src={logoConfig.type === 'image' ? logoConfig.value : undefined}
                         />
                     </div>

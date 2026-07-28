@@ -1,4 +1,4 @@
-import { LayoutGrid, List, Check, Move, Folder, Eye, EyeOff } from 'lucide-react'
+import { LayoutGrid, List, Check, Move, Folder, Eye, EyeOff, RotateCcw } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { LayoutMode } from '../types'
 
@@ -9,11 +9,24 @@ interface LayoutMenuProps {
     onToggleEditMode: () => void
     showHidden: boolean
     onToggleShowHidden: () => void
+    clickToResetView?: boolean
+    onToggleClickToResetView?: () => void
     isOpen: boolean
     onClose: () => void
 }
 
-export function LayoutMenu({ currentMode, onModeChange, isEditMode, onToggleEditMode, showHidden, onToggleShowHidden, isOpen, onClose }: LayoutMenuProps) {
+export function LayoutMenu({
+    currentMode,
+    onModeChange,
+    isEditMode,
+    onToggleEditMode,
+    showHidden,
+    onToggleShowHidden,
+    clickToResetView = true,
+    onToggleClickToResetView,
+    isOpen,
+    onClose
+}: LayoutMenuProps) {
     if (!isOpen) return null
 
     return (
@@ -74,6 +87,25 @@ export function LayoutMenu({ currentMode, onModeChange, isEditMode, onToggleEdit
                         <span className="flex-1 text-left">Free Canvas Board</span>
                         {currentMode === 'canvas' && <Check className="w-4 h-4" />}
                     </button>
+
+                    <div className="h-px bg-white/10 my-2" />
+
+                    <div className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                        Navigation
+                    </div>
+
+                    {onToggleClickToResetView && (
+                        <button
+                            onClick={onToggleClickToResetView}
+                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                                clickToResetView ? 'bg-emerald-500/20 text-emerald-400 font-medium' : 'hover:bg-white/5 text-gray-300'
+                            }`}
+                        >
+                            <RotateCcw className="w-4 h-4" />
+                            <span className="flex-1 text-left text-xs">Logo Click = Home View</span>
+                            <div className={`w-2.5 h-2.5 rounded-full transition-all ${clickToResetView ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-gray-600'}`} />
+                        </button>
+                    )}
 
                     <div className="h-px bg-white/10 my-2" />
 

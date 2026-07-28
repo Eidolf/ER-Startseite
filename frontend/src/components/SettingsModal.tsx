@@ -764,12 +764,28 @@ export function SettingsModal({
                             {/* Presets */}
                             <div className="grid grid-cols-2 gap-3">
                                 <button
-                                    onClick={() => onLogoChange({ type: 'default', value: undefined })}
+                                    onClick={() => onLogoChange({ ...logoConfig, type: 'default', value: undefined })}
                                     className={`p-3 rounded-xl border flex flex-col items-center gap-2 transition-all ${logoConfig.type === 'default' ? 'bg-neon-cyan/10 border-neon-cyan text-neon-cyan' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}
                                 >
                                     <Sparkles className="w-6 h-6" />
                                     <span className="text-xs font-medium">Default Animated</span>
                                 </button>
+                            </div>
+
+                            {/* Click to Reset Setting */}
+                            <div className="pt-2">
+                                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition">
+                                    <input
+                                        type="checkbox"
+                                        checked={logoConfig.clickToResetView !== false}
+                                        onChange={(e) => onLogoChange({ ...logoConfig, clickToResetView: e.target.checked })}
+                                        className="w-4 h-4 rounded text-neon-cyan focus:ring-neon-cyan bg-black/40 border-white/20"
+                                    />
+                                    <div className="flex-1">
+                                        <div className="text-xs font-medium text-white">Logo/Titel-Klick springt zur Standard-View</div>
+                                        <div className="text-[11px] text-gray-400">Beim Klick auf das Logo oder den Titel wird von Canvas / Sub-Views zurück zur Hauptansicht gesprungen.</div>
+                                    </div>
+                                </label>
                             </div>
 
                             <div className="space-y-4 pt-4 border-t border-white/10">
