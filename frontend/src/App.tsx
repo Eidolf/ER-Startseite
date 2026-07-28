@@ -576,6 +576,25 @@ function App() {
         return style as React.CSSProperties
     }
 
+    const getWidgetTileClass = () => {
+        let cls = "transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 w-full h-full "
+        if (iconConfig.backgroundStyle === 'glass') {
+            cls += "glass-panel "
+        } else {
+            cls += "shadow-xl "
+        }
+        if (iconConfig.showBorder) {
+            if (iconConfig.borderStyle === 'solid') {
+                cls += "custom-border-solid "
+            } else {
+                cls += "custom-border-gradient "
+            }
+        } else {
+            cls += "border border-white/5 "
+        }
+        return cls
+    }
+
     // Determine classes based on config
     let tileClass = "relative rounded-xl p-6 flex flex-col items-center justify-center gap-4 transition-all duration-300 cursor-pointer group hover:z-10 overflow-visible "
 
@@ -1392,7 +1411,7 @@ function App() {
                                                              isEditMode={isEditMode}
                                                              onDelete={handleDeleteWidget}
                                                              style={getIconStyle()}
-                                                             className="glass-panel border rounded-2xl overflow-hidden shadow-lg transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 w-full h-full"
+                                                             className={getWidgetTileClass()}
                                                              onContextMenu={(e) => {
                                                                  e.preventDefault()
                                                                  setContextWidget(widget)
@@ -1540,7 +1559,7 @@ function App() {
                                     isEditMode={isEditMode}
                                     onDelete={handleDeleteWidget}
                                     style={getIconStyle()}
-                                    className="glass-panel border rounded-2xl overflow-hidden shadow-lg transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 w-full h-full"
+                                    className={getWidgetTileClass()}
                                     onContextMenu={(e) => {
                                         e.preventDefault()
                                         setContextWidget(widget)
