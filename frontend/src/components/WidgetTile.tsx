@@ -9,26 +9,28 @@ interface WidgetTileProps {
     onDelete: (id: string) => void
     children: React.ReactNode
     className?: string
+    style?: React.CSSProperties
     onContextMenu?: (e: React.MouseEvent) => void
 }
 
-export function WidgetTile({ widget, isEditMode, onDelete, children, className, onContextMenu }: WidgetTileProps) {
+export function WidgetTile({ widget, isEditMode, onDelete, children, className, style, onContextMenu }: WidgetTileProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: widget.id,
         disabled: !isEditMode
     })
 
-    const style = {
+    const combinedStyle = {
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.5 : 1,
         zIndex: isDragging ? 50 : 'auto',
+        ...style,
     }
 
     return (
         <div
             ref={setNodeRef}
-            style={style}
+            style={combinedStyle}
             {...attributes}
             {...listeners}
             className={`relative group ${className || ''} ${isEditMode ? 'cursor-grab active:cursor-grabbing animate-pulse hover:ring-2 ring-neon-cyan/50' : ''}`}

@@ -310,9 +310,11 @@ function UnlockModal({ isOpen, onClose, onUnlock }: { isOpen: boolean, onClose: 
     )
 }
 
-function NoteWidgetTile({ text }: { text?: string }) {
+function NoteWidgetTile({ text, useAppDesign = false }: { text?: string; useAppDesign?: boolean }) {
     return (
-        <div className="w-full h-full p-4 flex flex-col justify-center bg-black/40 rounded-2xl border border-white/10 backdrop-blur-md relative overflow-hidden text-white text-xs whitespace-pre-wrap">
+        <div className={`w-full h-full p-4 flex flex-col justify-center relative overflow-hidden text-white text-xs whitespace-pre-wrap ${
+            useAppDesign ? 'bg-transparent border-0 rounded-none shadow-none backdrop-blur-none' : 'bg-black/40 rounded-2xl border border-white/10 backdrop-blur-md'
+        }`}>
             <div className="font-semibold text-pink-300 mb-1">Note</div>
             <div className="text-gray-200">{text || 'Custom Note'}</div>
         </div>
@@ -1382,41 +1384,46 @@ function App() {
                                                         </SortableAppTile>
                                                     )
                                                 } else {
-                                                    const widget = item.widget
-                                                    return (
-                                                        <WidgetTile
-                                                            key={widget.id}
-                                                            widget={widget}
-                                                            isEditMode={isEditMode}
-                                                            onDelete={handleDeleteWidget}
-                                                            onContextMenu={(e) => {
-                                                                e.preventDefault()
-                                                                setContextWidget(widget)
-                                                            }}
-                                                        >
-                                                            {widget.type === 'weather' && (
-                                                                <WeatherWidget
-                                                                    location={layoutConfig.widgetDefaults?.weatherLocation || 'Berlin'}
-                                                                    unit={layoutConfig.widgetDefaults?.weatherUnit || 'c'}
-                                                                />
-                                                            )}
-                                                            {widget.type === 'clock' && (
-                                                                <ClockWidget
-                                                                    is24Hour={layoutConfig.widgetDefaults?.clockFormat !== '12h'}
-                                                                    dateFormat={layoutConfig.widgetDefaults?.dateFormat === 'none' ? 'none' : layoutConfig.widgetDefaults?.dateFormat === 'short' ? 'short' : 'full'}
-                                                                />
-                                                            )}
-                                                            {widget.type === 'calendar' && <CalendarWidget />}
-                                                            {widget.type === 'text' && <NoteWidgetTile text={widget.customText} />}
-                                                            {widget.type === 'vacation' && (
-                                                                 <VacationWidget
-                                                                     title={widget.vacationTitle || 'Countdown Event'}
-                                                                     targetDate={widget.vacationDate}
-                                                                     onEdit={() => setContextWidget(widget)}
+                                                     const widget = item.widget
+                                                     return (
+                                                         <WidgetTile
+                                                             key={widget.id}
+                                                             widget={widget}
+                                                             isEditMode={isEditMode}
+                                                             onDelete={handleDeleteWidget}
+                                                             style={getIconStyle()}
+                                                             className="glass-panel border rounded-2xl overflow-hidden shadow-lg transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 w-full h-full"
+                                                             onContextMenu={(e) => {
+                                                                 e.preventDefault()
+                                                                 setContextWidget(widget)
+                                                             }}
+                                                         >
+                                                             {widget.type === 'weather' && (
+                                                                 <WeatherWidget
+                                                                     location={layoutConfig.widgetDefaults?.weatherLocation || 'Berlin'}
+                                                                     unit={layoutConfig.widgetDefaults?.weatherUnit || 'c'}
+                                                                     useAppDesign={true}
                                                                  />
                                                              )}
-                                                        </WidgetTile>
-                                                    )
+                                                             {widget.type === 'clock' && (
+                                                                 <ClockWidget
+                                                                     is24Hour={layoutConfig.widgetDefaults?.clockFormat !== '12h'}
+                                                                     dateFormat={layoutConfig.widgetDefaults?.dateFormat === 'none' ? 'none' : layoutConfig.widgetDefaults?.dateFormat === 'short' ? 'short' : 'full'}
+                                                                     useAppDesign={true}
+                                                                 />
+                                                             )}
+                                                             {widget.type === 'calendar' && <CalendarWidget useAppDesign={true} />}
+                                                             {widget.type === 'text' && <NoteWidgetTile text={widget.customText} useAppDesign={true} />}
+                                                             {widget.type === 'vacation' && (
+                                                                  <VacationWidget
+                                                                      title={widget.vacationTitle || 'Countdown Event'}
+                                                                      targetDate={widget.vacationDate}
+                                                                      onEdit={() => setContextWidget(widget)}
+                                                                      useAppDesign={true}
+                                                                  />
+                                                              )}
+                                                         </WidgetTile>
+                                                     )
                                                 }
                                             })}
                                         </DroppableContainer>
@@ -1532,6 +1539,8 @@ function App() {
                                     widget={widget}
                                     isEditMode={isEditMode}
                                     onDelete={handleDeleteWidget}
+                                    style={getIconStyle()}
+                                    className="glass-panel border rounded-2xl overflow-hidden shadow-lg transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 w-full h-full"
                                     onContextMenu={(e) => {
                                         e.preventDefault()
                                         setContextWidget(widget)
@@ -1541,21 +1550,24 @@ function App() {
                                         <WeatherWidget
                                             location={layoutConfig.widgetDefaults?.weatherLocation || 'Berlin'}
                                             unit={layoutConfig.widgetDefaults?.weatherUnit || 'c'}
+                                            useAppDesign={true}
                                         />
                                     )}
                                     {widget.type === 'clock' && (
                                         <ClockWidget
                                             is24Hour={layoutConfig.widgetDefaults?.clockFormat !== '12h'}
                                             dateFormat={layoutConfig.widgetDefaults?.dateFormat === 'none' ? 'none' : layoutConfig.widgetDefaults?.dateFormat === 'short' ? 'short' : 'full'}
+                                            useAppDesign={true}
                                         />
                                     )}
-                                    {widget.type === 'calendar' && <CalendarWidget />}
-                                    {widget.type === 'text' && <NoteWidgetTile text={widget.customText} />}
+                                    {widget.type === 'calendar' && <CalendarWidget useAppDesign={true} />}
+                                    {widget.type === 'text' && <NoteWidgetTile text={widget.customText} useAppDesign={true} />}
                                     {widget.type === 'vacation' && (
                                         <VacationWidget
                                             title={widget.vacationTitle || 'Countdown Event'}
                                             targetDate={widget.vacationDate}
                                             onEdit={() => setContextWidget(widget)}
+                                            useAppDesign={true}
                                         />
                                     )}
                                 </WidgetTile>

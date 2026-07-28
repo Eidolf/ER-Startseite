@@ -4,6 +4,7 @@ import { CloudSun, CloudRain, Sun, CloudFog, Snowflake, CloudLightning, Cloud, L
 interface WeatherWidgetProps {
     location?: string
     unit?: 'c' | 'f'
+    useAppDesign?: boolean
 }
 
 interface WeatherData {
@@ -39,7 +40,7 @@ function getWeatherDescription(code: number): string {
     return 'Cloudy'
 }
 
-export function WeatherWidget({ location = 'Berlin', unit = 'c' }: WeatherWidgetProps) {
+export function WeatherWidget({ location = 'Berlin', unit = 'c', useAppDesign = false }: WeatherWidgetProps) {
     const [data, setData] = useState<WeatherData | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
@@ -122,7 +123,9 @@ export function WeatherWidget({ location = 'Berlin', unit = 'c' }: WeatherWidget
 
     if (error || !data) {
         return (
-            <div className="w-full h-full p-4 flex flex-col items-center justify-center text-center bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-2xl border border-white/10 backdrop-blur-md">
+            <div className={`w-full h-full p-4 flex flex-col items-center justify-center text-center ${
+                useAppDesign ? 'bg-transparent border-0 rounded-none shadow-none backdrop-blur-none' : 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-2xl border border-white/10 backdrop-blur-md'
+            }`}>
                 <CloudSun className="w-6 h-6 text-yellow-400 mb-1" />
                 <span className="text-xs font-semibold text-white truncate max-w-full">{location}</span>
                 <span className="text-[10px] text-red-300 truncate max-w-full mt-0.5">{error || 'Failed'}</span>
@@ -131,7 +134,9 @@ export function WeatherWidget({ location = 'Berlin', unit = 'c' }: WeatherWidget
     }
 
     return (
-        <div className="w-full h-full p-4 flex flex-col justify-between bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-2xl border border-white/10 backdrop-blur-md">
+        <div className={`w-full h-full p-4 flex flex-col justify-between ${
+            useAppDesign ? 'bg-transparent border-0 rounded-none shadow-none backdrop-blur-none' : 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-2xl border border-white/10 backdrop-blur-md'
+        }`}>
             <div className="flex justify-between items-start">
                 <div className="min-w-0 pr-2">
                     <h3 className="text-lg font-bold text-white truncate">{data.city}</h3>

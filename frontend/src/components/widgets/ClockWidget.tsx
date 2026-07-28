@@ -6,6 +6,7 @@ interface ClockWidgetProps {
     showSeconds?: boolean
     dateFormat?: 'full' | 'short' | 'none'
     timeZone?: string
+    useAppDesign?: boolean
 }
 
 export function ClockWidget({
@@ -13,6 +14,7 @@ export function ClockWidget({
     showSeconds = false,
     dateFormat = 'full',
     timeZone,
+    useAppDesign = false,
 }: ClockWidgetProps) {
     const [time, setTime] = useState(new Date())
 
@@ -57,7 +59,9 @@ export function ClockWidget({
     const formattedDate = dateOptions ? time.toLocaleDateString([], dateOptions) : null
 
     return (
-        <div className="w-full h-full p-4 flex flex-col items-center justify-center bg-black/40 rounded-2xl border border-white/10 backdrop-blur-md relative overflow-hidden">
+        <div className={`w-full h-full p-4 flex flex-col items-center justify-center relative overflow-hidden ${
+            useAppDesign ? 'bg-transparent border-0 rounded-none shadow-none backdrop-blur-none' : 'bg-black/40 rounded-2xl border border-white/10 backdrop-blur-md'
+        }`}>
             <div className="absolute top-2 right-2 opacity-20">
                 <Clock className="w-12 h-12 text-white" />
             </div>
