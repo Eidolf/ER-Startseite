@@ -55,5 +55,6 @@ class MonitoringConfig(BaseModel):
 
 
 class VarcoManifestImportPayload(BaseModel):
-    manifest: dict[str, Any] | None = None
+    manifest: dict[str, Any] | list[Any] | None = None
     brief_content: str | None = None
+    share_url: str | None = None

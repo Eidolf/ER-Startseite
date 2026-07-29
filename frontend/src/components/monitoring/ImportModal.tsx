@@ -12,10 +12,11 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     onClose,
     onImportSuccess,
 }) => {
+    const [shareUrl, setShareUrl] = useState('')
     const [file, setFile] = useState<File | null>(null)
     const [jsonText, setJsonText] = useState('')
     const [briefText, setBriefText] = useState('')
-    const [activeTab, setActiveTab] = useState<'file' | 'manual'>('file')
+    const [activeTab, setActiveTab] = useState<'url' | 'file' | 'manual'>('url')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const [successMessage, setSuccessMessage] = useState('')
@@ -25,11 +26,47 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     if (!isOpen) return null
 
     const handleClose = () => {
+        setShareUrl('')
         setFile(null)
         setError('')
         setSuccessMessage('')
         setLoading(false)
         onClose()
+    }
+
+    const handleUrlImport = async () => {
+        if (!shareUrl.trim()) {
+            setError('Please enter a valid Varco Share URL')
+            return
+        }
+
+        setLoading(true)
+        setError('')
+        setSuccessMessage('')
+
+        try {
+            const res = await fetch('/api/v1/monitoring/import/url', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ share_url: shareUrl.trim() }),
+            })
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}))
+                throw new Error(errData.detail || 'Failed to fetch Varco Share URL')
+            }
+
+            setSuccessMessage('Successfully imported Varco Share Link & generated telemetry cards!')
+            setTimeout(() => {
+                onImportSuccess()
+                handleClose()
+            }, 1000)
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'URL import failed'
+            setError(message)
+        } finally {
+            setLoading(false)
+        }
     }
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -154,7 +191,18 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 </div>
 
                 {/* Tabs */}
-                <div className="flex rounded-lg bg-black/40 p-1 border border-white/10">
+                <div className="flex rounded-lg bg-black/40 p-1 border border-white/10 gap-1">
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setActiveTab('url')
+                        }}
+                        className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition ${activeTab === 'url' ? 'bg-neon-cyan/20 text-neon-cyan' : 'text-gray-400 hover:text-white'}`}
+                    >
+                        Varco Share Link
+                    </button>
                     <button
                         type="button"
                         onClick={(e) => {
@@ -164,7 +212,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                         }}
                         className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition ${activeTab === 'file' ? 'bg-neon-cyan/20 text-neon-cyan' : 'text-gray-400 hover:text-white'}`}
                     >
-                        Upload File (.json, .md, .zip)
+                        Upload File (.json, .zip)
                     </button>
                     <button
                         type="button"
@@ -175,7 +223,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                         }}
                         className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition ${activeTab === 'manual' ? 'bg-neon-cyan/20 text-neon-cyan' : 'text-gray-400 hover:text-white'}`}
                     >
-                        Paste Manifest / Brief
+                        Paste Manifest
                     </button>
                 </div>
 
@@ -190,6 +238,39 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                     <div className="p-3 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-xs text-emerald-300 flex items-center gap-2">
                         <Check className="w-4 h-4 shrink-0" />
                         <span>{successMessage}</span>
+                    </div>
+                )}
+
+                {/* URL Share Link Tab */}
+                {activeTab === 'url' && (
+                    <div className="space-y-4">
+                        <p className="text-xs text-gray-300">
+                            Paste your <code className="text-neon-cyan font-mono">Varco Share Link</code> (e.g. <span className="text-gray-400 font-mono">https://varco-bridge.eidolf.de/share/...</span>).
+                        </p>
+
+                        <div>
+                            <label className="block text-[11px] text-neon-cyan font-mono mb-1">Varco Share URL</label>
+                            <input
+                                type="url"
+                                value={shareUrl}
+                                onChange={(e) => setShareUrl(e.target.value)}
+                                placeholder="https://varco-bridge.eidolf.de/share/..."
+                                className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-neon-cyan"
+                            />
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleUrlImport()
+                            }}
+                            disabled={loading || !shareUrl.trim()}
+                            className="w-full py-2.5 rounded-xl bg-neon-cyan hover:bg-cyan-400 text-black font-bold text-xs uppercase tracking-wider transition disabled:opacity-50"
+                        >
+                            {loading ? 'Fetching Varco Share...' : 'Import Varco Share Link'}
+                        </button>
                     </div>
                 )}
 

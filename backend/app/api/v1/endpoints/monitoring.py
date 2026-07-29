@@ -3,6 +3,7 @@ import json
 import zipfile
 from typing import Any
 
+import httpx
 import structlog
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
@@ -37,7 +38,7 @@ def _parse_varco_manifest_and_brief(
     brief_text: str | None,
     current_config: MonitoringConfig,
 ) -> MonitoringConfig:
-    """Parses Varco manifest or brief and updates current_config cards, entities, and providers."""
+    """Parses Varco manifest, read_entities, or brief and updates current_config cards, entities, and providers."""
     cards: list[MonitoringCard] = list(current_config.cards)
     existing_card_ids = {c.id for c in cards}
 
@@ -48,23 +49,34 @@ def _parse_varco_manifest_and_brief(
     if manifest_data:
         raw_items: list[Any] = []
         if isinstance(manifest_data, dict):
-            if "entities" in manifest_data and isinstance(manifest_data["entities"], list):
-                raw_items = manifest_data["entities"]
-            elif "sensors" in manifest_data and isinstance(manifest_data["sensors"], list):
-                raw_items = manifest_data["sensors"]
-            elif "states" in manifest_data and isinstance(manifest_data["states"], list):
-                raw_items = manifest_data["states"]
-            elif "data" in manifest_data and isinstance(manifest_data["data"], list):
-                raw_items = manifest_data["data"]
-            else:
-                # Key-value map format e.g. {"sensor.speed": {"state": 100, ...}}
-                for k, v in manifest_data.items():
-                    if isinstance(v, dict):
-                        item = dict(v)
-                        item["id"] = k
-                        raw_items.append(item)
-                    elif isinstance(v, (str, int, float, bool)):
-                        raw_items.append({"id": k, "state": v})
+            # Extract nested manifest if present in grant / payload
+            m = manifest_data.get("grant", {}).get("manifest") if isinstance(manifest_data.get("grant"), dict) else None
+            if not m:
+                m = manifest_data.get("manifest") if isinstance(manifest_data.get("manifest"), dict) else manifest_data
+
+            # Check Varco & Home Assistant manifest entity arrays
+            for key in ["read_entities", "subscriptions", "write_entities", "entities", "sensors", "states", "data"]:
+                val = m.get(key)
+                if isinstance(val, list):
+                    raw_items.extend(val)
+                elif isinstance(val, dict):
+                    for k, item_val in val.items():
+                        if isinstance(item_val, dict):
+                            item = dict(item_val)
+                            item["id"] = k
+                            raw_items.append(item)
+                        elif isinstance(item_val, (str, int, float, bool)):
+                            raw_items.append({"id": k, "state": item_val})
+
+            if not raw_items:
+                for k, v in m.items():
+                    if isinstance(k, str) and (k.startswith("sensor.") or k.startswith("binary_sensor.")):
+                        if isinstance(v, dict):
+                            item = dict(v)
+                            item["id"] = k
+                            raw_items.append(item)
+                        elif isinstance(v, (str, int, float, bool)):
+                            raw_items.append({"id": k, "state": v})
         elif isinstance(manifest_data, list):
             raw_items = manifest_data
 
@@ -97,7 +109,7 @@ def _parse_varco_manifest_and_brief(
                     "attributes": ent.get("attributes") or {},
                 })
 
-    # 2. Parse brief.md if present
+    # 2. Parse brief_text if present
     if brief_text:
         lines = brief_text.splitlines()
         for line in lines:
@@ -181,6 +193,49 @@ async def import_manifest(payload: VarcoManifestImportPayload) -> MonitoringConf
     repo = MonitoringRepository()
     config = await repo.get_config()
     updated = _parse_varco_manifest_and_brief(payload.manifest, payload.brief_content, config)
+    await repo.save_config(updated)
+    return updated
+
+
+@router.post("/import/url", response_model=MonitoringConfig)
+async def import_url(payload: VarcoManifestImportPayload) -> MonitoringConfig:
+    if not payload.share_url:
+        raise HTTPException(status_code=400, detail="No share_url provided")
+
+    url = payload.share_url.strip()
+    manifest_data: dict[str, Any] | None = None
+    brief_text: str | None = None
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            resp = await client.get(url)
+            if resp.status_code != 200:
+                raise HTTPException(status_code=400, detail=f"Failed to fetch Varco share URL: HTTP {resp.status_code}")
+
+            ct = resp.headers.get("content-type", "").lower()
+            if "application/json" in ct:
+                manifest_data = resp.json()
+            else:
+                body_str = resp.text
+                try:
+                    manifest_data = json.loads(body_str)
+                except Exception:
+                    brief_text = body_str
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch URL: {e}")
+
+    repo = MonitoringRepository()
+    config = await repo.get_config()
+
+    # Store provider URL if imported from Varco Share
+    for p in config.providers:
+        if p.type == "varco":
+            p.url = url
+
+    updated = _parse_varco_manifest_and_brief(manifest_data, brief_text, config)
     await repo.save_config(updated)
     return updated
 
