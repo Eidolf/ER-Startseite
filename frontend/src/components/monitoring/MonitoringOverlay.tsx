@@ -42,6 +42,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
         isEditMode,
         setIsEditMode,
         pairingCode,
+        clearPairingCode,
         toggleDemoMode,
         refreshConfig,
     } = useMonitoring()
@@ -282,7 +283,14 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                 {/* Pairing Code Verification Overlay */}
                 {pairingCode && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                        <div className="max-w-md w-full p-6 glass-panel rounded-2xl border-2 border-neon-cyan/80 shadow-[0_0_50px_rgba(0,243,255,0.4)] flex flex-col items-center text-center space-y-4">
+                        <div className="relative max-w-md w-full p-6 glass-panel rounded-2xl border-2 border-neon-cyan/80 shadow-[0_0_50px_rgba(0,243,255,0.4)] flex flex-col items-center text-center space-y-4">
+                            <button
+                                onClick={() => clearPairingCode()}
+                                className="absolute top-3 right-3 text-gray-400 hover:text-white transition"
+                                title="Schließen"
+                            >
+                                ✕
+                            </button>
                             <div className="p-3 rounded-full bg-neon-cyan/20 border border-neon-cyan/50 animate-pulse">
                                 <Shield className="w-8 h-8 text-neon-cyan" />
                             </div>
@@ -298,6 +306,12 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                             <p className="text-[11px] text-gray-400 font-mono">
                                 Warte auf Freigabe in Home Assistant...
                             </p>
+                            <button
+                                onClick={() => clearPairingCode()}
+                                className="mt-2 px-5 py-2 rounded-xl bg-neon-cyan/20 hover:bg-neon-cyan hover:text-black border border-neon-cyan/50 text-neon-cyan font-mono text-xs font-bold transition"
+                            >
+                                Code bestätigt / Schließen
+                            </button>
                         </div>
                     </div>
                 )}

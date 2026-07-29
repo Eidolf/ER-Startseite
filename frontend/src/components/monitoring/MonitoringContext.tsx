@@ -20,6 +20,7 @@ interface MonitoringContextType {
     isEditMode: boolean
     setIsEditMode: React.Dispatch<React.SetStateAction<boolean>>
     pairingCode: string | null
+    clearPairingCode: () => void
     toggleEnabled: () => void
     toggleDemoMode: () => void
     refreshConfig: () => Promise<void>
@@ -369,6 +370,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     })
                     if (Object.keys(updatedEntities).length > 0) {
                         setEntities((prev) => ({ ...prev, ...updatedEntities }))
+                        setPairingCode(null)
                     }
                 }
 
@@ -395,13 +397,12 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         })
                         if (Object.keys(streamEntities).length > 0) {
                             setEntities((prev) => ({ ...prev, ...streamEntities }))
+                            setPairingCode(null)
                         }
                     })
                 }
             } catch (e: any) {
                 console.debug('Varco Bridge connection status:', e?.message || e)
-            } finally {
-                setPairingCode(null)
             }
         }
 
@@ -424,11 +425,16 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     const data = await res.json()
                     setIsSystemOnline(data.online ?? true)
                     if (data.entities && Array.isArray(data.entities)) {
-                        const entMap: Record<string, MonitoringEntity> = {}
-                        data.entities.forEach((ent: MonitoringEntity) => {
-                            entMap[ent.id] = ent
+                        setEntities((prev) => {
+                            const next = { ...prev }
+                            data.entities.forEach((ent: MonitoringEntity) => {
+                                // Preserve live Varco WebSocket stream states and prevent overwriting with backend defaults
+                                if (!next[ent.id] || next[ent.id].provider_id !== 'varco-live') {
+                                    next[ent.id] = ent
+                                }
+                            })
+                            return next
                         })
-                        setEntities((prev) => ({ ...prev, ...entMap }))
                     }
                 } else {
                     failCount++
@@ -505,6 +511,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 isEditMode,
                 setIsEditMode,
                 pairingCode,
+                clearPairingCode: () => setPairingCode(null),
                 toggleEnabled,
                 toggleDemoMode,
                 refreshConfig,
