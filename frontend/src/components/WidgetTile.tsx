@@ -33,10 +33,10 @@ export function WidgetTile({ widget, isEditMode, onDelete, children, className, 
             style={combinedStyle}
             {...attributes}
             {...listeners}
-            className={`relative group h-full w-full ${isEditMode ? 'cursor-grab active:cursor-grabbing animate-pulse hover:ring-2 ring-neon-cyan/50' : ''}`}
+            className={`relative group h-full w-full ${className || ''} ${isEditMode ? 'cursor-grab active:cursor-grabbing animate-pulse hover:ring-2 ring-neon-cyan/50' : ''}`}
             onContextMenu={onContextMenu}
         >
-            <div className={`w-full h-full rounded-2xl overflow-hidden ${className || ''}`}>
+            <div className="w-full h-full rounded-2xl overflow-hidden">
                 {children}
             </div>
 

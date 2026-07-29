@@ -577,7 +577,7 @@ function App() {
     }
 
     const getWidgetTileClass = () => {
-        let cls = "transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 w-full h-full "
+        let cls = "rounded-2xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 w-full h-full "
         if (iconConfig.backgroundStyle === 'glass') {
             cls += "glass-panel "
         } else {
