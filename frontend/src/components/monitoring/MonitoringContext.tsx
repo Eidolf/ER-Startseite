@@ -253,24 +253,33 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             try {
                 const scriptUrl = `/api/v1/monitoring/varco-client.js?bridge_url=${encodeURIComponent(params.bridgeUrl)}`
 
-                // Dynamically load Varco client ES module via local CORS proxy if needed
-                if (!(window as any).createVarcoClient && !(window as any).createVarcoConsumerClient) {
-                    await new Promise<void>((resolve, reject) => {
-                        const script = document.createElement('script')
-                        script.type = 'module'
-                        script.src = scriptUrl
-                        script.onload = () => resolve()
-                        script.onerror = () => reject(new Error('Failed to load varco-client.js'))
-                        document.head.appendChild(script)
-                    })
+                let createVarcoClient = (window as any).createVarcoClient || (window as any).createVarcoConsumerClient
+
+                if (!createVarcoClient) {
+                    try {
+                        const varcoModule = await import(/* @vite-ignore */ scriptUrl)
+                        createVarcoClient = varcoModule.createVarcoClient || varcoModule.createVarcoConsumerClient || varcoModule.default
+                        if (createVarcoClient) {
+                            ;(window as any).createVarcoClient = createVarcoClient
+                        }
+                    } catch (err) {
+                        console.warn('Failed to dynamically import varco-client ES module:', err)
+                    }
                 }
 
-                const createVarcoClient = (window as any).createVarcoClient || (window as any).createVarcoConsumerClient
                 if (!createVarcoClient || !isMounted) return
+
+                const prefix = `varco.shareIdentity.v1.${params.authorityId}.${params.shareCode}.`
+                const storage = {
+                    getItem: (key: string) => localStorage.getItem(prefix + key),
+                    setItem: (key: string, value: string) => localStorage.setItem(prefix + key, value),
+                    removeItem: (key: string) => localStorage.removeItem(prefix + key),
+                }
 
                 const client = createVarcoClient({
                     authorityId: params.authorityId,
                     bridgeUrl: params.bridgeUrl,
+                    storage,
                     manifest: { name: 'ER-Startseite Dashboard', version: '2.0' },
                 })
 
