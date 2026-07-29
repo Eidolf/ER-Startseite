@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { MonitoringEntity } from '../../../types/monitoring'
-import { ArrowDownRight, ArrowUpRight, Zap } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight } from 'lucide-react'
 
 interface LiveTrafficGraphWidgetProps {
     title: string
@@ -53,10 +53,6 @@ export const LiveTrafficGraphWidget: React.FC<LiveTrafficGraphWidgetProps> = ({
                         </div>
                     )}
                     <span className="text-xs font-bold uppercase tracking-wider text-gray-200 truncate">{title}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                    <Zap className="w-3.5 h-3.5 text-yellow-400 animate-pulse" />
-                    <span className="text-[10px] font-mono text-neon-cyan">LIVE STREAM</span>
                 </div>
             </div>
 
