@@ -38,6 +38,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
         activeZoneId,
         setActiveZoneId,
         config,
+        isSystemOnline,
         isEditMode,
         setIsEditMode,
         toggleDemoMode,
@@ -151,9 +152,15 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                     <Radio className="w-6 h-6 text-neon-cyan animate-pulse" />
                                 </div>
                                 <div>
-                                    <h2 className="text-xl font-black tracking-widest text-white uppercase flex items-center gap-2" style={{ textShadow: '0 0 10px rgba(0, 243, 255, 0.5)' }}>
-                                        MONITORING COMMAND BRIDGE
-                                    </h2>
+                                    <div className="flex items-center gap-2">
+                                        <h2 className="text-xl font-black tracking-widest text-white uppercase" style={{ textShadow: '0 0 10px rgba(0, 243, 255, 0.5)' }}>
+                                            MONITORING COMMAND BRIDGE
+                                        </h2>
+                                        <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-mono ${isSystemOnline ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400' : 'bg-red-500/10 border-red-500/40 text-red-400'}`}>
+                                            <div className={`w-1.5 h-1.5 rounded-full ${isSystemOnline ? 'bg-emerald-400 animate-pulse' : 'bg-red-500 animate-ping'}`} />
+                                            <span>{isSystemOnline ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE'}</span>
+                                        </div>
+                                    </div>
                                     <p className="text-[10px] font-mono text-neon-cyan/80">VARCO / HOMELAB NOC OVERLAY v2.0</p>
                                 </div>
                             </div>

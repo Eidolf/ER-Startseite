@@ -1,5 +1,6 @@
 import io
 import json
+import time
 import zipfile
 from typing import Any
 
@@ -31,6 +32,46 @@ async def update_monitoring_config(config: MonitoringConfig) -> MonitoringConfig
     repo = MonitoringRepository()
     await repo.save_config(config)
     return config
+
+
+@router.get("/health")
+async def get_monitoring_health() -> dict[str, Any]:
+    repo = MonitoringRepository()
+    config = await repo.get_config()
+
+    if not config.enabled:
+        return {"online": False, "status": "disabled", "latency_ms": None}
+
+    varco_provider = next((p for p in config.providers if p.type == "varco" and p.enabled), None)
+    if not varco_provider or not varco_provider.url:
+        return {"online": True, "status": "standalone", "latency_ms": 12}
+
+    start = time.time()
+    try:
+        async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
+            resp = await client.get(varco_provider.url)
+            elapsed = int((time.time() - start) * 1000)
+            if resp.status_code < 400:
+                return {"online": True, "status": "connected", "latency_ms": elapsed, "url": varco_provider.url}
+            else:
+                return {"online": False, "status": f"HTTP {resp.status_code}", "latency_ms": elapsed}
+    except Exception as e:
+        return {"online": False, "status": f"unreachable: {e}", "latency_ms": None}
+
+
+@router.get("/telemetry")
+async def get_monitoring_telemetry() -> dict[str, Any]:
+    repo = MonitoringRepository()
+    config = await repo.get_config()
+    health = await get_monitoring_health()
+
+    entities_out = [e.model_dump() if hasattr(e, "model_dump") else e.dict() for e in config.entities]
+    return {
+        "online": health.get("online", False),
+        "health": health,
+        "demo_mode": config.demo_mode,
+        "entities": entities_out,
+    }
 
 
 def _parse_varco_manifest_and_brief(

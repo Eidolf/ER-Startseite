@@ -1,5 +1,6 @@
 import React from 'react'
 import { MonitoringEntity } from '../../../types/monitoring'
+import { useMonitoring } from '../MonitoringContext'
 import { ShieldCheck, ShieldAlert } from 'lucide-react'
 
 interface StatusBeaconWidgetProps {
@@ -11,7 +12,10 @@ export const StatusBeaconWidget: React.FC<StatusBeaconWidgetProps> = ({
     title,
     entity,
 }) => {
-    const isOnline = entity?.state === true || String(entity?.state).toLowerCase() === 'on' || String(entity?.state).toLowerCase() === 'online'
+    const { isSystemOnline } = useMonitoring()
+    const isOnline = entity?.state !== undefined && entity?.state !== null && entity?.state !== 'N/A'
+        ? (entity?.state === true || String(entity?.state).toLowerCase() === 'on' || String(entity?.state).toLowerCase() === 'online')
+        : isSystemOnline
     const color = isOnline ? '#10b981' : '#ef4444'
 
     return (

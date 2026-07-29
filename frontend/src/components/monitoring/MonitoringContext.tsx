@@ -15,6 +15,7 @@ interface MonitoringContextType {
     setActiveZoneId: (zone: string) => void
     config: MonitoringConfig | null
     entities: Record<string, MonitoringEntity>
+    isSystemOnline: boolean
     isEditMode: boolean
     setIsEditMode: React.Dispatch<React.SetStateAction<boolean>>
     toggleEnabled: () => void
@@ -64,7 +65,7 @@ const DEFAULT_CONFIG: MonitoringConfig = {
     ],
     providers: [
         {
-            id: 'varco-default',
+            id: 'provider-varco-default',
             name: 'Varco Home Assistant',
             type: 'varco',
             enabled: true,
@@ -75,20 +76,27 @@ const DEFAULT_CONFIG: MonitoringConfig = {
 const MonitoringContext = createContext<MonitoringContextType | null>(null)
 
 export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [isOpen, setIsOpen] = useState(false)
-    const [widthPercent, setWidthState] = useState<OverlayWidthPercent>(() => {
+    const [isOpen, setIsOpen] = useState<boolean>(false)
+    const [widthState, setWidthState] = useState<OverlayWidthPercent>(() => {
         try {
-            const stored = localStorage.getItem(STORAGE_WIDTH_KEY)
-            if (stored) return (parseInt(stored, 10) as OverlayWidthPercent) || 50
+            const saved = localStorage.getItem(STORAGE_WIDTH_KEY)
+            if (saved) {
+                const parsed = parseInt(saved, 10)
+                if ([25, 50, 75, 100].includes(parsed)) {
+                    return parsed as OverlayWidthPercent
+                }
+            }
         } catch {
-            // ignore
+            // fallback
         }
         return 50
     })
+    const widthPercent = widthState
 
-    const [activeZoneId, setActiveZoneId] = useState('network')
+    const [activeZoneId, setActiveZoneId] = useState<string>('network')
     const [config, setConfig] = useState<MonitoringConfig | null>(DEFAULT_CONFIG)
-    const [isEditMode, setIsEditMode] = useState(false)
+    const [isEditMode, setIsEditMode] = useState<boolean>(false)
+    const [isSystemOnline, setIsSystemOnline] = useState<boolean>(true)
 
     // Entity Live Simulation State
     const [entities, setEntities] = useState<Record<string, MonitoringEntity>>({
@@ -207,11 +215,38 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         refreshConfig()
     }, [refreshConfig])
 
-    // Live Telemetry Interpolation / Jitter Simulator (makes data feel alive)
+    // Periodic Telemetry & System Health Check (Polls every 15s)
     useEffect(() => {
-        const interval = setInterval(() => {
-            if (config?.demoMode === false) return
+        const fetchTelemetry = async () => {
+            if (config?.enabled === false) return
+            try {
+                const res = await fetch('/api/v1/monitoring/telemetry')
+                if (res.ok) {
+                    const data = await res.json()
+                    setIsSystemOnline(data.online ?? true)
+                    if (data.entities && Array.isArray(data.entities)) {
+                        const entMap: Record<string, MonitoringEntity> = {}
+                        data.entities.forEach((ent: MonitoringEntity) => {
+                            entMap[ent.id] = ent
+                        })
+                        setEntities((prev) => ({ ...prev, ...entMap }))
+                    }
+                }
+            } catch {
+                setIsSystemOnline(false)
+            }
+        }
 
+        fetchTelemetry()
+        const interval = setInterval(fetchTelemetry, 15000)
+        return () => clearInterval(interval)
+    }, [config?.enabled])
+
+    // Live Telemetry Interpolation / Jitter Simulator (Only when Demo Mode is ON)
+    useEffect(() => {
+        if (config?.demoMode === false) return
+
+        const interval = setInterval(() => {
             setEntities((prev) => {
                 const next = { ...prev }
 
@@ -263,6 +298,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 setActiveZoneId,
                 config,
                 entities,
+                isSystemOnline,
                 isEditMode,
                 setIsEditMode,
                 toggleEnabled,
