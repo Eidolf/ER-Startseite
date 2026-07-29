@@ -406,36 +406,47 @@ async def import_url(payload: VarcoManifestImportPayload) -> MonitoringConfig:
 
 
 @router.post("/import/file", response_model=MonitoringConfig)
-async def import_file(file: UploadFile = File(...)) -> MonitoringConfig:
+async def import_file(
+    files: list[UploadFile] = File(None),
+    file: UploadFile | None = File(None),
+) -> MonitoringConfig:
     repo = MonitoringRepository()
     config = await repo.get_config()
 
-    filename = (file.filename or "").lower()
-    content = await file.read()
+    all_files: list[UploadFile] = []
+    if files:
+        all_files.extend(files)
+    if file and file not in all_files:
+        all_files.append(file)
+
+    if not all_files:
+        raise HTTPException(status_code=400, detail="No files uploaded")
 
     manifest_json: dict[str, Any] | None = None
     brief_text: str | None = None
 
-    if filename.endswith(".zip"):
-        try:
-            with zipfile.ZipFile(io.BytesIO(content)) as z:
-                for name in z.namelist():
-                    n_lower = name.lower()
-                    if n_lower.endswith("manifest.json"):
-                        manifest_json = json.loads(z.read(name).decode("utf-8"))
-                    elif n_lower.endswith("brief.md") or n_lower.endswith(".md"):
-                        brief_text = z.read(name).decode("utf-8")
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Invalid ZIP archive: {e}")
-    elif filename.endswith(".json"):
-        try:
-            manifest_json = json.loads(content.decode("utf-8"))
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Invalid JSON file: {e}")
-    elif filename.endswith(".md") or filename.endswith(".txt"):
-        brief_text = content.decode("utf-8", errors="ignore")
-    else:
-        raise HTTPException(status_code=400, detail="Unsupported file type. Upload .json, .md, or .zip")
+    for uploaded_file in all_files:
+        filename = (uploaded_file.filename or "").lower()
+        content = await uploaded_file.read()
+
+        if filename.endswith(".zip"):
+            try:
+                with zipfile.ZipFile(io.BytesIO(content)) as z:
+                    for name in z.namelist():
+                        n_lower = name.lower()
+                        if n_lower.endswith("manifest.json"):
+                            manifest_json = json.loads(z.read(name).decode("utf-8"))
+                        elif n_lower.endswith("brief.md") or n_lower.endswith(".md"):
+                            brief_text = z.read(name).decode("utf-8")
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Invalid ZIP archive: {e}")
+        elif filename.endswith(".json"):
+            try:
+                manifest_json = json.loads(content.decode("utf-8"))
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Invalid JSON file: {e}")
+        elif filename.endswith(".md") or filename.endswith(".txt"):
+            brief_text = content.decode("utf-8", errors="ignore")
 
     updated = _parse_varco_manifest_and_brief(manifest_json, brief_text, config)
     await repo.save_config(updated)

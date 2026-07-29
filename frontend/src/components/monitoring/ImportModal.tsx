@@ -13,7 +13,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     onImportSuccess,
 }) => {
     const [shareUrl, setShareUrl] = useState('')
-    const [file, setFile] = useState<File | null>(null)
+    const [files, setFiles] = useState<File[]>([])
     const [jsonText, setJsonText] = useState('')
     const [briefText, setBriefText] = useState('')
     const [activeTab, setActiveTab] = useState<'url' | 'file' | 'manual'>('url')
@@ -27,7 +27,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
 
     const handleClose = () => {
         setShareUrl('')
-        setFile(null)
+        setFiles([])
         setError('')
         setSuccessMessage('')
         setLoading(false)
@@ -70,8 +70,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     }
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            setFile(e.target.files[0])
+        if (e.target.files && e.target.files.length > 0) {
+            setFiles(Array.from(e.target.files))
             setError('')
         }
     }
@@ -79,15 +79,15 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault()
         e.stopPropagation()
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            setFile(e.dataTransfer.files[0])
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            setFiles(Array.from(e.dataTransfer.files))
             setError('')
         }
     }
 
     const handleUploadFile = async () => {
-        if (!file) {
-            setError('Please select a file (.json, .md, or .zip)')
+        if (files.length === 0) {
+            setError('Please select one or more files (.json, .md, or .zip)')
             return
         }
 
@@ -97,7 +97,10 @@ export const ImportModal: React.FC<ImportModalProps> = ({
 
         try {
             const formData = new FormData()
-            formData.append('file', file)
+            files.forEach((f) => {
+                formData.append('files', f)
+                formData.append('file', f)
+            })
 
             const res = await fetch('/api/v1/monitoring/import/file', {
                 method: 'POST',
@@ -129,8 +132,15 @@ export const ImportModal: React.FC<ImportModalProps> = ({
 
         try {
             let manifestObj: Record<string, unknown> | null = null
+            let combinedBrief = briefText.trim()
+
             if (jsonText.trim()) {
-                manifestObj = JSON.parse(jsonText)
+                try {
+                    manifestObj = JSON.parse(jsonText)
+                } catch {
+                    // If not valid JSON object, treat jsonText as brief/text content
+                    combinedBrief = combinedBrief ? `${jsonText.trim()}\n\n${combinedBrief}` : jsonText.trim()
+                }
             }
 
             const res = await fetch('/api/v1/monitoring/import/manifest', {
@@ -138,12 +148,13 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     manifest: manifestObj,
-                    brief_content: briefText.trim() || undefined,
+                    brief_content: combinedBrief || undefined,
                 }),
             })
 
             if (!res.ok) {
-                throw new Error('Failed to import JSON / Brief')
+                const errData = await res.json().catch(() => ({}))
+                throw new Error(errData.detail || 'Failed to import JSON / Brief')
             }
 
             setSuccessMessage('Successfully imported payload!')
@@ -291,12 +302,19 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                             className="border-2 border-dashed border-neon-cyan/30 rounded-xl p-6 flex flex-col items-center justify-center gap-2 hover:border-neon-cyan/70 transition cursor-pointer bg-black/30"
                         >
                             <Sparkles className="w-8 h-8 text-neon-cyan animate-pulse" />
-                            <span className="text-xs text-gray-300 font-medium cursor-pointer">
-                                {file ? <span className="text-neon-cyan font-mono">{file.name}</span> : 'Click or Drag File Here'}
+                            <span className="text-xs text-gray-300 font-medium cursor-pointer text-center truncate max-w-full px-2">
+                                {files.length > 0 ? (
+                                    <span className="text-neon-cyan font-mono font-bold">
+                                        {files.map((f) => f.name).join(', ')}
+                                    </span>
+                                ) : (
+                                    'Click or Drag Files Here (.json, .md, .zip)'
+                                )}
                             </span>
                             <input
                                 ref={fileInputRef}
                                 type="file"
+                                multiple
                                 onChange={handleFileSelect}
                                 accept=".json,.md,.zip,.txt"
                                 className="hidden"
@@ -310,7 +328,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                                 e.stopPropagation()
                                 handleUploadFile()
                             }}
-                            disabled={loading || !file}
+                            disabled={loading || files.length === 0}
                             className="w-full py-2.5 rounded-xl bg-neon-cyan hover:bg-cyan-400 text-black font-bold text-xs uppercase tracking-wider transition disabled:opacity-50"
                         >
                             {loading ? 'Processing Import...' : 'Import & Generate Widgets'}
