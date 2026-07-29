@@ -369,11 +369,13 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     // Periodic Telemetry & System Health Check (Polls every 15s)
     useEffect(() => {
+        let failCount = 0
         const fetchTelemetry = async () => {
             if (config?.enabled === false) return
             try {
                 const res = await fetch('/api/v1/monitoring/telemetry')
                 if (res.ok) {
+                    failCount = 0
                     const data = await res.json()
                     setIsSystemOnline(data.online ?? true)
                     if (data.entities && Array.isArray(data.entities)) {
@@ -383,9 +385,13 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         })
                         setEntities((prev) => ({ ...prev, ...entMap }))
                     }
+                } else {
+                    failCount++
+                    if (failCount >= 3) setIsSystemOnline(false)
                 }
             } catch {
-                setIsSystemOnline(false)
+                failCount++
+                if (failCount >= 3) setIsSystemOnline(false)
             }
         }
 

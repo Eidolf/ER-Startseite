@@ -239,9 +239,9 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
 
                     <div className="relative p-4 border-t border-white/10 bg-black/50 flex items-center justify-between z-10">
                         <div className="flex items-center gap-4 text-[11px] font-mono text-gray-400">
-                            <span className="flex items-center gap-1 text-emerald-400">
-                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                                SYSTEM ONLINE
+                            <span className={`flex items-center gap-1 ${isSystemOnline ? 'text-emerald-400' : 'text-red-400'}`}>
+                                <span className={`w-2 h-2 rounded-full ${isSystemOnline ? 'bg-emerald-400 animate-ping' : 'bg-red-500 animate-pulse'}`} />
+                                {isSystemOnline ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE'}
                             </span>
                             <span>LATENCY: 14ms</span>
                         </div>
