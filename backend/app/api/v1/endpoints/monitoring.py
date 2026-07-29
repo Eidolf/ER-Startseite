@@ -137,10 +137,27 @@ def _parse_varco_manifest_and_brief(
                     continue
                 name = ent.get("name") or ent.get("friendly_name") or ent_id.split(".")[-1].replace("_", " ").title()
                 state = ent.get("state") if ent.get("state") is not None else ent.get("value")
+                unit = ent.get("unit_of_measurement") or ent.get("unit") or ent.get("unit_of_measure")
+
+                # Parse state_snapshot if present (e.g. from Varco brief/export)
+                snap = ent.get("state_snapshot")
+                if isinstance(snap, dict):
+                    snap_st = snap.get("state")
+                    snap_u = snap.get("unit_of_measurement") or (snap.get("attributes") or {}).get("unit_of_measurement")
+                    if snap_st is not None and snap_st != "":
+                        state = snap_st
+                    if snap_u:
+                        unit = snap_u
+
                 if state is None or state == "":
                     state = "N/A"
-                unit = ent.get("unit_of_measurement") or ent.get("unit") or ent.get("unit_of_measure")
-                domain = "binary_sensor" if ent_id.startswith("binary_sensor.") else "sensor"
+                else:
+                    try:
+                        state = float(state)
+                    except (ValueError, TypeError):
+                        pass
+
+                domain = ent.get("domain") or ("binary_sensor" if ent_id.startswith("binary_sensor.") else "sensor")
 
                 parsed_entities.append({
                     "id": ent_id,
@@ -151,8 +168,66 @@ def _parse_varco_manifest_and_brief(
                     "attributes": ent.get("attributes") or {},
                 })
 
-    # 2. Parse brief_text if present
+    # 2. Parse brief_text if present (Extract JSON blocks, entity catalogs, and bootstrap URLs)
     if brief_text:
+        # Extract embedded JSON blocks in brief.md
+        json_blocks = re.findall(r"```json\s*(.*?)\s*```", brief_text, re.DOTALL)
+        for block in json_blocks:
+            try:
+                data = json.loads(block)
+                if isinstance(data, list):
+                    for item in data:
+                        if isinstance(item, dict) and "entity_id" in item:
+                            eid = item["entity_id"]
+                            snap = item.get("state_snapshot") or {}
+                            st = snap.get("state") if isinstance(snap, dict) else item.get("state")
+                            u = (snap.get("unit_of_measurement") if isinstance(snap, dict) else item.get("unit_of_measurement")) or None
+                            if st is not None:
+                                try:
+                                    st = float(st)
+                                except (ValueError, TypeError):
+                                    pass
+
+                            idx = next((i for i, e in enumerate(parsed_entities) if e["id"] == eid), None)
+                            if idx is not None:
+                                if st is not None:
+                                    parsed_entities[idx]["state"] = st
+                                if u:
+                                    parsed_entities[idx]["unit"] = u
+                            else:
+                                parsed_entities.append({
+                                    "id": eid,
+                                    "name": item.get("friendly_name") or eid.split(".")[-1].replace("_", " ").title(),
+                                    "state": st if st is not None else "N/A",
+                                    "unit": u,
+                                    "domain": item.get("domain") or ("binary_sensor" if eid.startswith("binary_sensor.") else "sensor"),
+                                })
+            except Exception:
+                pass
+
+        # Extract bootstrap authorityId and bridgeUrl from brief.md
+        auth_match = re.search(r'authorityId:\s*["\']([^"\']+)["\']', brief_text)
+        bridge_match = re.search(r'bridgeUrl:\s*["\']([^"\']+)["\']', brief_text)
+        if auth_match and bridge_match:
+            auth_id = auth_match.group(1)
+            bridge_url = bridge_match.group(1).replace("wss://", "https://")
+            provider_url = f"{bridge_url.rstrip('/')}/share/?authority={auth_id}"
+
+            varco_provider = next((p for p in config.providers if p.type == "varco"), None)
+            if varco_provider:
+                varco_provider.url = provider_url
+                varco_provider.enabled = True
+            else:
+                config.providers.append(
+                    MonitoringProviderConfig(
+                        id="varco-main-provider",
+                        name="Varco Bridge",
+                        type="varco",
+                        enabled=True,
+                        url=provider_url,
+                    )
+                )
+
         lines = brief_text.splitlines()
         for line in lines:
             line_str = line.strip()
