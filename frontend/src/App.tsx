@@ -2043,6 +2043,11 @@ function AppContent() {
                     </DndContext>
                 </div>
             </div>
+
+            <MonitoringOverlay
+                isAuthenticated={isAuthenticated}
+                onRequireAuth={handleProtectedAction}
+            />
         </div>
     )
 }
@@ -2152,7 +2157,6 @@ export default function App() {
     return (
         <MonitoringProvider>
             <AppContent />
-            <MonitoringOverlay />
         </MonitoringProvider>
     )
 }
