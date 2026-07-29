@@ -145,12 +145,17 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         try {
             const res = await fetch('/api/v1/monitoring/config')
             if (res.ok) {
-                const data: MonitoringConfig = await res.json()
-                if (data && Array.isArray(data.cards)) {
-                    setConfig(data)
-                    if (data.entities && Array.isArray(data.entities)) {
+                const rawData = await res.json()
+                if (rawData && Array.isArray(rawData.cards)) {
+                    const parsedConfig: MonitoringConfig = {
+                        ...rawData,
+                        demoMode: rawData.demoMode ?? rawData.demo_mode ?? true,
+                        enabled: rawData.enabled ?? true,
+                    }
+                    setConfig(parsedConfig)
+                    if (rawData.entities && Array.isArray(rawData.entities)) {
                         const entityMap: Record<string, MonitoringEntity> = {}
-                        data.entities.forEach((ent) => {
+                        rawData.entities.forEach((ent: MonitoringEntity) => {
                             entityMap[ent.id] = ent
                         })
                         setEntities((prev) => ({ ...prev, ...entityMap }))
@@ -163,12 +168,17 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }, [])
 
     const saveConfig = useCallback(async (cfg: MonitoringConfig) => {
-        setConfig(cfg)
+        const payload = {
+            ...cfg,
+            demo_mode: cfg.demoMode,
+            demoMode: cfg.demoMode,
+        }
+        setConfig(payload)
         try {
             await fetch('/api/v1/monitoring/config', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(cfg),
+                body: JSON.stringify(payload),
             })
         } catch (e) {
             console.error('Failed to save monitoring config', e)
@@ -207,7 +217,8 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const toggleDemoMode = useCallback(() => {
         if (!config) return
-        const updated = { ...config, demoMode: !config.demoMode }
+        const newDemo = !(config.demoMode ?? true)
+        const updated = { ...config, demoMode: newDemo }
         saveConfig(updated)
     }, [config, saveConfig])
 

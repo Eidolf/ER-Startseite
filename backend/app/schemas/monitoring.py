@@ -1,21 +1,29 @@
-from typing import Any, Literal
-from pydantic import BaseModel, Field
+from typing import Any
+from pydantic import BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
 
-class MonitoringEntity(BaseModel):
+class BaseMonitoringModel(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+
+class MonitoringEntity(BaseMonitoringModel):
     id: str
-    provider_id: str
+    provider_id: str = "default"
     name: str
-    domain: str  # sensor, binary_sensor, network, server, etc.
-    value_type: str  # numeric, string, boolean
-    state: Any
+    domain: str = "sensor"  # sensor, binary_sensor, network, server, etc.
+    value_type: str = "numeric"  # numeric, string, boolean
+    state: Any = "N/A"
     unit_of_measurement: str | None = None
     icon: str | None = None
     last_updated: str | None = None
     attributes: dict[str, Any] = Field(default_factory=dict)
 
 
-class MonitoringCard(BaseModel):
+class MonitoringCard(BaseMonitoringModel):
     id: str
     title: str
     card_type: str  # gauge, live_traffic, status_beacon, metric_card
@@ -28,13 +36,13 @@ class MonitoringCard(BaseModel):
     settings: dict[str, Any] = Field(default_factory=dict)
 
 
-class MonitoringZone(BaseModel):
+class MonitoringZone(BaseMonitoringModel):
     id: str
     name: str
     icon: str = "Activity"
 
 
-class MonitoringProviderConfig(BaseModel):
+class MonitoringProviderConfig(BaseMonitoringModel):
     id: str
     name: str
     type: str  # varco, homeassistant, prometheus, uptime_kuma, etc.
@@ -44,7 +52,7 @@ class MonitoringProviderConfig(BaseModel):
     settings: dict[str, Any] = Field(default_factory=dict)
 
 
-class MonitoringConfig(BaseModel):
+class MonitoringConfig(BaseMonitoringModel):
     version: str = "1.0.0"
     enabled: bool = True
     demo_mode: bool = True
@@ -54,7 +62,7 @@ class MonitoringConfig(BaseModel):
     providers: list[MonitoringProviderConfig] = Field(default_factory=list)
 
 
-class VarcoManifestImportPayload(BaseModel):
+class VarcoManifestImportPayload(BaseMonitoringModel):
     manifest: dict[str, Any] | list[Any] | None = None
     brief_content: str | None = None
     share_url: str | None = None
