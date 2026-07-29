@@ -284,10 +284,12 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 setIsSystemOnline(true)
 
                 const grant = await client.getGrantInfo()
+                const cardEntityIds = (config?.cards || []).flatMap((c) => c.entity_ids || c.entityIds || [])
                 const entityIds = Array.from(
                     new Set([
                         ...(grant?.manifest?.read_entities || []),
                         ...(grant?.manifest?.subscriptions || []),
+                        ...cardEntityIds,
                         'sensor.speedtest_download',
                         'sensor.speedtest_upload',
                         'sensor.speedtest_ping',

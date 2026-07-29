@@ -279,10 +279,21 @@ async def import_url(payload: VarcoManifestImportPayload) -> MonitoringConfig:
     repo = MonitoringRepository()
     config = await repo.get_config()
 
-    # Store provider URL if imported from Varco Share
-    for p in config.providers:
-        if p.type == "varco":
-            p.url = url
+    # Store or create Varco provider config
+    varco_provider = next((p for p in config.providers if p.type == "varco"), None)
+    if varco_provider:
+        varco_provider.url = url
+        varco_provider.enabled = True
+    else:
+        config.providers.append(
+            MonitoringProviderConfig(
+                id="varco-main-provider",
+                name="Varco Bridge",
+                type="varco",
+                enabled=True,
+                url=url,
+            )
+        )
 
     updated = _parse_varco_manifest_and_brief(manifest_data, brief_text, config)
     await repo.save_config(updated)
