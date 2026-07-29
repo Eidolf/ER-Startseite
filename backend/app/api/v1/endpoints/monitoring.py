@@ -97,12 +97,34 @@ async def get_monitoring_telemetry() -> dict[str, Any]:
     health = await get_monitoring_health()
 
     entities_out = [e.model_dump() if hasattr(e, "model_dump") else e.dict() for e in config.entities]
+    has_live_data = any(e.get("state") not in ("N/A", None) for e in entities_out)
+
     return {
-        "online": health.get("online", False),
+        "online": health.get("online", False) or has_live_data,
         "health": health,
         "demo_mode": config.demo_mode,
         "entities": entities_out,
     }
+
+
+@router.post("/telemetry")
+async def update_monitoring_telemetry(payload: dict[str, Any]) -> dict[str, Any]:
+    repo = MonitoringRepository()
+    config = await repo.get_config()
+    incoming_entities = payload.get("entities", [])
+
+    if incoming_entities:
+        ent_map = {e.id: e for e in config.entities}
+        for ie in incoming_entities:
+            if isinstance(ie, dict) and "id" in ie:
+                try:
+                    ent_map[ie["id"]] = MonitoringEntity(**ie)
+                except Exception:
+                    pass
+        config.entities = list(ent_map.values())
+        await repo.save_config(config)
+
+    return {"status": "ok", "count": len(config.entities)}
 
 
 def _parse_varco_manifest_and_brief(
