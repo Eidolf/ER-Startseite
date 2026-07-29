@@ -15,7 +15,10 @@ export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenIm
 
     if (!config) return null
 
-    const zoneCards = config.cards.filter((c) => c.zone_id === activeZoneId || activeZoneId === 'overview')
+    const zoneCards = config.cards.filter((c) => {
+        const zId = c.zone_id || c.zoneId || 'network'
+        return zId === activeZoneId || activeZoneId === 'overview'
+    })
     const count = zoneCards.length
 
     // Dynamic layout grid columns based on entity count
@@ -43,21 +46,23 @@ export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenIm
             ) : (
                 <div className={`grid ${gridColsClass} gap-4 auto-rows-[220px]`}>
                     {zoneCards.map((card) => {
-                        const primaryEntityId = card.entity_ids[0]
+                        const entIds = card.entity_ids || card.entityIds || []
+                        const primaryEntityId = entIds[0]
                         const entity = primaryEntityId ? entities[primaryEntityId] : undefined
+                        const cType = card.card_type || card.cardType
 
                         return (
                             <div key={card.id} className="relative group w-full h-full">
-                                {card.card_type === 'live_traffic' && (
+                                {(cType === 'live_traffic' || !cType) && (
                                     <LiveTrafficGraphWidget title={card.title} entity={entity} />
                                 )}
-                                {card.card_type === 'gauge' && (
+                                {cType === 'gauge' && (
                                     <RadialGaugeWidget title={card.title} entity={entity} min={0} max={100} />
                                 )}
-                                {card.card_type === 'status_beacon' && (
+                                {cType === 'status_beacon' && (
                                     <StatusBeaconWidget title={card.title} entity={entity} />
                                 )}
-                                {card.card_type === 'metric_card' && (
+                                {cType === 'metric_card' && (
                                     <MetricCardWidget title={card.title} entity={entity} />
                                 )}
 

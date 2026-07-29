@@ -148,8 +148,18 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             if (res.ok) {
                 const rawData = await res.json()
                 if (rawData && Array.isArray(rawData.cards)) {
+                    const normalizedCards = rawData.cards.map((c: any) => ({
+                        ...c,
+                        card_type: c.card_type || c.cardType || 'live_traffic',
+                        cardType: c.cardType || c.card_type || 'live_traffic',
+                        entity_ids: c.entity_ids || c.entityIds || [],
+                        entityIds: c.entityIds || c.entity_ids || [],
+                        zone_id: c.zone_id || c.zoneId || 'network',
+                        zoneId: c.zoneId || c.zone_id || 'network',
+                    }))
                     const parsedConfig: MonitoringConfig = {
                         ...rawData,
+                        cards: normalizedCards,
                         demoMode: rawData.demoMode ?? rawData.demo_mode ?? true,
                         enabled: rawData.enabled ?? true,
                     }

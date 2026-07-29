@@ -245,7 +245,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 {activeTab === 'url' && (
                     <div className="space-y-4">
                         <p className="text-xs text-gray-300">
-                            Paste your <code className="text-neon-cyan font-mono">Varco Share Link</code> (e.g. <span className="text-gray-400 font-mono">https://varco-bridge.eidolf.de/share/...</span>).
+                            Paste your <code className="text-neon-cyan font-mono">Varco Share Link</code> (e.g. <span className="text-gray-400 font-mono">https://varco-bridge.andreabaccega.com/share/...</span>).
                         </p>
 
                         <div>
@@ -254,7 +254,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                                 type="url"
                                 value={shareUrl}
                                 onChange={(e) => setShareUrl(e.target.value)}
-                                placeholder="https://varco-bridge.eidolf.de/share/..."
+                                placeholder="https://varco-bridge.andreabaccega.com/share/..."
                                 className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-neon-cyan"
                             />
                         </div>
