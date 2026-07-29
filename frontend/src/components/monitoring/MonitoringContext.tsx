@@ -27,6 +27,9 @@ interface MonitoringContextType {
     saveConfig: (cfg: MonitoringConfig) => Promise<void>
     deleteCard: (cardId: string) => void
     addCard: (card: MonitoringCard) => void
+    updateCardZone: (cardId: string, zoneId: string) => void
+    moveCardOrder: (cardId: string, direction: 'up' | 'down') => void
+    toggleZoneVisibility: (zoneId: string) => void
 }
 
 const STORAGE_WIDTH_KEY = 'er_monitoring_width'
@@ -236,6 +239,48 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         saveConfig(updated)
     }, [config, saveConfig])
 
+    const updateCardZone = useCallback(
+        (cardId: string, zoneId: string) => {
+            if (!config) return
+            const updated: MonitoringConfig = {
+                ...config,
+                cards: config.cards.map((c) => (c.id === cardId ? { ...c, zone_id: zoneId, zoneId: zoneId } : c)),
+            }
+            saveConfig(updated)
+        },
+        [config, saveConfig]
+    )
+
+    const moveCardOrder = useCallback(
+        (cardId: string, direction: 'up' | 'down') => {
+            if (!config) return
+            const idx = config.cards.findIndex((c) => c.id === cardId)
+            if (idx === -1) return
+            const targetIdx = direction === 'up' ? idx - 1 : idx + 1
+            if (targetIdx < 0 || targetIdx >= config.cards.length) return
+
+            const newCards = [...config.cards]
+            const [movedCard] = newCards.splice(idx, 1)
+            newCards.splice(targetIdx, 0, movedCard)
+
+            const updated: MonitoringConfig = { ...config, cards: newCards }
+            saveConfig(updated)
+        },
+        [config, saveConfig]
+    )
+
+    const toggleZoneVisibility = useCallback(
+        (zoneId: string) => {
+            if (!config) return
+            const updated: MonitoringConfig = {
+                ...config,
+                zones: config.zones.map((z) => (z.id === zoneId ? { ...z, hidden: !z.hidden } : z)),
+            }
+            saveConfig(updated)
+        },
+        [config, saveConfig]
+    )
+
     useEffect(() => {
         refreshConfig()
     }, [refreshConfig])
@@ -273,9 +318,36 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 if (!createVarcoClient || !isMounted) return
 
                 const prefix = `varco.shareIdentity.v1.${params.authorityId}.${params.shareCode}.`
+
+                // Restore backend shared consumer key into browser storage if present
+                const backendKey = varcoProvider.settings?.privateKey || (varcoProvider as any).privateKey
+                if (backendKey && typeof backendKey === 'string') {
+                    const existingIdentity = localStorage.getItem(prefix + 'varco.consumerIdentity.v1')
+                    if (!existingIdentity) {
+                        localStorage.setItem(prefix + 'varco.consumerIdentity.v1', JSON.stringify({ privateKey: backendKey }))
+                    }
+                }
+
                 const storage = {
                     getItem: (key: string) => localStorage.getItem(prefix + key),
-                    setItem: (key: string, value: string) => localStorage.setItem(prefix + key, value),
+                    setItem: (key: string, value: string) => {
+                        localStorage.setItem(prefix + key, value)
+                        if (key === 'varco.consumerIdentity.v1') {
+                            try {
+                                const parsed = JSON.parse(value)
+                                if (parsed?.privateKey && config) {
+                                    const providerId = varcoProvider.id
+                                    const updatedProviders = config.providers.map((p) => {
+                                        if (p.id === providerId) {
+                                            return { ...p, settings: { ...p.settings, privateKey: parsed.privateKey } }
+                                        }
+                                        return p
+                                    })
+                                    saveConfig({ ...config, providers: updatedProviders })
+                                }
+                            } catch {}
+                        }
+                    },
                     removeItem: (key: string) => localStorage.removeItem(prefix + key),
                 }
 
@@ -518,6 +590,9 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 saveConfig,
                 deleteCard,
                 addCard,
+                updateCardZone,
+                moveCardOrder,
+                toggleZoneVisibility,
             }}
         >
             {children}

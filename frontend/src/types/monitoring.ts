@@ -37,6 +37,7 @@ export interface MonitoringZone {
     id: string
     name: string
     icon?: string
+    hidden?: boolean
 }
 
 export interface MonitoringProviderConfig {

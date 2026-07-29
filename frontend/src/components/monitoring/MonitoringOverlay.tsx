@@ -18,6 +18,8 @@ import {
     Maximize2,
     GripVertical,
     Sparkles,
+    Eye,
+    EyeOff,
 } from 'lucide-react'
 import { OverlayWidthPercent } from '../../types/monitoring'
 
@@ -44,6 +46,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
         pairingCode,
         clearPairingCode,
         toggleDemoMode,
+        toggleZoneVisibility,
         refreshConfig,
     } = useMonitoring()
 
@@ -219,28 +222,46 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                         </div>
 
                         <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-                            {config?.zones.map((zone) => {
-                                const isActive = activeZoneId === zone.id
-                                return (
-                                    <button
-                                        key={zone.id}
-                                        onClick={() => setActiveZoneId(zone.id)}
-                                        className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-semibold transition whitespace-nowrap flex items-center gap-2 ${
-                                            isActive
-                                                ? 'bg-neon-cyan text-black shadow-[0_0_15px_rgba(0,243,255,0.4)] font-bold'
-                                                : 'bg-black/40 text-gray-300 hover:bg-white/10 hover:text-white border border-white/5'
-                                        }`}
-                                    >
-                                        {zone.id === 'overview' && <Activity className="w-3.5 h-3.5" />}
-                                        {zone.id === 'network' && <Wifi className="w-3.5 h-3.5" />}
-                                        {zone.id === 'infrastructure' && <Server className="w-3.5 h-3.5" />}
-                                        {zone.id === 'smarthome' && <HomeIcon className="w-3.5 h-3.5" />}
-                                        {zone.id === 'security' && <Shield className="w-3.5 h-3.5" />}
-                                        {zone.id === 'custom' && <Sliders className="w-3.5 h-3.5" />}
-                                        {zone.name}
-                                    </button>
-                                )
-                            })}
+                            {config?.zones
+                                .filter((z) => effectiveEditMode || !z.hidden)
+                                .map((zone) => {
+                                    const isActive = activeZoneId === zone.id
+                                    const isHidden = zone.hidden === true
+                                    return (
+                                        <div key={zone.id} className="relative flex items-center">
+                                            <button
+                                                onClick={() => setActiveZoneId(zone.id)}
+                                                className={`px-3.5 py-1.5 rounded-xl text-xs font-mono font-semibold transition whitespace-nowrap flex items-center gap-2 ${
+                                                    isActive
+                                                        ? 'bg-neon-cyan text-black shadow-[0_0_15px_rgba(0,243,255,0.4)] font-bold'
+                                                        : isHidden
+                                                        ? 'bg-black/20 text-gray-500 border border-dashed border-gray-700 line-through'
+                                                        : 'bg-black/40 text-gray-300 hover:bg-white/10 hover:text-white border border-white/5'
+                                                }`}
+                                            >
+                                                {zone.id === 'overview' && <Activity className="w-3.5 h-3.5" />}
+                                                {zone.id === 'network' && <Wifi className="w-3.5 h-3.5" />}
+                                                {zone.id === 'infrastructure' && <Server className="w-3.5 h-3.5" />}
+                                                {zone.id === 'smarthome' && <HomeIcon className="w-3.5 h-3.5" />}
+                                                {zone.id === 'security' && <Shield className="w-3.5 h-3.5" />}
+                                                {zone.id === 'custom' && <Sliders className="w-3.5 h-3.5" />}
+                                                <span>{zone.name}</span>
+                                                {effectiveEditMode && (
+                                                    <span
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            toggleZoneVisibility(zone.id)
+                                                        }}
+                                                        className="ml-1 p-0.5 rounded hover:bg-white/20 text-gray-400 hover:text-white transition cursor-pointer"
+                                                        title={isHidden ? 'Kategorie einblenden' : 'Kategorie ausblenden'}
+                                                    >
+                                                        {isHidden ? <EyeOff className="w-3.5 h-3.5 text-red-400" /> : <Eye className="w-3.5 h-3.5 text-emerald-400" />}
+                                                    </span>
+                                                )}
+                                            </button>
+                                        </div>
+                                    )
+                                })}
                         </div>
                     </div>
 

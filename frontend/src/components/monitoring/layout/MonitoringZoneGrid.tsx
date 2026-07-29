@@ -4,14 +4,14 @@ import { RadialGaugeWidget } from '../widgets/RadialGaugeWidget'
 import { LiveTrafficGraphWidget } from '../widgets/LiveTrafficGraphWidget'
 import { StatusBeaconWidget } from '../widgets/StatusBeaconWidget'
 import { MetricCardWidget } from '../widgets/MetricCardWidget'
-import { Trash, Plus } from 'lucide-react'
+import { Trash, Plus, ChevronUp, ChevronDown, FolderInput } from 'lucide-react'
 
 interface MonitoringZoneGridProps {
     onOpenImport: () => void
 }
 
 export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenImport }) => {
-    const { config, activeZoneId, entities, isEditMode, deleteCard } = useMonitoring()
+    const { config, activeZoneId, entities, isEditMode, deleteCard, updateCardZone, moveCardOrder } = useMonitoring()
 
     if (!config) return null
 
@@ -45,7 +45,7 @@ export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenIm
                 </div>
             ) : (
                 <div className={`grid ${gridColsClass} gap-4 auto-rows-[220px]`}>
-                    {zoneCards.map((card) => {
+                    {zoneCards.map((card, idx) => {
                         const entIds = card.entity_ids || card.entityIds || []
                         const primaryEntityId = entIds[0]
                         const entity = primaryEntityId ? entities[primaryEntityId] : undefined
@@ -66,15 +66,50 @@ export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenIm
                                     <MetricCardWidget title={card.title} entity={entity} />
                                 )}
 
-                                {/* Admin Delete Button */}
+                                {/* Admin Card Edit Toolbar */}
                                 {isEditMode && (
-                                    <button
-                                        onClick={() => deleteCard(card.id)}
-                                        className="absolute -top-2 -right-2 z-30 p-2 rounded-full bg-red-500 hover:bg-red-600 text-white shadow-lg transition"
-                                        title="Delete Card"
-                                    >
-                                        <Trash className="w-4 h-4" />
-                                    </button>
+                                    <div className="absolute top-2 right-2 z-30 flex items-center gap-1 bg-black/90 p-1 rounded-xl border border-neon-cyan/60 shadow-xl backdrop-blur-md">
+                                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-neon-cyan/10 border border-neon-cyan/40 rounded-lg">
+                                            <FolderInput className="w-3 h-3 text-neon-cyan" />
+                                            <select
+                                                value={card.zone_id || card.zoneId || 'network'}
+                                                onChange={(e) => updateCardZone(card.id, e.target.value)}
+                                                className="bg-transparent text-[10px] font-mono text-neon-cyan focus:outline-none cursor-pointer"
+                                            >
+                                                {config.zones.map((z) => (
+                                                    <option key={z.id} value={z.id} className="bg-gray-900 text-white">
+                                                        {z.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <button
+                                            onClick={() => moveCardOrder(card.id, 'up')}
+                                            disabled={idx === 0}
+                                            className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition disabled:opacity-30"
+                                            title="Move Left / Up"
+                                        >
+                                            <ChevronUp className="w-3.5 h-3.5" />
+                                        </button>
+
+                                        <button
+                                            onClick={() => moveCardOrder(card.id, 'down')}
+                                            disabled={idx === zoneCards.length - 1}
+                                            className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition disabled:opacity-30"
+                                            title="Move Right / Down"
+                                        >
+                                            <ChevronDown className="w-3.5 h-3.5" />
+                                        </button>
+
+                                        <button
+                                            onClick={() => deleteCard(card.id)}
+                                            className="p-1 rounded-lg bg-red-500/80 hover:bg-red-500 text-white transition"
+                                            title="Delete Card"
+                                        >
+                                            <Trash className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         )
