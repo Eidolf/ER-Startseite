@@ -300,7 +300,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const varcoProvider = config?.providers.find((p) => p.type === 'varco' && p.enabled)
         if (!varcoProvider || !varcoProvider.url) return
 
-        const params = parseVarcoShareUrl(varcoProvider.url)
+        const params = parseVarcoShareUrl(varcoProvider.url, varcoProvider.settings)
         if (!params) return
 
         let isMounted = true
@@ -535,8 +535,9 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         setEntities((prev) => {
                             const next = { ...prev }
                             data.entities.forEach((ent: MonitoringEntity) => {
-                                // Update or set entity state from backend telemetry relay
-                                if (!next[ent.id] || next[ent.id].provider_id !== 'varco-live' || ent.state !== 'N/A') {
+                                // Sync entity states from backend telemetry relay across all browser sessions
+                                const current = next[ent.id]
+                                if (!current || current.last_updated === undefined || (ent.last_updated && new Date(ent.last_updated).getTime() >= new Date(current.last_updated).getTime())) {
                                     next[ent.id] = ent
                                 }
                             })
