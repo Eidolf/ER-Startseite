@@ -73,7 +73,9 @@ export const RadialGaugeWidget: React.FC<RadialGaugeWidgetProps> = ({
                 </div>
                 <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 rounded-full animate-ping" style={{ backgroundColor: strokeColor }} />
-                    <span className="text-[10px] font-mono text-gray-400">LIVE</span>
+                    <span className="text-[10px] font-mono text-gray-300">
+                        {entity?.last_updated ? new Date(entity.last_updated).toLocaleTimeString() : 'LIVE'}
+                    </span>
                 </div>
             </div>
 

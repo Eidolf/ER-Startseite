@@ -92,9 +92,12 @@ export const LiveTrafficGraphWidget: React.FC<LiveTrafficGraphWidgetProps> = ({
             </div>
 
             {/* Footer Metrics */}
-            <div className="w-full flex justify-between text-[10px] font-mono text-gray-400 border-t border-white/10 pt-1.5 z-10">
+            <div className="w-full flex justify-between items-center text-[10px] font-mono text-gray-400 border-t border-white/10 pt-1.5 z-10">
                 <span>PEAK: {maxVal.toFixed(1)} {unit}</span>
-                <span>STATUS: NOMINAL</span>
+                <span className="flex items-center gap-1 text-gray-300">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    {entity?.last_updated ? new Date(entity.last_updated).toLocaleTimeString() : 'LIVE'}
+                </span>
             </div>
         </div>
     )

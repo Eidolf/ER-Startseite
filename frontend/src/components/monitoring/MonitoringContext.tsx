@@ -287,7 +287,19 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     await client.claimShare(params.shareCode, params.claimSecret).catch(() => {})
                 }
 
-                await client.connect()
+                try {
+                    await client.connect()
+                } catch (connectErr: any) {
+                    const errMsg = connectErr?.message || String(connectErr)
+                    if (errMsg.includes('No active grant')) {
+                        if (typeof client.requestAccess === 'function') {
+                            await client.requestAccess().catch(() => {})
+                            await client.connect().catch(() => {})
+                        }
+                    } else {
+                        throw connectErr
+                    }
+                }
                 if (!isMounted) return
                 setIsSystemOnline(true)
 
