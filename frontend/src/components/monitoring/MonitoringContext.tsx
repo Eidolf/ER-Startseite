@@ -309,7 +309,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     await client.connect()
                 } catch (connectErr: any) {
                     const errMsg = connectErr?.message || String(connectErr)
-                    if (errMsg.includes('No active grant')) {
+                    if (errMsg.includes('No active grant') || errMsg.includes('Grant revoked') || errMsg.includes('Grant denied')) {
                         if (typeof client.requestAccess === 'function') {
                             const manifestPayload = {
                                 name: 'ER-Startseite Dashboard',
@@ -318,15 +318,18 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                                 subscriptions: requestedEntities,
                             }
                             const access = await client.requestAccess(manifestPayload).catch(() => null)
-                            const pCode = access?.pairing_code || access?.pairingCode || access?.code
+                            const pCode = access?.pairing_code || access?.pairingCode || access?.code || access?.pin
                             if (pCode) {
                                 setPairingCode(String(pCode))
                             }
-                            await client.connect().catch(() => {})
-                            setPairingCode(null)
+                            try {
+                                await client.connect()
+                            } catch (retryErr) {
+                                console.debug('Varco Bridge connect post-requestAccess:', retryErr)
+                            }
                         }
                     } else {
-                        console.debug('Varco Bridge pending authentication/pairing:', errMsg)
+                        console.debug('Varco Bridge connection info:', errMsg)
                     }
                 }
                 if (!isMounted) return
@@ -395,8 +398,10 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         }
                     })
                 }
-            } catch (e) {
-                console.warn('Varco Bridge client connect failed:', e)
+            } catch (e: any) {
+                console.debug('Varco Bridge connection status:', e?.message || e)
+            } finally {
+                setPairingCode(null)
             }
         }
 
