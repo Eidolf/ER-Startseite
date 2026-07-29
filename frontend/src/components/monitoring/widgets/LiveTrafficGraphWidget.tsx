@@ -25,12 +25,19 @@ export const LiveTrafficGraphWidget: React.FC<LiveTrafficGraphWidgetProps> = ({
         setHistory((prev) => [...prev.slice(1), rawValue])
     }, [rawValue])
 
-    const initialMax = isPing ? 100 : 1
-    const maxVal = Math.max(...history, rawValue, initialMax)
+    const validPingHistory = history.filter((v) => v > 0)
+    const bestVal = isPing
+        ? (validPingHistory.length > 0 ? Math.min(...validPingHistory, rawValue) : rawValue)
+        : Math.max(...history, rawValue, 1)
+
+    const maxVal = isPing
+        ? Math.max(...history, rawValue, rawValue > 0 ? Math.ceil(rawValue * 1.4) : 40)
+        : Math.max(...history, rawValue, 1)
+
     const points = history
         .map((val, idx) => {
             const x = (idx / (history.length - 1)) * 260
-            const y = 80 - (val / maxVal) * 70
+            const y = 80 - (val / (maxVal || 1)) * 70
             return `${x},${y}`
         })
         .join(' ')
@@ -54,29 +61,31 @@ export const LiveTrafficGraphWidget: React.FC<LiveTrafficGraphWidgetProps> = ({
                     )}
                     <span className="text-xs font-bold uppercase tracking-wider text-gray-200 truncate">{title}</span>
                 </div>
+                <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-[10px] font-mono text-gray-300">{isPing ? 'LATENCY' : 'BANDWIDTH'}</span>
+                </div>
             </div>
 
-            {/* Main Numeric Telemetry */}
-            <div className="my-2 flex items-baseline gap-2 z-10">
-                <span
-                    className="text-4xl font-extrabold font-mono text-white tracking-tight"
-                    style={{ textShadow: '0 0 12px rgba(0, 243, 255, 0.4)' }}
-                >
-                    {displayVal}
-                </span>
-                <span className="text-xs font-mono font-medium text-neon-cyan/90 uppercase">{unit}</span>
+            {/* Main Value Display */}
+            <div className="my-2 z-10">
+                <div className="flex items-baseline gap-1.5">
+                    <span className="text-3xl font-black font-mono tracking-tight text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]">
+                        {displayVal}
+                    </span>
+                    <span className="text-xs font-mono font-semibold text-gray-400 uppercase">{unit}</span>
+                </div>
             </div>
 
-            {/* Waveform SVG Graph */}
-            <div className="relative w-full h-20 my-1 z-10 overflow-hidden">
-                <svg className="w-full h-full overflow-visible" viewBox="0 0 260 80" preserveAspectRatio="none">
+            {/* SVG Traffic Sparkline */}
+            <div className="relative w-full h-20 my-1 z-10">
+                <svg className="w-full h-full overflow-visible" viewBox="0 0 260 80">
                     <defs>
                         <linearGradient id={`grad-${title.replace(/\s+/g, '-')}`} x1="0%" y1="0%" x2="0%" y2="100%">
                             <stop offset="0%" stopColor={isUpload ? '#9d00ff' : '#00f3ff'} stopOpacity="0.4" />
                             <stop offset="100%" stopColor={isUpload ? '#9d00ff' : '#00f3ff'} stopOpacity="0.0" />
                         </linearGradient>
                     </defs>
-
                     <polygon
                         points={`0,80 ${points} 260,80`}
                         fill={`url(#grad-${title.replace(/\s+/g, '-')})`}
@@ -93,7 +102,7 @@ export const LiveTrafficGraphWidget: React.FC<LiveTrafficGraphWidgetProps> = ({
 
             {/* Footer Metrics */}
             <div className="w-full flex justify-between items-center text-[10px] font-mono text-gray-400 border-t border-white/10 pt-1.5 z-10">
-                <span>PEAK: {maxVal.toFixed(1)} {unit}</span>
+                <span>{isPing ? 'BEST' : 'PEAK'}: {bestVal.toFixed(1)} {unit}</span>
                 <span className="flex items-center gap-1 text-gray-300">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                     {entity?.last_updated ? new Date(entity.last_updated).toLocaleTimeString() : 'LIVE'}

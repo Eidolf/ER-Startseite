@@ -282,11 +282,25 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
 
                 {/* Pairing Code Verification Overlay */}
                 {pairingCode && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-                        <div className="relative max-w-md w-full p-6 glass-panel rounded-2xl border-2 border-neon-cyan/80 shadow-[0_0_50px_rgba(0,243,255,0.4)] flex flex-col items-center text-center space-y-4">
+                    <div
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            clearPairingCode()
+                        }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md pointer-events-auto cursor-pointer"
+                    >
+                        <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="relative max-w-md w-full p-6 glass-panel rounded-2xl border-2 border-neon-cyan/80 shadow-[0_0_50px_rgba(0,243,255,0.4)] flex flex-col items-center text-center space-y-4 cursor-default"
+                        >
                             <button
-                                onClick={() => clearPairingCode()}
-                                className="absolute top-3 right-3 text-gray-400 hover:text-white transition"
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    e.preventDefault()
+                                    clearPairingCode()
+                                }}
+                                className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition"
                                 title="Schließen"
                             >
                                 ✕
@@ -307,7 +321,12 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                 Warte auf Freigabe in Home Assistant...
                             </p>
                             <button
-                                onClick={() => clearPairingCode()}
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    e.preventDefault()
+                                    clearPairingCode()
+                                }}
                                 className="mt-2 px-5 py-2 rounded-xl bg-neon-cyan/20 hover:bg-neon-cyan hover:text-black border border-neon-cyan/50 text-neon-cyan font-mono text-xs font-bold transition"
                             >
                                 Code bestätigt / Schließen
