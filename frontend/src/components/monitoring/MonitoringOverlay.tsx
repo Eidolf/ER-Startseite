@@ -161,7 +161,10 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                             <div className="flex items-center gap-2">
                                 {isAuthenticated && (
                                     <button
-                                        onClick={() => handleAdminAction(toggleDemoMode)}
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleAdminAction(toggleDemoMode)
+                                        }}
                                         className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-bold flex items-center gap-1.5 transition ${
                                             config?.demoMode !== false
                                                 ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan shadow-[0_0_10px_rgba(0,243,255,0.3)]'
@@ -174,7 +177,10 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                     </button>
                                 )}
                                 <button
-                                    onClick={() => handleAdminAction(() => setIsImportModalOpen(true))}
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleAdminAction(() => setIsImportModalOpen(true))
+                                    }}
                                     className="px-3 py-1.5 rounded-lg bg-neon-cyan/10 border border-neon-cyan/40 text-neon-cyan hover:bg-neon-cyan hover:text-black transition text-xs font-mono font-bold flex items-center gap-1.5"
                                     title={isAuthenticated ? 'Import Varco Manifest or Brief' : 'Admin Lock (Login Required)'}
                                 >
@@ -182,7 +188,10 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                     Import
                                 </button>
                                 <button
-                                    onClick={() => handleAdminAction(() => setIsEditMode(!isEditMode))}
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleAdminAction(() => setIsEditMode(!isEditMode))
+                                    }}
                                     className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-bold flex items-center gap-1.5 transition ${effectiveEditMode ? 'bg-amber-500/20 border-amber-500 text-amber-400' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
                                 >
                                     {effectiveEditMode ? <Check className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
