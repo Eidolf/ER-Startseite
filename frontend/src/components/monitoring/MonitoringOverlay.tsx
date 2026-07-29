@@ -16,6 +16,7 @@ import {
     Check,
     Radio,
     Maximize2,
+    GripVertical,
 } from 'lucide-react'
 import { OverlayWidthPercent } from '../../types/monitoring'
 
@@ -34,6 +35,7 @@ export const MonitoringOverlay: React.FC = () => {
     } = useMonitoring()
 
     const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+    const [dragWidth, setDragWidth] = useState<number | null>(null)
 
     if (!isOpen) return null
 
@@ -51,6 +53,57 @@ export const MonitoringOverlay: React.FC = () => {
         smarthome: <HomeIcon className="w-4 h-4" />,
         security: <Shield className="w-4 h-4" />,
         custom: <Sliders className="w-4 h-4" />,
+    }
+
+    const handlePointerDown = (e: React.PointerEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+
+        const startX = e.clientX
+        let hasMoved = false
+
+        const handlePointerMove = (moveEvent: PointerEvent) => {
+            const diffX = Math.abs(moveEvent.clientX - startX)
+            if (diffX > 5) {
+                hasMoved = true
+            }
+
+            const pct = Math.max(0, Math.min(100, (moveEvent.clientX / window.innerWidth) * 100))
+            setDragWidth(pct)
+        }
+
+        const handlePointerUp = (upEvent: PointerEvent) => {
+            window.removeEventListener('pointermove', handlePointerMove)
+            window.removeEventListener('pointerup', handlePointerUp)
+            setDragWidth(null)
+
+            if (!hasMoved) {
+                setIsOpen(false)
+                return
+            }
+
+            const finalPct = (upEvent.clientX / window.innerWidth) * 100
+
+            const snapPoints: Array<{ val: OverlayWidthPercent | 0; min: number; max: number }> = [
+                { val: 0, min: -Infinity, max: 12.5 },
+                { val: 25, min: 12.5, max: 37.5 },
+                { val: 50, min: 37.5, max: 62.5 },
+                { val: 75, min: 62.5, max: 87.5 },
+                { val: 100, min: 87.5, max: Infinity },
+            ]
+
+            const matched = snapPoints.find((sp) => finalPct >= sp.min && finalPct < sp.max)
+            if (matched) {
+                if (matched.val === 0) {
+                    setIsOpen(false)
+                } else {
+                    setWidthPercent(matched.val)
+                }
+            }
+        }
+
+        window.addEventListener('pointermove', handlePointerMove)
+        window.addEventListener('pointerup', handlePointerUp)
     }
 
     return (
@@ -71,7 +124,8 @@ export const MonitoringOverlay: React.FC = () => {
                     animate={{ x: 0, opacity: 1 }}
                     exit={{ x: '-100%', opacity: 0 }}
                     transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                    className={`relative h-full ${widthClasses[widthPercent]} bg-[#050914]/95 border-r border-neon-cyan/40 shadow-[0_0_50px_rgba(0,243,255,0.2)] pointer-events-auto flex flex-col justify-between overflow-hidden z-50`}
+                    style={dragWidth !== null ? { width: `${dragWidth}vw` } : undefined}
+                    className={`relative h-full ${dragWidth === null ? widthClasses[widthPercent] : ''} bg-[#050914]/95 border-r border-neon-cyan/40 shadow-[0_0_50px_rgba(0,243,255,0.2)] pointer-events-auto flex flex-col justify-between overflow-hidden z-50 transition-all ${dragWidth !== null ? 'duration-75 select-none' : 'duration-300'}`}
                 >
                     {/* Sci-Fi Scanning Effect Line */}
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-neon-cyan to-transparent animate-pulse" />
@@ -163,14 +217,17 @@ export const MonitoringOverlay: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Permanent Right Screen Collapse Handle */}
-                    <button
-                        onClick={() => setIsOpen(false)}
-                        className="absolute top-1/2 -right-6 transform -translate-y-1/2 z-50 p-2 rounded-r-xl bg-neon-cyan/20 border-r border-t border-b border-neon-cyan text-neon-cyan hover:bg-neon-cyan hover:text-black transition shadow-[0_0_15px_rgba(0,243,255,0.4)] group"
-                        title="Collapse Command Bridge"
+                    {/* Right Screen Drag & Snap Handle */}
+                    <div
+                        onPointerDown={handlePointerDown}
+                        className="absolute top-1/2 -right-7 transform -translate-y-1/2 z-50 py-3 px-1.5 rounded-r-xl bg-neon-cyan/20 border-r border-t border-b border-neon-cyan text-neon-cyan hover:bg-neon-cyan hover:text-black transition shadow-[0_0_20px_rgba(0,243,255,0.4)] group cursor-col-resize touch-none flex items-center justify-center"
+                        title="Ziehen zum Anpassen / Einklinken (0%, 25%, 50%, 75%, 100%) | Klick = Schließen"
                     >
-                        <ChevronLeft className="w-5 h-5 group-hover:-translate-x-0.5 transition-transform" />
-                    </button>
+                        <div className="flex items-center gap-0.5">
+                            <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+                            <GripVertical className="w-4 h-4 text-neon-cyan group-hover:text-black transition" />
+                        </div>
+                    </div>
                 </motion.div>
 
                 {/* Import Modal */}
