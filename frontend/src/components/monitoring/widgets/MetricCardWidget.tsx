@@ -11,7 +11,7 @@ export const MetricCardWidget: React.FC<MetricCardWidgetProps> = ({
     title,
     entity,
 }) => {
-    const rawVal = entity?.state !== undefined ? String(entity.state) : 'N/A'
+    const rawVal = entity?.state !== undefined && entity?.state !== null && String(entity.state) !== 'NaN' && String(entity.state) !== '' ? String(entity.state) : 'N/A'
     const unit = entity?.unit_of_measurement || ''
 
     return (

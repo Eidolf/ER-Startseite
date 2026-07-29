@@ -130,6 +130,13 @@ def _parse_varco_manifest_and_brief(
                                 "domain": domain,
                             })
 
+    if not parsed_entities:
+        parsed_entities = [
+            {"id": "sensor.speedtest_download", "name": "Download Speed", "state": "N/A", "unit": "Mbit/s", "domain": "sensor"},
+            {"id": "sensor.speedtest_upload", "name": "Upload Speed", "state": "N/A", "unit": "Mbit/s", "domain": "sensor"},
+            {"id": "sensor.speedtest_ping", "name": "Ping Latency", "state": "N/A", "unit": "ms", "domain": "sensor"},
+        ]
+
     # Build MonitoringEntity objects and update config.entities
     for p_ent in parsed_entities:
         eid = p_ent["id"]

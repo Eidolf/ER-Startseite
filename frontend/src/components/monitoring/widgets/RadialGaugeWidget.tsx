@@ -15,11 +15,12 @@ export const RadialGaugeWidget: React.FC<RadialGaugeWidgetProps> = ({
     min = 0,
     max = 100,
 }) => {
-    const isNumeric = typeof entity?.state === 'number' || (typeof entity?.state === 'string' && entity?.state !== 'N/A' && !isNaN(parseFloat(entity.state)))
+    const isNumeric = typeof entity?.state === 'number' || (typeof entity?.state === 'string' && entity?.state !== 'N/A' && entity?.state !== 'NaN' && !isNaN(parseFloat(entity.state)))
     const parsedVal = isNumeric ? (typeof entity?.state === 'number' ? entity.state : parseFloat(String(entity?.state))) : 0
-    const value = Math.max(min, Math.min(max, parsedVal))
-    const percentage = isNumeric ? Math.round(((value - min) / (max - min)) * 100) : 0
-    const displayVal = isNumeric ? value.toFixed(1) : String(entity?.state || 'N/A')
+    const safeVal = isNaN(parsedVal) ? 0 : parsedVal
+    const value = Math.max(min, Math.min(max, safeVal))
+    const percentage = isNumeric && !isNaN(value) ? Math.round(((value - min) / (max - min)) * 100) : 0
+    const displayVal = isNumeric && !isNaN(value) ? value.toFixed(1) : (entity?.state !== undefined && entity?.state !== null && String(entity.state) !== 'NaN' ? String(entity.state) : 'N/A')
     const unit = entity?.unit_of_measurement || ''
 
     // Status color

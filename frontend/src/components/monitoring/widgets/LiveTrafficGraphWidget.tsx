@@ -11,7 +11,10 @@ export const LiveTrafficGraphWidget: React.FC<LiveTrafficGraphWidgetProps> = ({
     title,
     entity,
 }) => {
-    const rawValue = typeof entity?.state === 'number' ? entity.state : parseFloat(String(entity?.state || 0)) || 0
+    const isNumeric = typeof entity?.state === 'number' || (typeof entity?.state === 'string' && entity?.state !== 'N/A' && entity?.state !== 'NaN' && !isNaN(parseFloat(entity.state)))
+    const parsed = isNumeric ? (typeof entity?.state === 'number' ? entity.state : parseFloat(String(entity?.state))) : 0
+    const rawValue = isNaN(parsed) ? 0 : parsed
+    const displayVal = isNumeric && !isNaN(rawValue) ? rawValue.toFixed(1) : (entity?.state !== undefined && entity?.state !== null && String(entity.state) !== 'NaN' ? String(entity.state) : 'N/A')
     const unit = entity?.unit_of_measurement || 'Mbit/s'
     const isUpload = title.toLowerCase().includes('upload')
 
@@ -61,7 +64,7 @@ export const LiveTrafficGraphWidget: React.FC<LiveTrafficGraphWidgetProps> = ({
                     className="text-4xl font-extrabold font-mono text-white tracking-tight"
                     style={{ textShadow: '0 0 12px rgba(0, 243, 255, 0.4)' }}
                 >
-                    {rawValue.toFixed(1)}
+                    {displayVal}
                 </span>
                 <span className="text-xs font-mono font-medium text-neon-cyan/90 uppercase">{unit}</span>
             </div>
