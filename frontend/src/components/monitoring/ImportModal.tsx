@@ -140,7 +140,15 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                         <FileUp className="w-5 h-5" />
                         <h3 className="text-lg font-bold text-white tracking-wide">Import Varco / Monitoring Source</h3>
                     </div>
-                    <button onClick={handleClose} className="p-1 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition">
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            handleClose()
+                        }}
+                        className="p-1 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition"
+                    >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
@@ -148,13 +156,23 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 {/* Tabs */}
                 <div className="flex rounded-lg bg-black/40 p-1 border border-white/10">
                     <button
-                        onClick={() => setActiveTab('file')}
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setActiveTab('file')
+                        }}
                         className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition ${activeTab === 'file' ? 'bg-neon-cyan/20 text-neon-cyan' : 'text-gray-400 hover:text-white'}`}
                     >
                         Upload File (.json, .md, .zip)
                     </button>
                     <button
-                        onClick={() => setActiveTab('manual')}
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setActiveTab('manual')
+                        }}
                         className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition ${activeTab === 'manual' ? 'bg-neon-cyan/20 text-neon-cyan' : 'text-gray-400 hover:text-white'}`}
                     >
                         Paste Manifest / Brief
@@ -183,7 +201,10 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                         </p>
 
                         <div
-                            onClick={() => fileInputRef.current?.click()}
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                fileInputRef.current?.click()
+                            }}
                             onDragOver={(e) => e.preventDefault()}
                             onDrop={handleDrop}
                             className="border-2 border-dashed border-neon-cyan/30 rounded-xl p-6 flex flex-col items-center justify-center gap-2 hover:border-neon-cyan/70 transition cursor-pointer bg-black/30"
@@ -202,7 +223,12 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                         </div>
 
                         <button
-                            onClick={handleUploadFile}
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleUploadFile()
+                            }}
                             disabled={loading || !file}
                             className="w-full py-2.5 rounded-xl bg-neon-cyan hover:bg-cyan-400 text-black font-bold text-xs uppercase tracking-wider transition disabled:opacity-50"
                         >
@@ -233,7 +259,12 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                             />
                         </div>
                         <button
-                            onClick={handleManualImport}
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handleManualImport()
+                            }}
                             disabled={loading}
                             className="w-full py-2.5 rounded-xl bg-neon-cyan hover:bg-cyan-400 text-black font-bold text-xs uppercase tracking-wider transition disabled:opacity-50"
                         >
