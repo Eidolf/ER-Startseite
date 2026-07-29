@@ -150,61 +150,70 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                     <div className="relative p-6 border-b border-white/10 flex flex-col gap-4 z-10 bg-black/40">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-xl bg-neon-cyan/10 border border-neon-cyan/40 shadow-[0_0_15px_rgba(0,243,255,0.3)]">
+                                <div className="p-2 rounded-xl bg-neon-cyan/10 border border-neon-cyan/40 shadow-[0_0_15px_rgba(0,243,255,0.3)] flex items-center justify-center">
                                     <Radio className="w-6 h-6 text-neon-cyan animate-pulse" />
                                 </div>
                                 <div>
-                                    <div className="flex items-center gap-2">
-                                        <h2 className="text-xl font-black tracking-widest text-white uppercase" style={{ textShadow: '0 0 10px rgba(0, 243, 255, 0.5)' }}>
-                                            MONITORING COMMAND BRIDGE
-                                        </h2>
-                                        <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-mono ${isSystemOnline ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400' : 'bg-red-500/10 border-red-500/40 text-red-400'}`}>
-                                            <div className={`w-1.5 h-1.5 rounded-full ${isSystemOnline ? 'bg-emerald-400 animate-pulse' : 'bg-red-500 animate-ping'}`} />
-                                            <span>{isSystemOnline ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE'}</span>
-                                        </div>
-                                    </div>
+                                    <h2 className="text-xl font-black tracking-widest text-white uppercase" style={{ textShadow: '0 0 10px rgba(0, 243, 255, 0.5)' }}>
+                                        MONITORING COMMAND BRIDGE
+                                    </h2>
                                     <p className="text-[10px] font-mono text-neon-cyan/80">VARCO / HOMELAB NOC OVERLAY v2.0</p>
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2.5">
+                                <div className={`h-8 px-3 rounded-xl border text-xs font-mono font-bold flex items-center gap-2 transition ${
+                                    isSystemOnline
+                                        ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                                        : 'bg-red-500/10 border-red-500/40 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
+                                }`}>
+                                    <div className={`w-2 h-2 rounded-full ${isSystemOnline ? 'bg-emerald-400 animate-pulse' : 'bg-red-500 animate-ping'}`} />
+                                    <span>{isSystemOnline ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE'}</span>
+                                </div>
+
                                 {isAuthenticated && (
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation()
                                             handleAdminAction(toggleDemoMode)
                                         }}
-                                        className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-bold flex items-center gap-1.5 transition ${
+                                        className={`h-8 px-3 rounded-xl border text-xs font-mono font-bold flex items-center gap-2 transition ${
                                             config?.demoMode !== false
                                                 ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan shadow-[0_0_10px_rgba(0,243,255,0.3)]'
-                                                : 'bg-gray-800/60 border-gray-700 text-gray-400'
+                                                : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
                                         }`}
                                         title="Toggle Live Demo Jitter Simulation"
                                     >
                                         <Sparkles className="w-4 h-4" />
-                                        {config?.demoMode !== false ? 'Demo ON' : 'Demo OFF'}
+                                        <span>{config?.demoMode !== false ? 'Demo ON' : 'Demo OFF'}</span>
                                     </button>
                                 )}
+
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation()
                                         handleAdminAction(() => setIsImportModalOpen(true))
                                     }}
-                                    className="px-3 py-1.5 rounded-lg bg-neon-cyan/10 border border-neon-cyan/40 text-neon-cyan hover:bg-neon-cyan hover:text-black transition text-xs font-mono font-bold flex items-center gap-1.5"
+                                    className="h-8 px-3 rounded-xl bg-neon-cyan/10 border border-neon-cyan/40 text-neon-cyan hover:bg-neon-cyan hover:text-black transition text-xs font-mono font-bold flex items-center gap-2 shadow-[0_0_10px_rgba(0,243,255,0.15)]"
                                     title={isAuthenticated ? 'Import Varco Manifest or Brief' : 'Admin Lock (Login Required)'}
                                 >
                                     <FileUp className="w-4 h-4" />
-                                    Import
+                                    <span>Import</span>
                                 </button>
+
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation()
                                         handleAdminAction(() => setIsEditMode(!isEditMode))
                                     }}
-                                    className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-bold flex items-center gap-1.5 transition ${effectiveEditMode ? 'bg-amber-500/20 border-amber-500 text-amber-400' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}`}
+                                    className={`h-8 px-3 rounded-xl border text-xs font-mono font-bold flex items-center gap-2 transition ${
+                                        effectiveEditMode
+                                            ? 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
+                                            : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-white'
+                                    }`}
                                 >
                                     {effectiveEditMode ? <Check className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
-                                    {effectiveEditMode ? 'Done' : 'Edit Layout'}
+                                    <span>{effectiveEditMode ? 'Done' : 'Edit Layout'}</span>
                                 </button>
                             </div>
                         </div>
