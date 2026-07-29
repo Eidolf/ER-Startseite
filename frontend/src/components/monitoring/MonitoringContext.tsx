@@ -137,9 +137,16 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         try {
             const res = await fetch('/api/v1/monitoring/config')
             if (res.ok) {
-                const data = await res.json()
+                const data: MonitoringConfig = await res.json()
                 if (data && Array.isArray(data.cards)) {
                     setConfig(data)
+                    if (data.entities && Array.isArray(data.entities)) {
+                        const entityMap: Record<string, MonitoringEntity> = {}
+                        data.entities.forEach((ent) => {
+                            entityMap[ent.id] = ent
+                        })
+                        setEntities((prev) => ({ ...prev, ...entityMap }))
+                    }
                 }
             }
         } catch (e) {

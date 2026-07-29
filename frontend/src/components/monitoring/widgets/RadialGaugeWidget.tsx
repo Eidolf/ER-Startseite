@@ -15,10 +15,12 @@ export const RadialGaugeWidget: React.FC<RadialGaugeWidgetProps> = ({
     min = 0,
     max = 100,
 }) => {
-    const rawVal = typeof entity?.state === 'number' ? entity.state : parseFloat(String(entity?.state || 0)) || 0
-    const value = Math.max(min, Math.min(max, rawVal))
-    const percentage = Math.round(((value - min) / (max - min)) * 100)
-    const unit = entity?.unit_of_measurement || 'ms'
+    const isNumeric = typeof entity?.state === 'number' || (typeof entity?.state === 'string' && entity?.state !== 'N/A' && !isNaN(parseFloat(entity.state)))
+    const parsedVal = isNumeric ? (typeof entity?.state === 'number' ? entity.state : parseFloat(String(entity?.state))) : 0
+    const value = Math.max(min, Math.min(max, parsedVal))
+    const percentage = isNumeric ? Math.round(((value - min) / (max - min)) * 100) : 0
+    const displayVal = isNumeric ? value.toFixed(1) : String(entity?.state || 'N/A')
+    const unit = entity?.unit_of_measurement || ''
 
     // Status color
     let strokeColor = '#00f3ff' // Cyan (normal)
@@ -59,7 +61,7 @@ export const RadialGaugeWidget: React.FC<RadialGaugeWidgetProps> = ({
                         cx="50"
                         cy="50"
                         r={radius}
-                        className="stroke-white/10"
+                        stroke="rgba(255, 255, 255, 0.1)"
                         strokeWidth="8"
                         fill="transparent"
                     />
@@ -80,10 +82,10 @@ export const RadialGaugeWidget: React.FC<RadialGaugeWidgetProps> = ({
 
                 {/* Center Digital Telemetry Display */}
                 <div className="absolute flex flex-col items-center justify-center text-center">
-                    <span className="text-2xl font-bold font-mono text-white tracking-tight" style={{ textShadow: `0 0 10px ${glowColor}` }}>
-                        {value.toFixed(1)}
+                    <span className="text-xl font-bold font-mono text-white tracking-tight" style={{ textShadow: `0 0 10px ${glowColor}` }}>
+                        {displayVal}
                     </span>
-                    <span className="text-[10px] font-mono text-neon-cyan/80 uppercase">{unit}</span>
+                    {unit && <span className="text-[10px] font-mono text-neon-cyan/80 uppercase">{unit}</span>}
                 </div>
             </div>
 

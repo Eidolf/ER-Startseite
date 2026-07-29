@@ -50,6 +50,7 @@ class MonitoringConfig(BaseModel):
     demo_mode: bool = True
     zones: list[MonitoringZone] = Field(default_factory=list)
     cards: list[MonitoringCard] = Field(default_factory=list)
+    entities: list[MonitoringEntity] = Field(default_factory=list)
     providers: list[MonitoringProviderConfig] = Field(default_factory=list)
 
 

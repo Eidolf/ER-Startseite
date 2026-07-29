@@ -48,6 +48,7 @@ export interface MonitoringConfig {
     demoMode: boolean
     zones: MonitoringZone[]
     cards: MonitoringCard[]
+    entities?: MonitoringEntity[]
     providers: MonitoringProviderConfig[]
 }
 
