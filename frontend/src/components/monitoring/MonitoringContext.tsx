@@ -479,6 +479,11 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     if (Object.keys(updatedEntities).length > 0) {
                         setEntities((prev) => ({ ...prev, ...updatedEntities }))
                         setPairingCode(null)
+                        fetch('/api/v1/monitoring/telemetry', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ entities: Object.values(updatedEntities) }),
+                        }).catch(() => {})
                     }
                 }
 
@@ -506,11 +511,29 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         if (Object.keys(streamEntities).length > 0) {
                             setEntities((prev) => ({ ...prev, ...streamEntities }))
                             setPairingCode(null)
+                            fetch('/api/v1/monitoring/telemetry', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ entities: Object.values(streamEntities) }),
+                            }).catch(() => {})
                         }
                     })
                 }
             } catch (e: any) {
                 console.debug('Varco Bridge connection status:', e?.message || e)
+                fetch('/api/v1/monitoring/telemetry')
+                    .then((res) => res.json())
+                    .then((data) => {
+                        if (data.entities && Array.isArray(data.entities)) {
+                            const telEntities: Record<string, MonitoringEntity> = {}
+                            data.entities.forEach((ent: MonitoringEntity) => {
+                                if (ent.id) telEntities[ent.id] = ent
+                            })
+                            setEntities((prev) => ({ ...prev, ...telEntities }))
+                            setIsSystemOnline(data.online ?? true)
+                        }
+                    })
+                    .catch(() => {})
             }
         }
 
@@ -521,7 +544,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
     }, [config?.enabled, config?.providers])
 
-    // Periodic Telemetry & System Health Check (Polls every 15s)
+    // Periodic Telemetry & System Health Check (Runs immediately & polls every 3s)
     useEffect(() => {
         let failCount = 0
         const fetchTelemetry = async () => {
@@ -536,8 +559,8 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         setEntities((prev) => {
                             const next = { ...prev }
                             data.entities.forEach((ent: MonitoringEntity) => {
-                                // Preserve live Varco WebSocket stream states and prevent overwriting with backend defaults
-                                if (!next[ent.id] || next[ent.id].provider_id !== 'varco-live') {
+                                // Update or set entity state from backend telemetry relay
+                                if (!next[ent.id] || next[ent.id].provider_id !== 'varco-live' || ent.state !== 'N/A') {
                                     next[ent.id] = ent
                                 }
                             })
@@ -546,16 +569,16 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     }
                 } else {
                     failCount++
-                    if (failCount >= 3) setIsSystemOnline(false)
+                    if (failCount >= 2) setIsSystemOnline(false)
                 }
             } catch {
                 failCount++
-                if (failCount >= 3) setIsSystemOnline(false)
+                if (failCount >= 2) setIsSystemOnline(false)
             }
         }
 
         fetchTelemetry()
-        const interval = setInterval(fetchTelemetry, 15000)
+        const interval = setInterval(fetchTelemetry, 3000)
         return () => clearInterval(interval)
     }, [config?.enabled])
 
