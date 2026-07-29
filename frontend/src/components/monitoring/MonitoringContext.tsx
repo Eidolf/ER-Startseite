@@ -5,6 +5,7 @@ import {
     OverlayWidthPercent,
     MonitoringCard,
 } from '../../types/monitoring'
+import { parseVarcoShareUrl } from '../../utils/varcoClient'
 
 interface MonitoringContextType {
     isOpen: boolean
@@ -225,6 +226,126 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     useEffect(() => {
         refreshConfig()
     }, [refreshConfig])
+
+    // Live Varco Bridge Client Integration (Connects directly using Varco Client SDK)
+    useEffect(() => {
+        if (config?.enabled === false) return
+
+        const varcoProvider = config?.providers.find((p) => p.type === 'varco' && p.enabled)
+        if (!varcoProvider || !varcoProvider.url) return
+
+        const params = parseVarcoShareUrl(varcoProvider.url)
+        if (!params) return
+
+        let isMounted = true
+
+        const connectVarcoBridge = async () => {
+            try {
+                const baseUrl = params.bridgeUrl.replace(/\/$/, '')
+                const scriptUrl = `${baseUrl}/varco-client.js`
+
+                // Dynamically load Varco client script if needed
+                if (!(window as any).createVarcoClient) {
+                    await new Promise<void>((resolve, reject) => {
+                        const script = document.createElement('script')
+                        script.type = 'module'
+                        script.src = scriptUrl
+                        script.onload = () => resolve()
+                        script.onerror = () => reject(new Error('Failed to load varco-client.js'))
+                        document.head.appendChild(script)
+                    })
+                }
+
+                const createVarcoClient = (window as any).createVarcoClient
+                if (!createVarcoClient || !isMounted) return
+
+                const client = createVarcoClient({
+                    authorityId: params.authorityId,
+                    bridgeUrl: params.bridgeUrl,
+                    manifest: { name: 'ER-Startseite Dashboard', version: '2.0' },
+                })
+
+                if (params.claimSecret && typeof client.claimShare === 'function') {
+                    await client.claimShare(params.shareCode, params.claimSecret).catch(() => {})
+                }
+
+                await client.connect()
+                if (!isMounted) return
+                setIsSystemOnline(true)
+
+                const grant = await client.getGrantInfo()
+                const entityIds = Array.from(
+                    new Set([
+                        ...(grant?.manifest?.read_entities || []),
+                        ...(grant?.manifest?.subscriptions || []),
+                        'sensor.speedtest_download',
+                        'sensor.speedtest_upload',
+                        'sensor.speedtest_ping',
+                    ])
+                )
+
+                const liveStates = await client.getStates(entityIds).catch(() => null)
+                if (isMounted && liveStates && typeof liveStates === 'object') {
+                    const updatedEntities: Record<string, MonitoringEntity> = {}
+                    Object.entries(liveStates).forEach(([eid, entData]: [string, any]) => {
+                        if (entData) {
+                            const val = typeof entData === 'object' ? entData.state : entData
+                            const unit = typeof entData === 'object' ? entData.attributes?.unit_of_measurement : undefined
+                            const name = (typeof entData === 'object' && entData.attributes?.friendly_name) || eid.split('.').pop()?.replace(/_/g, ' ') || eid
+                            updatedEntities[eid] = {
+                                id: eid,
+                                provider_id: 'varco-live',
+                                name: name,
+                                domain: eid.startsWith('binary_sensor.') ? 'binary_sensor' : 'sensor',
+                                value_type: typeof val === 'number' ? 'numeric' : 'string',
+                                state: val ?? 'N/A',
+                                unit_of_measurement: unit,
+                                last_updated: new Date().toISOString(),
+                            }
+                        }
+                    })
+                    if (Object.keys(updatedEntities).length > 0) {
+                        setEntities((prev) => ({ ...prev, ...updatedEntities }))
+                    }
+                }
+
+                if (typeof client.subscribeEntities === 'function') {
+                    await client.subscribeEntities(entityIds, (event: any) => {
+                        if (!isMounted || !event?.states) return
+                        const streamEntities: Record<string, MonitoringEntity> = {}
+                        Object.entries(event.states).forEach(([eid, entData]: [string, any]) => {
+                            if (entData) {
+                                const val = typeof entData === 'object' ? entData.state : entData
+                                const unit = typeof entData === 'object' ? entData.attributes?.unit_of_measurement : undefined
+                                const name = (typeof entData === 'object' && entData.attributes?.friendly_name) || eid.split('.').pop()?.replace(/_/g, ' ') || eid
+                                streamEntities[eid] = {
+                                    id: eid,
+                                    provider_id: 'varco-live',
+                                    name: name,
+                                    domain: eid.startsWith('binary_sensor.') ? 'binary_sensor' : 'sensor',
+                                    value_type: typeof val === 'number' ? 'numeric' : 'string',
+                                    state: val ?? 'N/A',
+                                    unit_of_measurement: unit,
+                                    last_updated: new Date().toISOString(),
+                                }
+                            }
+                        })
+                        if (Object.keys(streamEntities).length > 0) {
+                            setEntities((prev) => ({ ...prev, ...streamEntities }))
+                        }
+                    })
+                }
+            } catch (e) {
+                console.warn('Varco Bridge client connect failed:', e)
+            }
+        }
+
+        connectVarcoBridge()
+
+        return () => {
+            isMounted = false
+        }
+    }, [config?.enabled, config?.providers])
 
     // Periodic Telemetry & System Health Check (Polls every 15s)
     useEffect(() => {
