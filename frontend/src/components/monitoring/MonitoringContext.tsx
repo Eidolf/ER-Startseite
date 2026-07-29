@@ -251,14 +251,12 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         const connectVarcoBridge = async () => {
             try {
-                const baseUrl = params.bridgeUrl.replace(/\/$/, '')
-                const scriptUrl = `${baseUrl}/varco-client.js`
+                const scriptUrl = `/api/v1/monitoring/varco-client.js?bridge_url=${encodeURIComponent(params.bridgeUrl)}`
 
-                // Dynamically load Varco client script if needed
+                // Dynamically load Varco client script via local CORS proxy if needed
                 if (!(window as any).createVarcoClient) {
                     await new Promise<void>((resolve, reject) => {
                         const script = document.createElement('script')
-                        script.type = 'module'
                         script.src = scriptUrl
                         script.onload = () => resolve()
                         script.onerror = () => reject(new Error('Failed to load varco-client.js'))

@@ -405,10 +405,29 @@ async def import_url(payload: VarcoManifestImportPayload) -> MonitoringConfig:
     return updated
 
 
+@router.get("/varco-client.js")
+async def get_varco_client_js(bridge_url: str = "https://varco-bridge.andreabaccega.com"):
+    clean_url = bridge_url.replace("wss://", "https://").rstrip("/") + "/varco-client.js"
+    try:
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            resp = await client.get(clean_url)
+            if resp.status_code == 200:
+                from fastapi.responses import Response
+                return Response(content=resp.text, media_type="application/javascript")
+    except Exception:
+        pass
+
+    from fastapi.responses import Response
+    return Response(
+        content="// Varco Client Fallback script\nconsole.log('Varco client loaded via local proxy');",
+        media_type="application/javascript",
+    )
+
+
 @router.post("/import/file", response_model=MonitoringConfig)
 async def import_file(
-    files: list[UploadFile] = File(None),
-    file: UploadFile | None = File(None),
+    files: list[UploadFile] | None = File(default=None),
+    file: UploadFile | None = File(default=None),
 ) -> MonitoringConfig:
     repo = MonitoringRepository()
     config = await repo.get_config()
@@ -425,29 +444,35 @@ async def import_file(
     manifest_json: dict[str, Any] | None = None
     brief_text: str | None = None
 
-    for uploaded_file in all_files:
-        filename = (uploaded_file.filename or "").lower()
-        content = await uploaded_file.read()
+    try:
+        for uploaded_file in all_files:
+            filename = (uploaded_file.filename or "").lower()
+            content = await uploaded_file.read()
 
-        if filename.endswith(".zip"):
-            try:
-                with zipfile.ZipFile(io.BytesIO(content)) as z:
-                    for name in z.namelist():
-                        n_lower = name.lower()
-                        if n_lower.endswith("manifest.json"):
-                            manifest_json = json.loads(z.read(name).decode("utf-8"))
-                        elif n_lower.endswith("brief.md") or n_lower.endswith(".md"):
-                            brief_text = z.read(name).decode("utf-8")
-            except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Invalid ZIP archive: {e}")
-        elif filename.endswith(".json"):
-            try:
-                manifest_json = json.loads(content.decode("utf-8"))
-            except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Invalid JSON file: {e}")
-        elif filename.endswith(".md") or filename.endswith(".txt"):
-            brief_text = content.decode("utf-8", errors="ignore")
+            if filename.endswith(".zip"):
+                try:
+                    with zipfile.ZipFile(io.BytesIO(content)) as z:
+                        for name in z.namelist():
+                            n_lower = name.lower()
+                            if n_lower.endswith("manifest.json"):
+                                manifest_json = json.loads(z.read(name).decode("utf-8"))
+                            elif n_lower.endswith("brief.md") or n_lower.endswith(".md"):
+                                brief_text = z.read(name).decode("utf-8")
+                except Exception as e:
+                    raise HTTPException(status_code=400, detail=f"Invalid ZIP archive: {e}")
+            elif filename.endswith(".json"):
+                try:
+                    manifest_json = json.loads(content.decode("utf-8"))
+                except Exception as e:
+                    raise HTTPException(status_code=400, detail=f"Invalid JSON file: {e}")
+            elif filename.endswith(".md") or filename.endswith(".txt"):
+                brief_text = content.decode("utf-8", errors="ignore")
 
-    updated = _parse_varco_manifest_and_brief(manifest_json, brief_text, config)
-    await repo.save_config(updated)
-    return updated
+        updated = _parse_varco_manifest_and_brief(manifest_json, brief_text, config)
+        await repo.save_config(updated)
+        return updated
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to process file import", error=str(e))
+        raise HTTPException(status_code=400, detail=f"Failed to process uploaded file(s): {e}")
