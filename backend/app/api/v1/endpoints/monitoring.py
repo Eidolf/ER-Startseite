@@ -426,7 +426,7 @@ async def get_varco_client_js(bridge_url: str = "https://varco-bridge.andreabacc
 
 @router.post("/import/file", response_model=MonitoringConfig)
 async def import_file(
-    files: list[UploadFile] | None = File(default=None),
+    files: list[UploadFile] = File(default=[]),
     file: UploadFile | None = File(default=None),
 ) -> MonitoringConfig:
     repo = MonitoringRepository()

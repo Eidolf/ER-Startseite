@@ -99,7 +99,6 @@ export const ImportModal: React.FC<ImportModalProps> = ({
             const formData = new FormData()
             files.forEach((f) => {
                 formData.append('files', f)
-                formData.append('file', f)
             })
 
             const res = await fetch('/api/v1/monitoring/import/file', {
