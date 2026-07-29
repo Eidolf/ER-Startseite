@@ -70,7 +70,7 @@ const DEFAULT_CONFIG: MonitoringConfig = {
             id: 'provider-varco-default',
             name: 'Varco Home Assistant',
             type: 'varco',
-            enabled: true,
+            enabled: false,
         },
     ],
 }
@@ -326,7 +326,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                             setPairingCode(null)
                         }
                     } else {
-                        throw connectErr
+                        console.debug('Varco Bridge pending authentication/pairing:', errMsg)
                     }
                 }
                 if (!isMounted) return
