@@ -6,6 +6,7 @@ export interface BackgroundConfig {
 export interface LogoConfig {
     type: 'default' | 'image'
     value?: string
+    clickToResetView?: boolean
 }
 
 export interface IconConfig {

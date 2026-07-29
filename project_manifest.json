@@ -95,7 +95,8 @@
       "file": "backend/app/schemas/config.py",
       "fields": {
         "type": "str",
-        "value": "str | None"
+        "value": "str | None",
+        "clickToResetView": "bool"
       },
       "relationships": []
     },
@@ -433,12 +434,66 @@
     },
     {
       "path": "/api/v1/config",
+      "method": "GET",
+      "summary": "GET /api/v1/config",
+      "description": "GET /api/v1/config",
+      "request_model": null,
+      "response_model": "MonitoringConfig",
+      "file": "backend/app/api/v1/endpoints/monitoring.py"
+    },
+    {
+      "path": "/api/v1/config",
       "method": "POST",
       "summary": "POST /api/v1/config",
       "description": "POST /api/v1/config",
       "request_model": null,
       "response_model": "AppConfig",
       "file": "backend/app/api/v1/endpoints/config.py"
+    },
+    {
+      "path": "/api/v1/config",
+      "method": "POST",
+      "summary": "POST /api/v1/config",
+      "description": "POST /api/v1/config",
+      "request_model": null,
+      "response_model": "MonitoringConfig",
+      "file": "backend/app/api/v1/endpoints/monitoring.py"
+    },
+    {
+      "path": "/api/v1/health",
+      "method": "GET",
+      "summary": "GET /api/v1/health",
+      "description": "GET /api/v1/health",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/monitoring.py"
+    },
+    {
+      "path": "/api/v1/import/file",
+      "method": "POST",
+      "summary": "POST /api/v1/import/file",
+      "description": "POST /api/v1/import/file",
+      "request_model": null,
+      "response_model": "MonitoringConfig",
+      "file": "backend/app/api/v1/endpoints/monitoring.py"
+    },
+    {
+      "path": "/api/v1/import/manifest",
+      "method": "POST",
+      "summary": "POST /api/v1/import/manifest",
+      "description": "POST /api/v1/import/manifest",
+      "request_model": null,
+      "response_model": "MonitoringConfig",
+      "file": "backend/app/api/v1/endpoints/monitoring.py"
+    },
+    {
+      "path": "/api/v1/import/url",
+      "method": "POST",
+      "summary": "POST /api/v1/import/url",
+      "description": "POST /api/v1/import/url",
+      "request_model": null,
+      "response_model": "MonitoringConfig",
+      "file": "backend/app/api/v1/endpoints/monitoring.py"
     },
     {
       "path": "/api/v1/media",
@@ -486,6 +541,42 @@
       "file": "backend/app/api/v1/endpoints/registry.py"
     },
     {
+      "path": "/api/v1/reset",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/reset",
+      "description": "DELETE /api/v1/reset",
+      "request_model": null,
+      "response_model": "MonitoringConfig",
+      "file": "backend/app/api/v1/endpoints/monitoring.py"
+    },
+    {
+      "path": "/api/v1/telemetry",
+      "method": "GET",
+      "summary": "GET /api/v1/telemetry",
+      "description": "GET /api/v1/telemetry",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/monitoring.py"
+    },
+    {
+      "path": "/api/v1/telemetry",
+      "method": "POST",
+      "summary": "POST /api/v1/telemetry",
+      "description": "POST /api/v1/telemetry",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/monitoring.py"
+    },
+    {
+      "path": "/api/v1/vacation",
+      "method": "GET",
+      "summary": "GET /api/v1/vacation",
+      "description": "GET /api/v1/vacation",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/webhooks.py"
+    },
+    {
       "path": "/api/v1/vacation",
       "method": "POST",
       "summary": "POST /api/v1/vacation",
@@ -493,6 +584,33 @@
       "request_model": null,
       "response_model": "dict",
       "file": "backend/app/api/v1/endpoints/webhooks.py"
+    },
+    {
+      "path": "/api/v1/vacation/{secret_token}",
+      "method": "GET",
+      "summary": "GET /api/v1/vacation/{secret_token}",
+      "description": "GET /api/v1/vacation/{secret_token}",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/webhooks.py"
+    },
+    {
+      "path": "/api/v1/vacation/{secret_token}",
+      "method": "POST",
+      "summary": "POST /api/v1/vacation/{secret_token}",
+      "description": "POST /api/v1/vacation/{secret_token}",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/webhooks.py"
+    },
+    {
+      "path": "/api/v1/varco-client.js",
+      "method": "GET",
+      "summary": "GET /api/v1/varco-client.js",
+      "description": "GET /api/v1/varco-client.js",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/monitoring.py"
     },
     {
       "path": "/health",
@@ -563,6 +681,38 @@
       "WidgetTile": {
         "file": "frontend/src/components/WidgetTile.tsx",
         "description": "UI Component WidgetTile for dashboard view or modal dialog"
+      },
+      "ImportModal": {
+        "file": "frontend/src/components/monitoring/ImportModal.tsx",
+        "description": "UI Component ImportModal for dashboard view or modal dialog"
+      },
+      "MonitoringContext": {
+        "file": "frontend/src/components/monitoring/MonitoringContext.tsx",
+        "description": "UI Component MonitoringContext for dashboard view or modal dialog"
+      },
+      "MonitoringOverlay": {
+        "file": "frontend/src/components/monitoring/MonitoringOverlay.tsx",
+        "description": "UI Component MonitoringOverlay for dashboard view or modal dialog"
+      },
+      "MonitoringZoneGrid": {
+        "file": "frontend/src/components/monitoring/layout/MonitoringZoneGrid.tsx",
+        "description": "UI Component MonitoringZoneGrid for dashboard view or modal dialog"
+      },
+      "LiveTrafficGraphWidget": {
+        "file": "frontend/src/components/monitoring/widgets/LiveTrafficGraphWidget.tsx",
+        "description": "UI Component LiveTrafficGraphWidget for dashboard view or modal dialog"
+      },
+      "MetricCardWidget": {
+        "file": "frontend/src/components/monitoring/widgets/MetricCardWidget.tsx",
+        "description": "UI Component MetricCardWidget for dashboard view or modal dialog"
+      },
+      "RadialGaugeWidget": {
+        "file": "frontend/src/components/monitoring/widgets/RadialGaugeWidget.tsx",
+        "description": "UI Component RadialGaugeWidget for dashboard view or modal dialog"
+      },
+      "StatusBeaconWidget": {
+        "file": "frontend/src/components/monitoring/widgets/StatusBeaconWidget.tsx",
+        "description": "UI Component StatusBeaconWidget for dashboard view or modal dialog"
       },
       "CalendarWidget": {
         "file": "frontend/src/components/widgets/CalendarWidget.tsx",

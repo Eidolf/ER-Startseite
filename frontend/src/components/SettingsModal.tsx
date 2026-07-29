@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github, LayoutGrid, Clock, CloudSun, Save, LogOut } from 'lucide-react'
 import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig, WidgetData, LayoutMode, WidgetDefaults } from '../types'
+import { useMonitoring } from './monitoring/useMonitoring'
 
 interface MediaItem {
     name: string
@@ -244,7 +245,8 @@ export function SettingsModal({
     serverMode,
     onLogout
 }: SettingsModalProps) {
-    const [activeTab, setActiveTab] = useState<'general' | 'widgets' | 'background' | 'logo' | 'effects' | 'security' | 'about'>('general')
+    const { config: monitoringConfig, toggleEnabled: toggleMonitoringEnabled, toggleDemoMode: toggleMonitoringDemoMode } = useMonitoring()
+    const [activeTab, setActiveTab] = useState<'general' | 'widgets' | 'monitoring' | 'background' | 'logo' | 'effects' | 'security' | 'about'>('general')
     const [uploading, setUploading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const logoFileInputRef = useRef<HTMLInputElement>(null)
@@ -365,6 +367,12 @@ export function SettingsModal({
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'widgets' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
                             Widgets
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('monitoring')}
+                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'monitoring' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            Monitoring
                         </button>
                         <button
                             onClick={() => setActiveTab('background')}
@@ -676,6 +684,54 @@ export function SettingsModal({
                         </div>
                     )}
 
+                    {activeTab === 'monitoring' && (
+                        <div className="space-y-6">
+                            <div className="p-4 rounded-xl bg-black/40 border border-white/10 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <div className="text-sm font-semibold text-white">Monitoring Overlay Aktivieren</div>
+                                        <div className="text-xs text-gray-400">Aktiviert das Monitoring Bridge Overlay und Tastaturkürzel (Ctrl+Shift+M).</div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={toggleMonitoringEnabled}
+                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                            monitoringConfig?.enabled !== false ? 'bg-neon-cyan' : 'bg-gray-700'
+                                        }`}
+                                    >
+                                        <span
+                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                                monitoringConfig?.enabled !== false ? 'translate-x-5' : 'translate-x-0'
+                                            }`}
+                                        />
+                                    </button>
+                                </div>
+
+                                <div className="h-px bg-white/10" />
+
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <div className="text-sm font-semibold text-white">Demo-Modus / Live-Simulation</div>
+                                        <div className="text-xs text-gray-400">Generiert simulierte Livedaten & Netzwerkschwankungen für Demo-Zwecke.</div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={toggleMonitoringDemoMode}
+                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                            monitoringConfig?.demoMode !== false ? 'bg-neon-cyan' : 'bg-gray-700'
+                                        }`}
+                                    >
+                                        <span
+                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                                monitoringConfig?.demoMode !== false ? 'translate-x-5' : 'translate-x-0'
+                                            }`}
+                                        />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {activeTab === 'background' && (
                         <div className="space-y-6">
                             {/* Presets */}
@@ -764,12 +820,35 @@ export function SettingsModal({
                             {/* Presets */}
                             <div className="grid grid-cols-2 gap-3">
                                 <button
-                                    onClick={() => onLogoChange({ type: 'default', value: undefined })}
+                                    onClick={() => onLogoChange({ ...logoConfig, type: 'default', value: undefined })}
                                     className={`p-3 rounded-xl border flex flex-col items-center gap-2 transition-all ${logoConfig.type === 'default' ? 'bg-neon-cyan/10 border-neon-cyan text-neon-cyan' : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'}`}
                                 >
                                     <Sparkles className="w-6 h-6" />
                                     <span className="text-xs font-medium">Default Animated</span>
                                 </button>
+                            </div>
+
+                            {/* Click to Reset Setting */}
+                            <div className="pt-2">
+                                <div className="flex items-center justify-between gap-4 p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition">
+                                    <div className="flex-1">
+                                        <div className="text-xs font-medium text-white">Logo/Titel-Klick springt zur Standard-View</div>
+                                        <div className="text-[11px] text-gray-400">Beim Klick auf das Logo oder den Titel wird von Canvas / Sub-Views zurück zur Hauptansicht gesprungen.</div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => onLogoChange({ ...logoConfig, clickToResetView: logoConfig.clickToResetView === false })}
+                                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                                            logoConfig.clickToResetView !== false ? 'bg-neon-cyan' : 'bg-gray-700'
+                                        }`}
+                                    >
+                                        <span
+                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                                logoConfig.clickToResetView !== false ? 'translate-x-6' : 'translate-x-1'
+                                            }`}
+                                        />
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="space-y-4 pt-4 border-t border-white/10">

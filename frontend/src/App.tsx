@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { AppIcon } from './components/AppIcon'
 import { AnimatedLogo } from './components/AnimatedLogo'
-import { Plus, Search, Settings, LayoutGrid, X, Trash, EyeOff, Folder, Pencil, PlusCircle, UserCheck, ArrowUpFromLine } from 'lucide-react'
+import { Plus, Search, Settings, LayoutGrid, X, Trash, EyeOff, Folder, Pencil, PlusCircle, UserCheck, ArrowUpFromLine, Radio } from 'lucide-react'
 import { SettingsModal } from './components/SettingsModal'
 import { AppDetailsModal } from './components/AppDetailsModal'
 import { LayoutMenu } from './components/LayoutMenu'
@@ -20,6 +20,9 @@ import { CalendarWidget } from './components/widgets/CalendarWidget'
 import { VacationWidget } from './components/widgets/VacationWidget'
 import { WidgetContextModal } from './components/WidgetContextModal'
 import { FreeCanvasBoard } from './components/FreeCanvasBoard'
+import { MonitoringProvider } from './components/monitoring/MonitoringContext'
+import { useMonitoring } from './components/monitoring/useMonitoring'
+import { MonitoringOverlay } from './components/monitoring/MonitoringOverlay'
 
 interface SortableAppTileProps {
     app: AppData
@@ -310,16 +313,33 @@ function UnlockModal({ isOpen, onClose, onUnlock }: { isOpen: boolean, onClose: 
     )
 }
 
-function NoteWidgetTile({ text }: { text?: string }) {
+function NoteWidgetTile({ text, useAppDesign = false }: { text?: string; useAppDesign?: boolean }) {
     return (
-        <div className="w-full h-full p-4 flex flex-col justify-center bg-black/40 rounded-2xl border border-white/10 backdrop-blur-md relative overflow-hidden text-white text-xs whitespace-pre-wrap">
+        <div className={`w-full h-full p-4 flex flex-col justify-center relative overflow-hidden text-white text-xs whitespace-pre-wrap ${
+            useAppDesign ? 'bg-transparent border-0 rounded-none shadow-none backdrop-blur-none' : 'bg-black/40 rounded-2xl border border-white/10 backdrop-blur-md'
+        }`}>
             <div className="font-semibold text-pink-300 mb-1">Note</div>
             <div className="text-gray-200">{text || 'Custom Note'}</div>
         </div>
     )
 }
 
-function App() {
+function AppContent() {
+    const { config: monitoringConfig, setIsOpen: setIsMonitoringOpen } = useMonitoring()
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'm') {
+                e.preventDefault()
+                if (monitoringConfig?.enabled !== false) {
+                    setIsMonitoringOpen(prev => !prev)
+                }
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [setIsMonitoringOpen, monitoringConfig?.enabled])
+
     // Auth State (Managed below)
 
     // Load defaults initially
@@ -348,6 +368,17 @@ function App() {
     const handleSaveServerDefault = () => {
         setLayoutConfig(prev => ({ ...prev, mode: activeLayoutMode }))
         // Auto-save useEffect will pick this up
+    }
+
+    const handleResetToHome = () => {
+        if (logoConfig.clickToResetView === false) return
+        setLocalMode(null)
+        setSearchQuery('')
+        setIsEditMode(false)
+        setShowHiddenApps(false)
+        if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+        }
     }
 
     const [configLoaded, setConfigLoaded] = useState(false)
@@ -561,6 +592,25 @@ function App() {
         }
 
         return style as React.CSSProperties
+    }
+
+    const getWidgetTileClass = () => {
+        let cls = "rounded-2xl transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 w-full h-full "
+        if (iconConfig.backgroundStyle === 'glass') {
+            cls += "glass-panel "
+        } else {
+            cls += "shadow-xl "
+        }
+        if (iconConfig.showBorder) {
+            if (iconConfig.borderStyle === 'solid') {
+                cls += "custom-border-solid "
+            } else {
+                cls += "custom-border-gradient "
+            }
+        } else {
+            cls += "border border-white/5 "
+        }
+        return cls
     }
 
     // Determine classes based on config
@@ -1371,41 +1421,46 @@ function App() {
                                                         </SortableAppTile>
                                                     )
                                                 } else {
-                                                    const widget = item.widget
-                                                    return (
-                                                        <WidgetTile
-                                                            key={widget.id}
-                                                            widget={widget}
-                                                            isEditMode={isEditMode}
-                                                            onDelete={handleDeleteWidget}
-                                                            onContextMenu={(e) => {
-                                                                e.preventDefault()
-                                                                setContextWidget(widget)
-                                                            }}
-                                                        >
-                                                            {widget.type === 'weather' && (
-                                                                <WeatherWidget
-                                                                    location={layoutConfig.widgetDefaults?.weatherLocation || 'Berlin'}
-                                                                    unit={layoutConfig.widgetDefaults?.weatherUnit || 'c'}
-                                                                />
-                                                            )}
-                                                            {widget.type === 'clock' && (
-                                                                <ClockWidget
-                                                                    is24Hour={layoutConfig.widgetDefaults?.clockFormat !== '12h'}
-                                                                    dateFormat={layoutConfig.widgetDefaults?.dateFormat === 'none' ? 'none' : layoutConfig.widgetDefaults?.dateFormat === 'short' ? 'short' : 'full'}
-                                                                />
-                                                            )}
-                                                            {widget.type === 'calendar' && <CalendarWidget />}
-                                                            {widget.type === 'text' && <NoteWidgetTile text={widget.customText} />}
-                                                            {widget.type === 'vacation' && (
-                                                                 <VacationWidget
-                                                                     title={widget.vacationTitle || 'Countdown Event'}
-                                                                     targetDate={widget.vacationDate}
-                                                                     onEdit={() => setContextWidget(widget)}
+                                                     const widget = item.widget
+                                                     return (
+                                                         <WidgetTile
+                                                             key={widget.id}
+                                                             widget={widget}
+                                                             isEditMode={isEditMode}
+                                                             onDelete={handleDeleteWidget}
+                                                             style={getIconStyle()}
+                                                             className={getWidgetTileClass()}
+                                                             onContextMenu={(e) => {
+                                                                 e.preventDefault()
+                                                                 setContextWidget(widget)
+                                                             }}
+                                                         >
+                                                             {widget.type === 'weather' && (
+                                                                 <WeatherWidget
+                                                                     location={layoutConfig.widgetDefaults?.weatherLocation || 'Berlin'}
+                                                                     unit={layoutConfig.widgetDefaults?.weatherUnit || 'c'}
+                                                                     useAppDesign={true}
                                                                  />
                                                              )}
-                                                        </WidgetTile>
-                                                    )
+                                                             {widget.type === 'clock' && (
+                                                                 <ClockWidget
+                                                                     is24Hour={layoutConfig.widgetDefaults?.clockFormat !== '12h'}
+                                                                     dateFormat={layoutConfig.widgetDefaults?.dateFormat === 'none' ? 'none' : layoutConfig.widgetDefaults?.dateFormat === 'short' ? 'short' : 'full'}
+                                                                     useAppDesign={true}
+                                                                 />
+                                                             )}
+                                                             {widget.type === 'calendar' && <CalendarWidget useAppDesign={true} />}
+                                                             {widget.type === 'text' && <NoteWidgetTile text={widget.customText} useAppDesign={true} />}
+                                                             {widget.type === 'vacation' && (
+                                                                  <VacationWidget
+                                                                      title={widget.vacationTitle || 'Countdown Event'}
+                                                                      targetDate={widget.vacationDate}
+                                                                      onEdit={() => setContextWidget(widget)}
+                                                                      useAppDesign={true}
+                                                                  />
+                                                              )}
+                                                         </WidgetTile>
+                                                     )
                                                 }
                                             })}
                                         </DroppableContainer>
@@ -1521,6 +1576,8 @@ function App() {
                                     widget={widget}
                                     isEditMode={isEditMode}
                                     onDelete={handleDeleteWidget}
+                                    style={getIconStyle()}
+                                    className={getWidgetTileClass()}
                                     onContextMenu={(e) => {
                                         e.preventDefault()
                                         setContextWidget(widget)
@@ -1530,21 +1587,24 @@ function App() {
                                         <WeatherWidget
                                             location={layoutConfig.widgetDefaults?.weatherLocation || 'Berlin'}
                                             unit={layoutConfig.widgetDefaults?.weatherUnit || 'c'}
+                                            useAppDesign={true}
                                         />
                                     )}
                                     {widget.type === 'clock' && (
                                         <ClockWidget
                                             is24Hour={layoutConfig.widgetDefaults?.clockFormat !== '12h'}
                                             dateFormat={layoutConfig.widgetDefaults?.dateFormat === 'none' ? 'none' : layoutConfig.widgetDefaults?.dateFormat === 'short' ? 'short' : 'full'}
+                                            useAppDesign={true}
                                         />
                                     )}
-                                    {widget.type === 'calendar' && <CalendarWidget />}
-                                    {widget.type === 'text' && <NoteWidgetTile text={widget.customText} />}
+                                    {widget.type === 'calendar' && <CalendarWidget useAppDesign={true} />}
+                                    {widget.type === 'text' && <NoteWidgetTile text={widget.customText} useAppDesign={true} />}
                                     {widget.type === 'vacation' && (
                                         <VacationWidget
                                             title={widget.vacationTitle || 'Countdown Event'}
                                             targetDate={widget.vacationDate}
                                             onEdit={() => setContextWidget(widget)}
+                                            useAppDesign={true}
                                         />
                                     )}
                                 </WidgetTile>
@@ -1703,6 +1763,9 @@ function App() {
                     onToggleEditMode={() => handleProtectedAction('edit_mode')}
                     showHidden={showHiddenApps}
                     onToggleShowHidden={() => handleProtectedAction('show_hidden')}
+                    clickToResetView={logoConfig.clickToResetView !== false}
+                    onToggleClickToResetView={() => setLogoConfig(prev => ({ ...prev, clickToResetView: prev.clickToResetView === false }))}
+                    onOpenMonitoring={monitoringConfig?.enabled !== false ? () => setIsMonitoringOpen(true) : undefined}
                 />
             )}
 
@@ -1817,7 +1880,15 @@ function App() {
             {/* ================= MOBILE HEADER (Visible only on mobile) ================= */}
             <div className="md:hidden fixed top-0 left-0 w-full z-50 h-14 pointer-events-none">
                 {/* Left: Logo & Title */}
-                <div className="absolute top-2 left-2 flex items-center pointer-events-auto gap-2">
+                <div
+                    onClick={handleResetToHome}
+                    className={`absolute top-2 left-2 flex items-center pointer-events-auto gap-2 ${
+                        logoConfig.clickToResetView !== false
+                            ? 'cursor-pointer hover:opacity-90 transition-all active:scale-95'
+                            : ''
+                    }`}
+                    title={logoConfig.clickToResetView !== false ? 'Zurück zur Standard-View' : undefined}
+                >
                     <AnimatedLogo
                         className="w-12 h-12"
                         src={logoConfig.type === 'image' ? logoConfig.value : undefined}
@@ -1834,6 +1905,15 @@ function App() {
 
                 {/* Right: Settings Icons */}
                 <div className="absolute top-2 right-2 flex gap-2 pointer-events-auto items-center">
+                    {monitoringConfig?.enabled !== false && (
+                        <button
+                            onClick={() => setIsMonitoringOpen(true)}
+                            className="p-2 rounded-full glass-panel hover:bg-white/10 transition shadow-[0_0_12px_rgba(0,243,255,0.3)]"
+                            title="Monitoring Bridge (Ctrl+Shift+M)"
+                        >
+                            <Radio className="w-5 h-5 text-neon-cyan animate-pulse" />
+                        </button>
+                    )}
                     <button
                         onClick={() => handleProtectedAction('add_app')}
                         className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
@@ -1865,10 +1945,18 @@ function App() {
                 <div className="w-40"></div>
 
                 {/* Center: Logo & Title */}
-                <div className="flex flex-col items-center pointer-events-auto pt-2">
+                <div
+                    onClick={handleResetToHome}
+                    className={`flex flex-col items-center pointer-events-auto pt-2 ${
+                        logoConfig.clickToResetView !== false
+                            ? 'cursor-pointer hover:opacity-90 transition-all hover:scale-[1.02] group'
+                            : ''
+                    }`}
+                    title={logoConfig.clickToResetView !== false ? 'Zurück zur Standard-View' : undefined}
+                >
                     <div className="h-32 w-auto flex items-end justify-center pb-2">
                         <AnimatedLogo
-                            className="h-full w-auto max-w-[250px]"
+                            className="h-full w-auto max-w-[250px] group-hover:drop-shadow-[0_0_20px_rgba(6,182,212,0.6)] transition-all"
                             src={logoConfig.type === 'image' ? logoConfig.value : undefined}
                         />
                     </div>
@@ -1886,6 +1974,15 @@ function App() {
 
                 {/* Right: Settings Buttons */}
                 <div className="flex gap-4 pointer-events-auto w-40 justify-end p-2">
+                    {monitoringConfig?.enabled !== false && (
+                        <button
+                            onClick={() => setIsMonitoringOpen(true)}
+                            className="p-2 rounded-full glass-panel hover:bg-white/10 transition shadow-[0_0_15px_rgba(0,243,255,0.3)]"
+                            title="Monitoring Bridge (Ctrl+Shift+M)"
+                        >
+                            <Radio className="w-6 h-6 text-neon-cyan animate-pulse" />
+                        </button>
+                    )}
                     <button
                         onClick={() => handleProtectedAction('add_app')}
                         className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
@@ -1947,6 +2044,11 @@ function App() {
                     </DndContext>
                 </div>
             </div>
+
+            <MonitoringOverlay
+                isAuthenticated={isAuthenticated}
+                onRequireAuth={handleProtectedAction}
+            />
         </div>
     )
 }
@@ -2052,5 +2154,10 @@ function FolderModal({ folder, isOpen, onClose, onRequestAdd, isEditMode, onDele
     )
 }
 
-
-export default App
+export default function App() {
+    return (
+        <MonitoringProvider>
+            <AppContent />
+        </MonitoringProvider>
+    )
+}

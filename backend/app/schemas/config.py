@@ -11,6 +11,7 @@ class BackgroundConfig(BaseModel):
 class LogoConfig(BaseModel):
     type: str
     value: str | None = None
+    clickToResetView: bool = True
 
 
 class IconConfig(BaseModel):

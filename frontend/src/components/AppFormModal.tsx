@@ -612,29 +612,59 @@ export function AppFormModal({ isOpen, onClose, onComplete, editApp, categories,
                                                     </div>
 
                                                     {webhookEnabled ? (
-                                                        <div className="space-y-2 pt-2 border-t border-emerald-500/20 animate-in fade-in">
+                                                        <div className="space-y-3 pt-2 border-t border-emerald-500/20 animate-in fade-in">
                                                             <p className="text-xs text-gray-300">
-                                                                Kopiere diese Webhook-URL in deine TREK-Einstellungen oder Webhook-Benachrichtigungen. Jede App erhält ihr eigenes, sicheres Token:
+                                                                Kopiere eine der Webhook-URLs in deine TREK-Einstellungen. Das Endpoint unterstützt Path- und Query-Secret sowie GET/HEAD Validation.
                                                             </p>
-                                                            <div className="flex gap-2">
-                                                                <input
-                                                                    type="text"
-                                                                    readOnly
-                                                                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/webhooks/vacation?secret=${vacationSecret}`}
-                                                                    className="w-full bg-black/60 border border-emerald-500/40 rounded-lg px-3 py-2 text-xs text-emerald-200 font-mono select-all"
-                                                                />
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => {
-                                                                        const urlToCopy = `${window.location.origin}/api/v1/webhooks/vacation?secret=${vacationSecret}`
-                                                                        navigator.clipboard.writeText(urlToCopy)
-                                                                        alert("Webhook-URL in die Zwischenablage kopiert!")
-                                                                    }}
-                                                                    className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium shrink-0 transition"
-                                                                >
-                                                                    Kopieren
-                                                                </button>
+                                                            
+                                                            <div className="space-y-2">
+                                                                <div>
+                                                                    <label className="block text-[11px] text-emerald-400 font-medium mb-1">Option 1: Path URL (Empfohlen für TREK)</label>
+                                                                    <div className="flex gap-2">
+                                                                        <input
+                                                                            type="text"
+                                                                            readOnly
+                                                                            value={`${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/webhooks/vacation/${vacationSecret}`}
+                                                                            className="w-full bg-black/60 border border-emerald-500/40 rounded-lg px-3 py-1.5 text-xs text-emerald-200 font-mono select-all"
+                                                                        />
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const urlToCopy = `${window.location.origin}/api/v1/webhooks/vacation/${vacationSecret}`
+                                                                                navigator.clipboard.writeText(urlToCopy)
+                                                                                alert("Path Webhook-URL in die Zwischenablage kopiert!")
+                                                                            }}
+                                                                            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium shrink-0 transition"
+                                                                        >
+                                                                            Kopieren
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div>
+                                                                    <label className="block text-[11px] text-gray-400 font-medium mb-1">Option 2: Query Parameter URL</label>
+                                                                    <div className="flex gap-2">
+                                                                        <input
+                                                                            type="text"
+                                                                            readOnly
+                                                                            value={`${typeof window !== 'undefined' ? window.location.origin : ''}/api/v1/webhooks/vacation?secret=${vacationSecret}`}
+                                                                            className="w-full bg-black/60 border border-emerald-500/40 rounded-lg px-3 py-1.5 text-xs text-emerald-200 font-mono select-all"
+                                                                        />
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const urlToCopy = `${window.location.origin}/api/v1/webhooks/vacation?secret=${vacationSecret}`
+                                                                                navigator.clipboard.writeText(urlToCopy)
+                                                                                alert("Query Webhook-URL in die Zwischenablage kopiert!")
+                                                                            }}
+                                                                            className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-gray-200 text-xs font-medium shrink-0 transition"
+                                                                        >
+                                                                            Kopieren
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
                                                             </div>
+
                                                             <div className="flex items-center justify-between text-[11px] text-gray-400 pt-1">
                                                                 <span>Secret Token: <code className="text-emerald-300 font-mono">{vacationSecret}</code></span>
                                                                 <button

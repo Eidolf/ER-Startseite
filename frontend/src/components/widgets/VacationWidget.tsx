@@ -5,6 +5,7 @@ interface VacationWidgetProps {
     title?: string
     targetDate?: string
     onEdit?: () => void
+    useAppDesign?: boolean
 }
 
 interface TimeLeft {
@@ -19,6 +20,7 @@ export const VacationWidget: React.FC<VacationWidgetProps> = ({
     title = 'Countdown Event',
     targetDate,
     onEdit,
+    useAppDesign = false,
 }) => {
     // Calculate time left
     const calculateTimeLeft = useCallback((): TimeLeft => {
@@ -69,7 +71,9 @@ export const VacationWidget: React.FC<VacationWidgetProps> = ({
     return (
         <div
             onClick={onEdit}
-            className={`relative w-full h-full p-4 rounded-2xl bg-gradient-to-br from-cyan-950/70 via-slate-900/90 to-emerald-950/70 border border-cyan-500/30 backdrop-blur-xl shadow-xl flex flex-col justify-between overflow-hidden group select-none ${onEdit ? 'cursor-pointer hover:border-cyan-400/60 transition-all' : ''}`}
+            className={`relative w-full h-full p-4 flex flex-col justify-between overflow-hidden group select-none ${
+                useAppDesign ? 'bg-transparent border-0 rounded-none shadow-none backdrop-blur-none' : 'bg-gradient-to-br from-cyan-950/70 via-slate-900/90 to-emerald-950/70 border border-cyan-500/30 backdrop-blur-xl shadow-xl rounded-2xl'
+            } ${onEdit ? 'cursor-pointer hover:border-cyan-400/60 transition-all' : ''}`}
         >
             {/* Ambient Glow */}
             <div className="absolute -top-12 -right-12 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />

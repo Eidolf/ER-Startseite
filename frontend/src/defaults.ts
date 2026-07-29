@@ -7,7 +7,8 @@ export const DEFAULT_BG: BackgroundConfig = {
 
 export const DEFAULT_LOGO_CONFIG: LogoConfig = {
     type: 'default',
-    value: undefined
+    value: undefined,
+    clickToResetView: true,
 }
 
 export const DEFAULT_TITLE_CONFIG: TitleConfig = {

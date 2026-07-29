@@ -14,7 +14,7 @@ export interface CalendarEvent {
 
 const STORAGE_KEY = 'er_calendar_events'
 
-export function CalendarWidget() {
+export function CalendarWidget({ useAppDesign = false }: { useAppDesign?: boolean }) {
     const [currentDate, setCurrentDate] = useState(new Date())
     const [viewDate, setViewDate] = useState(new Date())
     const [events, setEvents] = useState<CalendarEvent[]>(() => {
@@ -177,7 +177,9 @@ export function CalendarWidget() {
     const nextMonth = () => setViewDate(new Date(year, month + 1, 1))
 
     return (
-        <div className="w-full h-full bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 p-4 flex flex-col items-center justify-between shadow-xl relative overflow-hidden">
+        <div className={`w-full h-full p-4 flex flex-col items-center justify-between relative overflow-hidden ${
+            useAppDesign ? 'bg-transparent border-0 rounded-none shadow-none backdrop-blur-none' : 'bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 shadow-xl'
+        }`}>
             {/* Header & Controls */}
             <div className="text-white font-medium mb-2 w-full flex justify-between items-center px-1">
                 <button onClick={prevMonth} className="p-1 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition">

@@ -1,4 +1,4 @@
-import { LayoutGrid, List, Check, Move, Folder, Eye, EyeOff } from 'lucide-react'
+import { LayoutGrid, List, Check, Move, Folder, Eye, EyeOff, RotateCcw, Radio } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { LayoutMode } from '../types'
 
@@ -9,11 +9,26 @@ interface LayoutMenuProps {
     onToggleEditMode: () => void
     showHidden: boolean
     onToggleShowHidden: () => void
+    clickToResetView?: boolean
+    onToggleClickToResetView?: () => void
+    onOpenMonitoring?: () => void
     isOpen: boolean
     onClose: () => void
 }
 
-export function LayoutMenu({ currentMode, onModeChange, isEditMode, onToggleEditMode, showHidden, onToggleShowHidden, isOpen, onClose }: LayoutMenuProps) {
+export function LayoutMenu({
+    currentMode,
+    onModeChange,
+    isEditMode,
+    onToggleEditMode,
+    showHidden,
+    onToggleShowHidden,
+    clickToResetView = true,
+    onToggleClickToResetView,
+    onOpenMonitoring,
+    isOpen,
+    onClose
+}: LayoutMenuProps) {
     if (!isOpen) return null
 
     return (
@@ -74,6 +89,50 @@ export function LayoutMenu({ currentMode, onModeChange, isEditMode, onToggleEdit
                         <span className="flex-1 text-left">Free Canvas Board</span>
                         {currentMode === 'canvas' && <Check className="w-4 h-4" />}
                     </button>
+
+                    <div className="h-px bg-white/10 my-2" />
+
+                    <div className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                        Navigation
+                    </div>
+
+                    {onToggleClickToResetView && (
+                        <button
+                            onClick={onToggleClickToResetView}
+                            className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-colors ${
+                                clickToResetView ? 'bg-neon-cyan/10 text-neon-cyan font-medium' : 'hover:bg-white/5 text-gray-300'
+                            }`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <RotateCcw className="w-4 h-4 text-neon-cyan" />
+                                <span className="text-left text-xs">Logo-Klick = Home</span>
+                            </div>
+                            <div
+                                className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+                                    clickToResetView ? 'bg-neon-cyan' : 'bg-gray-700'
+                                }`}
+                            >
+                                <span
+                                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                                        clickToResetView ? 'translate-x-4.5' : 'translate-x-1'
+                                    }`}
+                                />
+                            </div>
+                        </button>
+                    )}
+
+                    {onOpenMonitoring && (
+                        <button
+                            onClick={() => {
+                                onOpenMonitoring()
+                                onClose()
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-neon-cyan/20 text-neon-cyan"
+                        >
+                            <Radio className="w-4 h-4 text-neon-cyan animate-pulse" />
+                            <span className="flex-1 text-left text-xs font-bold uppercase tracking-wider">Monitoring Bridge</span>
+                        </button>
+                    )}
 
                     <div className="h-px bg-white/10 my-2" />
 
