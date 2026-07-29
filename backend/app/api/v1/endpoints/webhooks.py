@@ -3,7 +3,7 @@ from typing import Any
 import structlog
 from fastapi import APIRouter, Header, Query, Request
 
-from app.core.exceptions import AuthException, ValidationException
+from app.core.exceptions import AuthException
 from app.repositories.repos import AppRepository, ConfigRepository
 from app.schemas.config import WidgetDefaults
 
@@ -149,7 +149,9 @@ async def receive_vacation_webhook(
 
     if not target_date:
         # If payload seems to be a test/ping without date fields, respond gracefully
-        logger.info("Received vacation webhook without explicit target_date", payload=payload)
+        logger.info(
+            "Received vacation webhook without explicit target_date", payload=payload
+        )
         return {
             "status": "success",
             "message": "Webhook payload received (no target_date updated)",
@@ -174,4 +176,3 @@ async def receive_vacation_webhook(
         "status": "success",
         "message": "Vacation payload updated successfully",
     }
-

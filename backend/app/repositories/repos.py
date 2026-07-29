@@ -1,4 +1,5 @@
 import os
+from typing import TYPE_CHECKING
 
 from anyio import Path
 
@@ -12,6 +13,9 @@ from app.schemas.config import (
     LayoutConfig,
     LogoConfig,
 )
+
+if TYPE_CHECKING:
+    from app.schemas.monitoring import MonitoringConfig
 
 
 # App Repo manages a LIST of Apps
@@ -139,6 +143,7 @@ class MonitoringRepository:
 
     async def get_config(self):
         from app.schemas.monitoring import MonitoringConfig
+
         await self._ensure_dir()
 
         if await self._file_path.exists():
@@ -156,12 +161,19 @@ class MonitoringRepository:
         await self._file_path.write_text(content, encoding="utf-8")
 
     def _get_default(self):
-        from app.schemas.monitoring import MonitoringConfig, MonitoringZone, MonitoringCard
+        from app.schemas.monitoring import (
+            MonitoringCard,
+            MonitoringConfig,
+            MonitoringZone,
+        )
+
         return MonitoringConfig(
             zones=[
                 MonitoringZone(id="overview", name="Overview", icon="Activity"),
                 MonitoringZone(id="network", name="Network Operations", icon="Wifi"),
-                MonitoringZone(id="infrastructure", name="Infrastructure", icon="Server"),
+                MonitoringZone(
+                    id="infrastructure", name="Infrastructure", icon="Server"
+                ),
                 MonitoringZone(id="smarthome", name="Smart Home", icon="Home"),
                 MonitoringZone(id="security", name="Security", icon="Shield"),
                 MonitoringZone(id="custom", name="Custom", icon="Sliders"),
@@ -203,4 +215,3 @@ class MonitoringRepository:
             ],
             providers=[],
         )
-

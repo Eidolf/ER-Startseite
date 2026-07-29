@@ -1,3 +1,4 @@
+import contextlib
 import io
 import json
 import re
@@ -15,6 +16,7 @@ from app.schemas.monitoring import (
     MonitoringConfig,
     MonitoringEntity,
     MonitoringProviderConfig,
+    MonitoringZone,
     VarcoManifestImportPayload,
 )
 
@@ -41,15 +43,12 @@ async def reset_monitoring_config() -> MonitoringConfig:
     default_config = MonitoringConfig(
         enabled=True,
         demo_mode=False,
-        demoMode=False,
-        public_relay_enabled=True,
-        publicRelayEnabled=True,
         cards=[],
         entities=[],
         zones=[
-            {"id": "overview", "name": "System Overview", "hidden": False},
-            {"id": "network", "name": "Network & Bandwidth", "hidden": False},
-            {"id": "hardware", "name": "Hardware Metrics", "hidden": False},
+            MonitoringZone(id="overview", name="System Overview", hidden=False),
+            MonitoringZone(id="network", name="Network & Bandwidth", hidden=False),
+            MonitoringZone(id="hardware", name="Hardware Metrics", hidden=False),
         ],
         providers=[
             MonitoringProviderConfig(
@@ -57,7 +56,6 @@ async def reset_monitoring_config() -> MonitoringConfig:
                 name="Varco Bridge (Home Assistant)",
                 type="varco",
                 enabled=True,
-                import_enabled=True,
             ),
         ],
     )
@@ -73,7 +71,9 @@ async def get_monitoring_health() -> dict[str, Any]:
     if not config.enabled:
         return {"online": False, "status": "disabled", "latency_ms": None}
 
-    varco_provider = next((p for p in config.providers if p.type == "varco" and p.enabled), None)
+    varco_provider = next(
+        (p for p in config.providers if p.type == "varco" and p.enabled), None
+    )
     if not varco_provider or not varco_provider.url:
         return {"online": True, "status": "standalone", "latency_ms": 12}
 
@@ -83,9 +83,18 @@ async def get_monitoring_health() -> dict[str, Any]:
             resp = await client.get(varco_provider.url)
             elapsed = int((time.time() - start) * 1000)
             if resp.status_code < 400:
-                return {"online": True, "status": "connected", "latency_ms": elapsed, "url": varco_provider.url}
+                return {
+                    "online": True,
+                    "status": "connected",
+                    "latency_ms": elapsed,
+                    "url": varco_provider.url,
+                }
             else:
-                return {"online": False, "status": f"HTTP {resp.status_code}", "latency_ms": elapsed}
+                return {
+                    "online": False,
+                    "status": f"HTTP {resp.status_code}",
+                    "latency_ms": elapsed,
+                }
     except Exception as e:
         return {"online": False, "status": f"unreachable: {e}", "latency_ms": None}
 
@@ -96,7 +105,10 @@ async def get_monitoring_telemetry() -> dict[str, Any]:
     config = await repo.get_config()
     health = await get_monitoring_health()
 
-    entities_out = [e.model_dump() if hasattr(e, "model_dump") else e.dict() for e in config.entities]
+    entities_out = [
+        e.model_dump() if hasattr(e, "model_dump") else e.dict()
+        for e in config.entities
+    ]
     has_live_data = any(e.get("state") not in ("N/A", None) for e in entities_out)
 
     return {
@@ -117,10 +129,8 @@ async def update_monitoring_telemetry(payload: dict[str, Any]) -> dict[str, Any]
         ent_map = {e.id: e for e in config.entities}
         for ie in incoming_entities:
             if isinstance(ie, dict) and "id" in ie:
-                try:
+                with contextlib.suppress(Exception):
                     ent_map[ie["id"]] = MonitoringEntity(**ie)
-                except Exception:
-                    pass
         config.entities = list(ent_map.values())
         await repo.save_config(config)
 
@@ -136,20 +146,36 @@ def _parse_varco_manifest_and_brief(
     cards: list[MonitoringCard] = list(current_config.cards)
     existing_card_ids = {c.id for c in cards}
 
-    existing_entities_map: dict[str, MonitoringEntity] = {e.id: e for e in current_config.entities}
+    existing_entities_map: dict[str, MonitoringEntity] = {
+        e.id: e for e in current_config.entities
+    }
     parsed_entities: list[dict[str, Any]] = []
 
     # 1. Parse manifest_data if present
     if manifest_data:
         raw_items: list[Any] = []
         if isinstance(manifest_data, dict):
-            # Extract nested manifest if present in grant / payload
-            m = manifest_data.get("grant", {}).get("manifest") if isinstance(manifest_data.get("grant"), dict) else None
-            if not m:
-                m = manifest_data.get("manifest") if isinstance(manifest_data.get("manifest"), dict) else manifest_data
+            grant_val = manifest_data.get("grant")
+            grant_manifest = (
+                grant_val.get("manifest") if isinstance(grant_val, dict) else None
+            )
+            manifest_val = (
+                manifest_data.get("manifest")
+                if isinstance(manifest_data.get("manifest"), dict)
+                else None
+            )
+            m = grant_manifest or manifest_val or manifest_data
 
             # Check Varco & Home Assistant manifest entity arrays
-            for key in ["read_entities", "subscriptions", "write_entities", "entities", "sensors", "states", "data"]:
+            for key in [
+                "read_entities",
+                "subscriptions",
+                "write_entities",
+                "entities",
+                "sensors",
+                "states",
+                "data",
+            ]:
                 val = m.get(key)
                 if isinstance(val, list):
                     raw_items.extend(val)
@@ -164,7 +190,9 @@ def _parse_varco_manifest_and_brief(
 
             if not raw_items:
                 for k, v in m.items():
-                    if isinstance(k, str) and (k.startswith("sensor.") or k.startswith("binary_sensor.")):
+                    if isinstance(k, str) and (
+                        k.startswith("sensor.") or k.startswith("binary_sensor.")
+                    ):
                         if isinstance(v, dict):
                             item = dict(v)
                             item["id"] = k
@@ -176,26 +204,49 @@ def _parse_varco_manifest_and_brief(
 
         for ent in raw_items:
             if isinstance(ent, str):
-                parsed_entities.append({
-                    "id": ent,
-                    "name": ent.split(".")[-1].replace("_", " ").title(),
-                    "state": "N/A",
-                    "unit": None,
-                    "domain": "binary_sensor" if ent.startswith("binary_sensor.") else "sensor",
-                })
+                parsed_entities.append(
+                    {
+                        "id": ent,
+                        "name": ent.split(".")[-1].replace("_", " ").title(),
+                        "state": "N/A",
+                        "unit": None,
+                        "domain": (
+                            "binary_sensor"
+                            if ent.startswith("binary_sensor.")
+                            else "sensor"
+                        ),
+                    }
+                )
             elif isinstance(ent, dict):
-                ent_id = ent.get("id") or ent.get("entity_id") or ent.get("sensor_id") or ""
+                ent_id = (
+                    ent.get("id") or ent.get("entity_id") or ent.get("sensor_id") or ""
+                )
                 if not ent_id:
                     continue
-                name = ent.get("name") or ent.get("friendly_name") or ent_id.split(".")[-1].replace("_", " ").title()
-                state = ent.get("state") if ent.get("state") is not None else ent.get("value")
-                unit = ent.get("unit_of_measurement") or ent.get("unit") or ent.get("unit_of_measure")
+                name = (
+                    ent.get("name")
+                    or ent.get("friendly_name")
+                    or ent_id.split(".")[-1].replace("_", " ").title()
+                )
+                state = (
+                    ent.get("state")
+                    if ent.get("state") is not None
+                    else ent.get("value")
+                )
+                unit = (
+                    ent.get("unit_of_measurement")
+                    or ent.get("unit")
+                    or ent.get("unit_of_measure")
+                )
 
                 # Parse state_snapshot if present (e.g. from Varco brief/export)
                 snap = ent.get("state_snapshot")
                 if isinstance(snap, dict):
                     snap_st = snap.get("state")
-                    snap_u = snap.get("unit_of_measurement") or (snap.get("attributes") or {}).get("unit_of_measurement")
+                    attrs = snap.get("attributes") or {}
+                    snap_u = snap.get("unit_of_measurement") or attrs.get(
+                        "unit_of_measurement"
+                    )
                     if snap_st is not None and snap_st != "":
                         state = snap_st
                     if snap_u:
@@ -204,21 +255,23 @@ def _parse_varco_manifest_and_brief(
                 if state is None or state == "":
                     state = "N/A"
                 else:
-                    try:
+                    with contextlib.suppress(ValueError, TypeError):
                         state = float(state)
-                    except (ValueError, TypeError):
-                        pass
 
-                domain = ent.get("domain") or ("binary_sensor" if ent_id.startswith("binary_sensor.") else "sensor")
+                domain = ent.get("domain") or (
+                    "binary_sensor" if ent_id.startswith("binary_sensor.") else "sensor"
+                )
 
-                parsed_entities.append({
-                    "id": ent_id,
-                    "name": name,
-                    "state": state,
-                    "unit": unit,
-                    "domain": domain,
-                    "attributes": ent.get("attributes") or {},
-                })
+                parsed_entities.append(
+                    {
+                        "id": ent_id,
+                        "name": name,
+                        "state": state,
+                        "unit": unit,
+                        "domain": domain,
+                        "attributes": ent.get("attributes") or {},
+                    }
+                )
 
     # 2. Parse brief_text if present (Extract JSON blocks, entity catalogs, and bootstrap URLs)
     if brief_text:
@@ -232,79 +285,133 @@ def _parse_varco_manifest_and_brief(
                         if isinstance(item, dict) and "entity_id" in item:
                             eid = item["entity_id"]
                             snap = item.get("state_snapshot") or {}
-                            st = snap.get("state") if isinstance(snap, dict) else item.get("state")
-                            u = (snap.get("unit_of_measurement") if isinstance(snap, dict) else item.get("unit_of_measurement")) or None
+                            is_dict = isinstance(snap, dict)
+                            snap_st = snap.get("state") if is_dict else None
+                            st = snap_st if snap_st is not None else item.get("state")
+                            snap_unit = (
+                                snap.get("unit_of_measurement") if is_dict else None
+                            )
+                            item_unit = item.get("unit_of_measurement")
+                            u = snap_unit or item_unit or None
                             if st is not None:
-                                try:
+                                with contextlib.suppress(ValueError, TypeError):
                                     st = float(st)
-                                except (ValueError, TypeError):
-                                    pass
 
-                            idx = next((i for i, e in enumerate(parsed_entities) if e["id"] == eid), None)
+                            idx = next(
+                                (
+                                    i
+                                    for i, e in enumerate(parsed_entities)
+                                    if e["id"] == eid
+                                ),
+                                None,
+                            )
                             if idx is not None:
                                 if st is not None:
                                     parsed_entities[idx]["state"] = st
                                 if u:
                                     parsed_entities[idx]["unit"] = u
                             else:
-                                parsed_entities.append({
-                                    "id": eid,
-                                    "name": item.get("friendly_name") or eid.split(".")[-1].replace("_", " ").title(),
-                                    "state": st if st is not None else "N/A",
-                                    "unit": u,
-                                    "domain": item.get("domain") or ("binary_sensor" if eid.startswith("binary_sensor.") else "sensor"),
-                                })
+                                is_binary = eid.startswith("binary_sensor.")
+                                domain_val = item.get("domain") or (
+                                    "binary_sensor" if is_binary else "sensor"
+                                )
+                                parsed_entities.append(
+                                    {
+                                        "id": eid,
+                                        "name": item.get("friendly_name")
+                                        or eid.split(".")[-1].replace("_", " ").title(),
+                                        "state": st if st is not None else "N/A",
+                                        "unit": u,
+                                        "domain": domain_val,
+                                    }
+                                )
             except Exception:
                 pass
 
         # Extract bootstrap authorityId and bridgeUrl from brief.md
-        auth_match = re.search(r'authorityId:\s*["\']([^"\']+)["\']', brief_text)
-        bridge_match = re.search(r'bridgeUrl:\s*["\']([^"\']+)["\']', brief_text)
-        if auth_match and bridge_match:
-            auth_id = auth_match.group(1)
-            bridge_url = bridge_match.group(1).replace("wss://", "https://")
-            provider_url = f"{bridge_url.rstrip('/')}/share/?authority={auth_id}"
-
-            varco_provider = next((p for p in current_config.providers if p.type == "varco"), None)
-            if varco_provider:
-                varco_provider.url = provider_url
-                varco_provider.enabled = True
-            else:
-                current_config.providers.append(
-                    MonitoringProviderConfig(
-                        id="varco-main-provider",
+        if "varco.shareIdentity.v1" in brief_text:
+            auth_match = re.search(
+                r"varco\.shareIdentity\.v1\.([a-f0-9\-]+)\.([a-zA-Z0-9]+)", brief_text
+            )
+            bridge_match = re.search(
+                r"(https?://[^\s\"']+)|\b(wss?://[^\s\"']+)", brief_text
+            )
+            if auth_match or bridge_match:
+                varco_provider = next(
+                    (p for p in current_config.providers if p.type == "varco"), None
+                )
+                if not varco_provider:
+                    varco_provider = MonitoringProviderConfig(
+                        id="varco-imported-provider",
                         name="Varco Bridge",
                         type="varco",
                         enabled=True,
-                        url=provider_url,
                     )
-                )
+                    current_config.providers.append(varco_provider)
 
-        lines = brief_text.splitlines()
-        for line in lines:
-            line_str = line.strip()
-            if "sensor." in line_str or "binary_sensor." in line_str:
-                parts = line_str.replace("`", "").replace("-", "").split()
-                for p in parts:
-                    if p.startswith("sensor.") or p.startswith("binary_sensor."):
-                        clean_id = p.rstrip(",;:.")
-                        if not any(e["id"] == clean_id for e in parsed_entities):
-                            name = clean_id.split(".")[-1].replace("_", " ").title()
-                            domain = "binary_sensor" if clean_id.startswith("binary_sensor.") else "sensor"
+                if bridge_match:
+                    found_url = bridge_match.group(0).rstrip("/")
+                    if found_url.startswith("ws"):
+                        found_url = found_url.replace("ws://", "http://").replace(
+                            "wss://", "https://"
+                        )
+                    varco_provider.url = found_url
 
-                            parsed_entities.append({
-                                "id": clean_id,
-                                "name": name,
-                                "state": "N/A",
-                                "unit": None,
-                                "domain": domain,
-                            })
+                if auth_match:
+                    authority_id, share_code = auth_match.group(1), auth_match.group(2)
+                    current_url = (
+                        varco_provider.url or "https://varco-bridge.andreabaccega.com"
+                    )
+                    if "authority_id=" not in current_url:
+                        sep = "&" if "?" in current_url else "?"
+                        varco_provider.url = f"{current_url}{sep}authority_id={authority_id}&share_code={share_code}"
+
+        # Extract markdown entity bullet lines if present
+        entity_bullets = re.findall(r"-\s+`([^`]+)`(?:\s*\(([^)]+)\))?", brief_text)
+        if entity_bullets:
+            for raw_eid, raw_name in entity_bullets:
+                clean_id = raw_eid.strip()
+                if clean_id and not any(e["id"] == clean_id for e in parsed_entities):
+                    is_bin = clean_id.startswith("binary_sensor.")
+                    domain = "binary_sensor" if is_bin else "sensor"
+                    name = (
+                        raw_name.strip()
+                        if raw_name
+                        else clean_id.split(".")[-1].replace("_", " ").title()
+                    )
+                    parsed_entities.append(
+                        {
+                            "id": clean_id,
+                            "name": name,
+                            "state": "N/A",
+                            "unit": None,
+                            "domain": domain,
+                        }
+                    )
 
     if not parsed_entities:
         parsed_entities = [
-            {"id": "sensor.speedtest_download", "name": "Download Speed", "state": 0, "unit": "Mbit/s", "domain": "sensor"},
-            {"id": "sensor.speedtest_upload", "name": "Upload Speed", "state": 0, "unit": "Mbit/s", "domain": "sensor"},
-            {"id": "sensor.speedtest_ping", "name": "Ping Latency", "state": 0, "unit": "ms", "domain": "sensor"},
+            {
+                "id": "sensor.speedtest_download",
+                "name": "Download Speed",
+                "state": 0,
+                "unit": "Mbit/s",
+                "domain": "sensor",
+            },
+            {
+                "id": "sensor.speedtest_upload",
+                "name": "Upload Speed",
+                "state": 0,
+                "unit": "Mbit/s",
+                "domain": "sensor",
+            },
+            {
+                "id": "sensor.speedtest_ping",
+                "name": "Ping Latency",
+                "state": 0,
+                "unit": "ms",
+                "domain": "sensor",
+            },
         ]
     else:
         defaults_map = {
@@ -313,7 +420,9 @@ def _parse_varco_manifest_and_brief(
             "sensor.speedtest_ping": (0, "ms"),
         }
         for pe in parsed_entities:
-            if pe["id"] in defaults_map and (pe["state"] == "N/A" or pe["state"] is None):
+            if pe["id"] in defaults_map and (
+                pe["state"] == "N/A" or pe["state"] is None
+            ):
                 pe["state"], pe["unit"] = defaults_map[pe["id"]]
 
     # Build MonitoringEntity objects and update config.entities
@@ -324,7 +433,9 @@ def _parse_varco_manifest_and_brief(
             provider_id="imported",
             name=p_ent["name"],
             domain=p_ent.get("domain", "sensor"),
-            value_type="numeric" if isinstance(p_ent["state"], (int, float)) else "string",
+            value_type=(
+                "numeric" if isinstance(p_ent["state"], (int, float)) else "string"
+            ),
             state=p_ent["state"],
             unit_of_measurement=p_ent.get("unit"),
             attributes=p_ent.get("attributes", {}),
@@ -335,11 +446,18 @@ def _parse_varco_manifest_and_brief(
         card_id = f"card-{eid.replace('.', '-')}"
         if card_id not in existing_card_ids:
             card_type = "metric_card"
-            if any(k in eid for k in ["download", "upload", "speed", "bandwidth", "traffic"]):
+            if any(
+                k in eid
+                for k in ["download", "upload", "speed", "bandwidth", "traffic"]
+            ):
                 card_type = "live_traffic"
-            elif any(k in eid for k in ["ping", "latency", "cpu", "temp", "memory", "usage"]):
+            elif any(
+                k in eid for k in ["ping", "latency", "cpu", "temp", "memory", "usage"]
+            ):
                 card_type = "gauge"
-            elif eid.startswith("binary_sensor.") or any(k in eid for k in ["status", "online", "state"]):
+            elif eid.startswith("binary_sensor.") or any(
+                k in eid for k in ["status", "online", "state"]
+            ):
                 card_type = "status_beacon"
 
             cards.append(
@@ -348,7 +466,13 @@ def _parse_varco_manifest_and_brief(
                     title=p_ent["name"],
                     card_type=card_type,
                     entity_ids=[eid],
-                    zone_id="network" if any(k in eid for k in ["speedtest", "ping", "net", "traffic"]) else "overview",
+                    zone_id=(
+                        "network"
+                        if any(
+                            k in eid for k in ["speedtest", "ping", "net", "traffic"]
+                        )
+                        else "overview"
+                    ),
                     x=0,
                     y=0,
                     w=2,
@@ -378,7 +502,9 @@ def _parse_varco_manifest_and_brief(
 async def import_manifest(payload: VarcoManifestImportPayload) -> MonitoringConfig:
     repo = MonitoringRepository()
     config = await repo.get_config()
-    updated = _parse_varco_manifest_and_brief(payload.manifest, payload.brief_content, config)
+    updated = _parse_varco_manifest_and_brief(
+        payload.manifest, payload.brief_content, config
+    )
     await repo.save_config(updated)
     return updated
 
@@ -396,7 +522,10 @@ async def import_url(payload: VarcoManifestImportPayload) -> MonitoringConfig:
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
             resp = await client.get(url)
             if resp.status_code != 200:
-                raise HTTPException(status_code=400, detail=f"Failed to fetch Varco share URL: HTTP {resp.status_code}")
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Failed to fetch Varco share URL: HTTP {resp.status_code}",
+                )
 
             ct = resp.headers.get("content-type", "").lower()
             body_str = resp.text
@@ -407,23 +536,29 @@ async def import_url(payload: VarcoManifestImportPayload) -> MonitoringConfig:
                 extracted_entities = []
                 for ent_id, sec_body in sections:
                     ent_id = ent_id.strip()
-                    st_match = re.search(r'class="varco-card__state">([^<]+)</span>', sec_body)
+                    st_match = re.search(
+                        r'class="varco-card__state">([^<]+)</span>', sec_body
+                    )
                     if st_match:
                         raw_st = st_match.group(1).strip()
                         parts = raw_st.split()
                         val: Any = parts[0] if parts else raw_st
                         unit = parts[1] if len(parts) > 1 else None
-                        try:
+                        with contextlib.suppress(ValueError):
                             val = float(val)
-                        except ValueError:
-                            pass
-                        extracted_entities.append({
-                            "id": ent_id,
-                            "name": ent_id.split(".")[-1].replace("_", " ").title(),
-                            "state": val,
-                            "unit": unit,
-                            "domain": "binary_sensor" if ent_id.startswith("binary_sensor.") else "sensor",
-                        })
+                        extracted_entities.append(
+                            {
+                                "id": ent_id,
+                                "name": ent_id.split(".")[-1].replace("_", " ").title(),
+                                "state": val,
+                                "unit": unit,
+                                "domain": (
+                                    "binary_sensor"
+                                    if ent_id.startswith("binary_sensor.")
+                                    else "sensor"
+                                ),
+                            }
+                        )
                 if extracted_entities:
                     manifest_data = {"entities": extracted_entities}
             elif "application/json" in ct:
@@ -440,7 +575,7 @@ async def import_url(payload: VarcoManifestImportPayload) -> MonitoringConfig:
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to fetch URL: {e}")
+        raise HTTPException(status_code=400, detail=f"Failed to fetch URL: {e}") from e
 
     repo = MonitoringRepository()
     config = await repo.get_config()
@@ -467,18 +602,24 @@ async def import_url(payload: VarcoManifestImportPayload) -> MonitoringConfig:
 
 
 @router.get("/varco-client.js")
-async def get_varco_client_js(bridge_url: str = "https://varco-bridge.andreabaccega.com"):
-    clean_url = bridge_url.replace("wss://", "https://").rstrip("/") + "/varco-client.js"
+async def get_varco_client_js(
+    bridge_url: str = "https://varco-bridge.andreabaccega.com",
+):
+    clean_url = (
+        bridge_url.replace("wss://", "https://").rstrip("/") + "/varco-client.js"
+    )
     try:
         async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
             resp = await client.get(clean_url)
             if resp.status_code == 200:
                 from fastapi.responses import Response
+
                 return Response(content=resp.text, media_type="application/javascript")
     except Exception:
         pass
 
     from fastapi.responses import Response
+
     return Response(
         content="// Varco Client Fallback script\nconsole.log('Varco client loaded via local proxy');",
         media_type="application/javascript",
@@ -517,15 +658,21 @@ async def import_file(
                             n_lower = name.lower()
                             if n_lower.endswith("manifest.json"):
                                 manifest_json = json.loads(z.read(name).decode("utf-8"))
-                            elif n_lower.endswith("brief.md") or n_lower.endswith(".md"):
+                            elif n_lower.endswith("brief.md") or n_lower.endswith(
+                                ".md"
+                            ):
                                 brief_text = z.read(name).decode("utf-8")
                 except Exception as e:
-                    raise HTTPException(status_code=400, detail=f"Invalid ZIP archive: {e}")
+                    raise HTTPException(
+                        status_code=400, detail=f"Invalid ZIP archive: {e}"
+                    ) from e
             elif filename.endswith(".json"):
                 try:
                     manifest_json = json.loads(content.decode("utf-8"))
                 except Exception as e:
-                    raise HTTPException(status_code=400, detail=f"Invalid JSON file: {e}")
+                    raise HTTPException(
+                        status_code=400, detail=f"Invalid JSON file: {e}"
+                    ) from e
             elif filename.endswith(".md") or filename.endswith(".txt"):
                 brief_text = content.decode("utf-8", errors="ignore")
 
@@ -536,4 +683,6 @@ async def import_file(
         raise
     except Exception as e:
         logger.error("Failed to process file import", error=str(e))
-        raise HTTPException(status_code=400, detail=f"Failed to process uploaded file(s): {e}")
+        raise HTTPException(
+            status_code=400, detail=f"Failed to process uploaded file(s): {e}"
+        ) from e

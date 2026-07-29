@@ -1,4 +1,5 @@
 from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
