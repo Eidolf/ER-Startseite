@@ -17,6 +17,7 @@ import {
     Radio,
     Maximize2,
     GripVertical,
+    Sparkles,
 } from 'lucide-react'
 import { OverlayWidthPercent } from '../../types/monitoring'
 
@@ -31,6 +32,7 @@ export const MonitoringOverlay: React.FC = () => {
         config,
         isEditMode,
         setIsEditMode,
+        toggleDemoMode,
         refreshConfig,
     } = useMonitoring()
 
@@ -151,6 +153,18 @@ export const MonitoringOverlay: React.FC = () => {
 
                             {/* Control Action Buttons */}
                             <div className="flex items-center gap-2">
+                                <button
+                                    onClick={toggleDemoMode}
+                                    className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-bold flex items-center gap-1.5 transition ${
+                                        config?.demoMode !== false
+                                            ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan shadow-[0_0_10px_rgba(0,243,255,0.3)]'
+                                            : 'bg-gray-800/60 border-gray-700 text-gray-400'
+                                    }`}
+                                    title="Toggle Live Demo Jitter Simulation"
+                                >
+                                    <Sparkles className="w-4 h-4" />
+                                    {config?.demoMode !== false ? 'Demo ON' : 'Demo OFF'}
+                                </button>
                                 <button
                                     onClick={() => setIsImportModalOpen(true)}
                                     className="px-3 py-1.5 rounded-lg bg-neon-cyan/10 border border-neon-cyan/40 text-neon-cyan hover:bg-neon-cyan hover:text-black transition text-xs font-mono font-bold flex items-center gap-1.5"

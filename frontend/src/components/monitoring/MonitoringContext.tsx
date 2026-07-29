@@ -17,6 +17,8 @@ interface MonitoringContextType {
     entities: Record<string, MonitoringEntity>
     isEditMode: boolean
     setIsEditMode: React.Dispatch<React.SetStateAction<boolean>>
+    toggleEnabled: () => void
+    toggleDemoMode: () => void
     refreshConfig: () => Promise<void>
     saveConfig: (cfg: MonitoringConfig) => Promise<void>
     deleteCard: (cardId: string) => void
@@ -27,6 +29,8 @@ const STORAGE_WIDTH_KEY = 'er_monitoring_width'
 
 const DEFAULT_CONFIG: MonitoringConfig = {
     version: '1.0.0',
+    enabled: true,
+    demoMode: true,
     zones: [
         { id: 'overview', name: 'Overview', icon: 'Activity' },
         { id: 'network', name: 'Network Operations', icon: 'Wifi' },
@@ -180,6 +184,18 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         [config, saveConfig]
     )
 
+    const toggleEnabled = useCallback(() => {
+        if (!config) return
+        const updated = { ...config, enabled: !config.enabled }
+        saveConfig(updated)
+    }, [config, saveConfig])
+
+    const toggleDemoMode = useCallback(() => {
+        if (!config) return
+        const updated = { ...config, demoMode: !config.demoMode }
+        saveConfig(updated)
+    }, [config, saveConfig])
+
     useEffect(() => {
         refreshConfig()
     }, [refreshConfig])
@@ -187,6 +203,8 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     // Live Telemetry Interpolation / Jitter Simulator (makes data feel alive)
     useEffect(() => {
         const interval = setInterval(() => {
+            if (config?.demoMode === false) return
+
             setEntities((prev) => {
                 const next = { ...prev }
 
@@ -225,7 +243,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }, 2000)
 
         return () => clearInterval(interval)
-    }, [])
+    }, [config?.demoMode])
 
     return (
         <MonitoringContext.Provider
@@ -240,6 +258,8 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 entities,
                 isEditMode,
                 setIsEditMode,
+                toggleEnabled,
+                toggleDemoMode,
                 refreshConfig,
                 saveConfig,
                 deleteCard,

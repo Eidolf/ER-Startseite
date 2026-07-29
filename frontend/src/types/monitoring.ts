@@ -44,6 +44,8 @@ export interface MonitoringProviderConfig {
 
 export interface MonitoringConfig {
     version: string
+    enabled: boolean
+    demoMode: boolean
     zones: MonitoringZone[]
     cards: MonitoringCard[]
     providers: MonitoringProviderConfig[]

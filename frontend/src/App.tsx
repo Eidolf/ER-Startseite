@@ -324,18 +324,20 @@ function NoteWidgetTile({ text, useAppDesign = false }: { text?: string; useAppD
 }
 
 function AppContent() {
-    const { setIsOpen: setIsMonitoringOpen } = useMonitoring()
+    const { config: monitoringConfig, setIsOpen: setIsMonitoringOpen } = useMonitoring()
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'm') {
                 e.preventDefault()
-                setIsMonitoringOpen(prev => !prev)
+                if (monitoringConfig?.enabled !== false) {
+                    setIsMonitoringOpen(prev => !prev)
+                }
             }
         }
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [setIsMonitoringOpen])
+    }, [setIsMonitoringOpen, monitoringConfig?.enabled])
 
     // Auth State (Managed below)
 
@@ -1762,7 +1764,7 @@ function AppContent() {
                     onToggleShowHidden={() => handleProtectedAction('show_hidden')}
                     clickToResetView={logoConfig.clickToResetView !== false}
                     onToggleClickToResetView={() => setLogoConfig(prev => ({ ...prev, clickToResetView: prev.clickToResetView === false }))}
-                    onOpenMonitoring={() => setIsMonitoringOpen(true)}
+                    onOpenMonitoring={monitoringConfig?.enabled !== false ? () => setIsMonitoringOpen(true) : undefined}
                 />
             )}
 
@@ -1902,13 +1904,15 @@ function AppContent() {
 
                 {/* Right: Settings Icons */}
                 <div className="absolute top-2 right-2 flex gap-2 pointer-events-auto items-center">
-                    <button
-                        onClick={() => setIsMonitoringOpen(true)}
-                        className="p-2 rounded-full glass-panel hover:bg-white/10 transition shadow-[0_0_12px_rgba(0,243,255,0.3)]"
-                        title="Monitoring Bridge (Ctrl+Shift+M)"
-                    >
-                        <Radio className="w-5 h-5 text-neon-cyan animate-pulse" />
-                    </button>
+                    {monitoringConfig?.enabled !== false && (
+                        <button
+                            onClick={() => setIsMonitoringOpen(true)}
+                            className="p-2 rounded-full glass-panel hover:bg-white/10 transition shadow-[0_0_12px_rgba(0,243,255,0.3)]"
+                            title="Monitoring Bridge (Ctrl+Shift+M)"
+                        >
+                            <Radio className="w-5 h-5 text-neon-cyan animate-pulse" />
+                        </button>
+                    )}
                     <button
                         onClick={() => handleProtectedAction('add_app')}
                         className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
@@ -1969,13 +1973,15 @@ function AppContent() {
 
                 {/* Right: Settings Buttons */}
                 <div className="flex gap-4 pointer-events-auto w-40 justify-end p-2">
-                    <button
-                        onClick={() => setIsMonitoringOpen(true)}
-                        className="p-2 rounded-full glass-panel hover:bg-white/10 transition shadow-[0_0_15px_rgba(0,243,255,0.3)]"
-                        title="Monitoring Bridge (Ctrl+Shift+M)"
-                    >
-                        <Radio className="w-6 h-6 text-neon-cyan animate-pulse" />
-                    </button>
+                    {monitoringConfig?.enabled !== false && (
+                        <button
+                            onClick={() => setIsMonitoringOpen(true)}
+                            className="p-2 rounded-full glass-panel hover:bg-white/10 transition shadow-[0_0_15px_rgba(0,243,255,0.3)]"
+                            title="Monitoring Bridge (Ctrl+Shift+M)"
+                        >
+                            <Radio className="w-6 h-6 text-neon-cyan animate-pulse" />
+                        </button>
+                    )}
                     <button
                         onClick={() => handleProtectedAction('add_app')}
                         className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
