@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useMonitoring } from './MonitoringContext'
+import { useMonitoring } from './useMonitoring'
 import { MonitoringZoneGrid } from './layout/MonitoringZoneGrid'
 import { ImportModal } from './ImportModal'
 import {

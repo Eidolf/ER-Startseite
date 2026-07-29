@@ -1,5 +1,5 @@
 import React from 'react'
-import { useMonitoring } from '../MonitoringContext'
+import { useMonitoring } from '../useMonitoring'
 import { RadialGaugeWidget } from '../widgets/RadialGaugeWidget'
 import { LiveTrafficGraphWidget } from '../widgets/LiveTrafficGraphWidget'
 import { StatusBeaconWidget } from '../widgets/StatusBeaconWidget'

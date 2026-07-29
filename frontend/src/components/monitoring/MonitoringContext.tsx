@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
     MonitoringConfig,
     MonitoringEntity,
@@ -6,33 +6,7 @@ import {
     MonitoringCard,
 } from '../../types/monitoring'
 import { parseVarcoShareUrl } from '../../utils/varcoClient'
-
-interface MonitoringContextType {
-    isOpen: boolean
-    setIsOpen: React.Dispatch<React.SetStateAction<boolean>>
-    widthPercent: OverlayWidthPercent
-    setWidthPercent: (w: OverlayWidthPercent) => void
-    activeZoneId: string
-    setActiveZoneId: (zone: string) => void
-    config: MonitoringConfig | null
-    entities: Record<string, MonitoringEntity>
-    isSystemOnline: boolean
-    isEditMode: boolean
-    setIsEditMode: React.Dispatch<React.SetStateAction<boolean>>
-    pairingCode: string | null
-    clearPairingCode: () => void
-    toggleEnabled: () => void
-    toggleDemoMode: () => void
-    refreshConfig: () => Promise<void>
-    saveConfig: (cfg: MonitoringConfig) => Promise<void>
-    deleteCard: (cardId: string) => void
-    addCard: (card: MonitoringCard) => void
-    updateCardZone: (cardId: string, zoneId: string) => void
-    moveCardOrder: (cardId: string, direction: 'up' | 'down') => void
-    toggleZoneVisibility: (zoneId: string) => void
-    toggleCardVisibility: (cardId: string) => void
-    resetMonitoringConfig: () => Promise<void>
-}
+import { MonitoringContext } from './MonitoringContextDefinition'
 
 const STORAGE_WIDTH_KEY = 'er_monitoring_width'
 
@@ -80,8 +54,6 @@ const DEFAULT_CONFIG: MonitoringConfig = {
         },
     ],
 }
-
-const MonitoringContext = createContext<MonitoringContextType | null>(null)
 
 export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [isOpen, setIsOpen] = useState<boolean>(false)
@@ -156,7 +128,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             if (res.ok) {
                 const rawData = await res.json()
                 if (rawData && Array.isArray(rawData.cards)) {
-                    const normalizedCards = rawData.cards.map((c: any) => ({
+                    const normalizedCards = rawData.cards.map((c: Record<string, unknown>) => ({
                         ...c,
                         card_type: c.card_type || c.cardType || 'live_traffic',
                         cardType: c.cardType || c.card_type || 'live_traffic',
@@ -337,14 +309,15 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             try {
                 const scriptUrl = `/api/v1/monitoring/varco-client.js?bridge_url=${encodeURIComponent(params.bridgeUrl)}`
 
-                let createVarcoClient = (window as any).createVarcoClient || (window as any).createVarcoConsumerClient
+                const win = window as unknown as Record<string, unknown>
+                let createVarcoClient = win.createVarcoClient || win.createVarcoConsumerClient
 
                 if (!createVarcoClient) {
                     try {
                         const varcoModule = await import(/* @vite-ignore */ scriptUrl)
                         createVarcoClient = varcoModule.createVarcoClient || varcoModule.createVarcoConsumerClient || varcoModule.default
                         if (createVarcoClient) {
-                            ;(window as any).createVarcoClient = createVarcoClient
+                            win.createVarcoClient = createVarcoClient
                         }
                     } catch (err) {
                         console.warn('Failed to dynamically import varco-client ES module:', err)
@@ -356,7 +329,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 const prefix = `varco.shareIdentity.v1.${params.authorityId}.${params.shareCode}.`
 
                 // Restore backend shared consumer key into browser storage if present
-                const backendKey = varcoProvider.settings?.privateKey || (varcoProvider as any).privateKey
+                const backendKey = varcoProvider.settings?.privateKey || (varcoProvider as unknown as { privateKey?: string }).privateKey
                 if (backendKey && typeof backendKey === 'string') {
                     const existingIdentity = localStorage.getItem(prefix + 'varco.consumerIdentity.v1')
                     if (!existingIdentity) {
@@ -416,8 +389,9 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
                 try {
                     await client.connect()
-                } catch (connectErr: any) {
-                    const errMsg = connectErr?.message || String(connectErr)
+                } catch (connectErr: unknown) {
+                    const errObj = connectErr as { message?: string }
+                    const errMsg = errObj?.message || String(connectErr)
                     if (errMsg.includes('No active grant') || errMsg.includes('Grant revoked') || errMsg.includes('Grant denied')) {
                         if (typeof client.requestAccess === 'function') {
                             const manifestPayload = {
@@ -459,7 +433,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 const liveStates = await client.getStates(entityIds).catch(() => null)
                 if (isMounted && liveStates && typeof liveStates === 'object') {
                     const updatedEntities: Record<string, MonitoringEntity> = {}
-                    Object.entries(liveStates).forEach(([eid, entData]: [string, any]) => {
+                    Object.entries(liveStates).forEach(([eid, entData]: [string, unknown]) => {
                         if (entData) {
                             const val = typeof entData === 'object' ? entData.state : entData
                             const unit = typeof entData === 'object' ? entData.attributes?.unit_of_measurement : undefined
@@ -488,10 +462,10 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 }
 
                 if (typeof client.subscribeEntities === 'function') {
-                    await client.subscribeEntities(entityIds, (event: any) => {
+                    await client.subscribeEntities(entityIds, (event: { states?: Record<string, unknown> }) => {
                         if (!isMounted || !event?.states) return
                         const streamEntities: Record<string, MonitoringEntity> = {}
-                        Object.entries(event.states).forEach(([eid, entData]: [string, any]) => {
+                        Object.entries(event.states).forEach(([eid, entData]: [string, unknown]) => {
                             if (entData) {
                                 const val = typeof entData === 'object' ? entData.state : entData
                                 const unit = typeof entData === 'object' ? entData.attributes?.unit_of_measurement : undefined
@@ -519,8 +493,9 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         }
                     })
                 }
-            } catch (e: any) {
-                console.debug('Varco Bridge connection status:', e?.message || e)
+            } catch (e: unknown) {
+                const errObj = e as { message?: string }
+                console.debug('Varco Bridge connection status:', errObj?.message || e)
                 fetch('/api/v1/monitoring/telemetry')
                     .then((res) => res.json())
                     .then((data) => {
@@ -542,6 +517,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         return () => {
             isMounted = false
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [config?.enabled, config?.providers])
 
     // Periodic Telemetry & System Health Check (Runs immediately & polls every 3s)
@@ -661,10 +637,4 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     )
 }
 
-export const useMonitoring = () => {
-    const ctx = useContext(MonitoringContext)
-    if (!ctx) {
-        throw new Error('useMonitoring must be used within a MonitoringProvider')
-    }
-    return ctx
-}
+

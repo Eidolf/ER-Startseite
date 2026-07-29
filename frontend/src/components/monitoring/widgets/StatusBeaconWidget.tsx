@@ -1,6 +1,6 @@
 import React from 'react'
 import { MonitoringEntity } from '../../../types/monitoring'
-import { useMonitoring } from '../MonitoringContext'
+import { useMonitoring } from '../useMonitoring'
 import { ShieldCheck, ShieldAlert } from 'lucide-react'
 
 interface StatusBeaconWidgetProps {

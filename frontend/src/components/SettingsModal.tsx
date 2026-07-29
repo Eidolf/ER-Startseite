@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github, LayoutGrid, Clock, CloudSun, Save, LogOut } from 'lucide-react'
 import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig, WidgetData, LayoutMode, WidgetDefaults } from '../types'
-import { useMonitoring } from './monitoring/MonitoringContext'
+import { useMonitoring } from './monitoring/useMonitoring'
 
 interface MediaItem {
     name: string

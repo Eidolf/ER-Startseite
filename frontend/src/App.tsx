@@ -20,7 +20,8 @@ import { CalendarWidget } from './components/widgets/CalendarWidget'
 import { VacationWidget } from './components/widgets/VacationWidget'
 import { WidgetContextModal } from './components/WidgetContextModal'
 import { FreeCanvasBoard } from './components/FreeCanvasBoard'
-import { MonitoringProvider, useMonitoring } from './components/monitoring/MonitoringContext'
+import { MonitoringProvider } from './components/monitoring/MonitoringContext'
+import { useMonitoring } from './components/monitoring/useMonitoring'
 import { MonitoringOverlay } from './components/monitoring/MonitoringOverlay'
 
 interface SortableAppTileProps {
