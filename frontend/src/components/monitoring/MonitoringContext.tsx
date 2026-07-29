@@ -30,6 +30,8 @@ interface MonitoringContextType {
     updateCardZone: (cardId: string, zoneId: string) => void
     moveCardOrder: (cardId: string, direction: 'up' | 'down') => void
     toggleZoneVisibility: (zoneId: string) => void
+    toggleCardVisibility: (cardId: string) => void
+    resetMonitoringConfig: () => Promise<void>
 }
 
 const STORAGE_WIDTH_KEY = 'er_monitoring_width'
@@ -280,6 +282,40 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         },
         [config, saveConfig]
     )
+
+    const toggleCardVisibility = useCallback(
+        (cardId: string) => {
+            if (!config) return
+            const updated: MonitoringConfig = {
+                ...config,
+                cards: config.cards.map((c) => (c.id === cardId ? { ...c, hidden: !c.hidden } : c)),
+            }
+            saveConfig(updated)
+        },
+        [config, saveConfig]
+    )
+
+    const resetMonitoringConfig = useCallback(async () => {
+        try {
+            Object.keys(localStorage).forEach((key) => {
+                if (key.includes('varco.')) {
+                    localStorage.removeItem(key)
+                }
+            })
+        } catch {
+            // ignore
+        }
+
+        try {
+            await fetch('/api/v1/monitoring/reset', { method: 'DELETE' })
+        } catch (e) {
+            console.error('Failed to reset monitoring config', e)
+        }
+
+        setPairingCode(null)
+        setEntities({})
+        await refreshConfig()
+    }, [refreshConfig])
 
     useEffect(() => {
         refreshConfig()
@@ -593,6 +629,8 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 updateCardZone,
                 moveCardOrder,
                 toggleZoneVisibility,
+                toggleCardVisibility,
+                resetMonitoringConfig,
             }}
         >
             {children}

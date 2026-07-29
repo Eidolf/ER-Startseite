@@ -4,20 +4,21 @@ import { RadialGaugeWidget } from '../widgets/RadialGaugeWidget'
 import { LiveTrafficGraphWidget } from '../widgets/LiveTrafficGraphWidget'
 import { StatusBeaconWidget } from '../widgets/StatusBeaconWidget'
 import { MetricCardWidget } from '../widgets/MetricCardWidget'
-import { Trash, Plus, ChevronUp, ChevronDown, FolderInput } from 'lucide-react'
+import { Trash, Plus, ChevronUp, ChevronDown, FolderInput, Eye, EyeOff } from 'lucide-react'
 
 interface MonitoringZoneGridProps {
     onOpenImport: () => void
 }
 
 export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenImport }) => {
-    const { config, activeZoneId, entities, isEditMode, deleteCard, updateCardZone, moveCardOrder } = useMonitoring()
+    const { config, activeZoneId, entities, isEditMode, deleteCard, updateCardZone, moveCardOrder, toggleCardVisibility } = useMonitoring()
 
     if (!config) return null
 
     const zoneCards = config.cards.filter((c) => {
         const zId = c.zone_id || c.zoneId || 'network'
-        return zId === activeZoneId || activeZoneId === 'overview'
+        const matchesZone = zId === activeZoneId || activeZoneId === 'overview'
+        return matchesZone && (isEditMode || !c.hidden)
     })
     const count = zoneCards.length
 
@@ -100,6 +101,14 @@ export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenIm
                                             title="Move Right / Down"
                                         >
                                             <ChevronDown className="w-3.5 h-3.5" />
+                                        </button>
+
+                                        <button
+                                            onClick={() => toggleCardVisibility(card.id)}
+                                            className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-white transition"
+                                            title={card.hidden ? 'Karte einblenden' : 'Karte ausblenden'}
+                                        >
+                                            {card.hidden ? <EyeOff className="w-3.5 h-3.5 text-red-400" /> : <Eye className="w-3.5 h-3.5 text-emerald-400" />}
                                         </button>
 
                                         <button

@@ -33,6 +33,7 @@ class MonitoringCard(BaseMonitoringModel):
     y: int = 0
     w: int = 1
     h: int = 1
+    hidden: bool = False
     settings: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -40,6 +41,7 @@ class MonitoringZone(BaseMonitoringModel):
     id: str
     name: str
     icon: str = "Activity"
+    hidden: bool = False
 
 
 class MonitoringProviderConfig(BaseMonitoringModel):

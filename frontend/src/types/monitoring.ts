@@ -30,6 +30,7 @@ export interface MonitoringCard {
     y?: number
     w?: number
     h?: number
+    hidden?: boolean
     settings?: Record<string, unknown>
 }
 

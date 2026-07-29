@@ -20,6 +20,7 @@ import {
     Sparkles,
     Eye,
     EyeOff,
+    RotateCcw,
 } from 'lucide-react'
 import { OverlayWidthPercent } from '../../types/monitoring'
 
@@ -47,6 +48,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
         clearPairingCode,
         toggleDemoMode,
         toggleZoneVisibility,
+        resetMonitoringConfig,
         refreshConfig,
     } = useMonitoring()
 
@@ -218,6 +220,22 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                     {effectiveEditMode ? <Check className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
                                     <span>{effectiveEditMode ? 'Done' : 'Edit Layout'}</span>
                                 </button>
+
+                                {effectiveEditMode && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            if (window.confirm('Möchtest du wirklich alle hinterlegten Varco-Tokens und Monitoring-Karten zurücksetzen, um ganz frisch anzufangen?')) {
+                                                resetMonitoringConfig()
+                                            }
+                                        }}
+                                        className="h-8 px-3 rounded-xl bg-red-500/20 hover:bg-red-500 hover:text-white text-red-400 border border-red-500/50 text-xs font-mono font-bold transition flex items-center gap-1.5 shadow-[0_0_10px_rgba(239,68,68,0.2)]"
+                                        title="Tokens & Integrationen zurücksetzen"
+                                    >
+                                        <RotateCcw className="w-3.5 h-3.5" />
+                                        <span>Reset</span>
+                                    </button>
+                                )}
                             </div>
                         </div>
 

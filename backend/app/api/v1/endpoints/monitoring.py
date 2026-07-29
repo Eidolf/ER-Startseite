@@ -35,6 +35,36 @@ async def update_monitoring_config(config: MonitoringConfig) -> MonitoringConfig
     return config
 
 
+@router.delete("/reset", response_model=MonitoringConfig)
+async def reset_monitoring_config() -> MonitoringConfig:
+    repo = MonitoringRepository()
+    default_config = MonitoringConfig(
+        enabled=True,
+        demo_mode=False,
+        demoMode=False,
+        public_relay_enabled=True,
+        publicRelayEnabled=True,
+        cards=[],
+        entities=[],
+        zones=[
+            {"id": "overview", "name": "System Overview", "hidden": False},
+            {"id": "network", "name": "Network & Bandwidth", "hidden": False},
+            {"id": "hardware", "name": "Hardware Metrics", "hidden": False},
+        ],
+        providers=[
+            MonitoringProviderConfig(
+                id="provider-varco-default",
+                name="Varco Bridge (Home Assistant)",
+                type="varco",
+                enabled=True,
+                import_enabled=True,
+            ),
+        ],
+    )
+    await repo.save_config(default_config)
+    return default_config
+
+
 @router.get("/health")
 async def get_monitoring_health() -> dict[str, Any]:
     repo = MonitoringRepository()
