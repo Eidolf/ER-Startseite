@@ -17,14 +17,16 @@ export const LiveTrafficGraphWidget: React.FC<LiveTrafficGraphWidgetProps> = ({
     const displayVal = isNumeric && !isNaN(rawValue) ? rawValue.toFixed(1) : (entity?.state !== undefined && entity?.state !== null && String(entity.state) !== 'NaN' ? String(entity.state) : 'N/A')
     const unit = entity?.unit_of_measurement || 'Mbit/s'
     const isUpload = title.toLowerCase().includes('upload')
+    const isPing = title.toLowerCase().includes('ping') || title.toLowerCase().includes('latency')
 
-    const [history, setHistory] = useState<number[]>([12, 18, 25, 40, 35, 50, 48, 62, 75, 80, rawValue])
+    const [history, setHistory] = useState<number[]>(() => [0, 0, 0, 0, 0, 0, 0, 0, 0, rawValue])
 
     useEffect(() => {
         setHistory((prev) => [...prev.slice(1), rawValue])
     }, [rawValue])
 
-    const maxVal = Math.max(...history, 100)
+    const initialMax = isPing ? 100 : 1
+    const maxVal = Math.max(...history, rawValue, initialMax)
     const points = history
         .map((val, idx) => {
             const x = (idx / (history.length - 1)) * 260

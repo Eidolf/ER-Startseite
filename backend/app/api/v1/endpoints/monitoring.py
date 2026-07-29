@@ -262,10 +262,36 @@ async def import_url(payload: VarcoManifestImportPayload) -> MonitoringConfig:
                 raise HTTPException(status_code=400, detail=f"Failed to fetch Varco share URL: HTTP {resp.status_code}")
 
             ct = resp.headers.get("content-type", "").lower()
-            if "application/json" in ct:
-                manifest_data = resp.json()
+            body_str = resp.text
+            card_pattern = r'data-entity="([^"]+)".*?<span class="varco-card__state">([^<]+)</span>'
+            card_matches = re.findall(card_pattern, body_str, re.DOTALL)
+
+            if card_matches:
+                extracted_entities = []
+                for ent_id, raw_st in card_matches:
+                    ent_id = ent_id.strip()
+                    raw_st = raw_st.strip()
+                    parts = raw_st.split()
+                    val: Any = parts[0] if parts else raw_st
+                    unit = parts[1] if len(parts) > 1 else None
+                    try:
+                        val = float(val)
+                    except ValueError:
+                        pass
+                    extracted_entities.append({
+                        "id": ent_id,
+                        "name": ent_id.split(".")[-1].replace("_", " ").title(),
+                        "state": val,
+                        "unit": unit,
+                        "domain": "binary_sensor" if ent_id.startswith("binary_sensor.") else "sensor",
+                    })
+                manifest_data = {"entities": extracted_entities}
+            elif "application/json" in ct:
+                try:
+                    manifest_data = resp.json()
+                except Exception:
+                    brief_text = body_str
             else:
-                body_str = resp.text
                 try:
                     manifest_data = json.loads(body_str)
                 except Exception:

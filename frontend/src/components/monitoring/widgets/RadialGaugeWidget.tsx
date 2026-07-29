@@ -24,15 +24,36 @@ export const RadialGaugeWidget: React.FC<RadialGaugeWidgetProps> = ({
     const displayVal = isNumeric && !isNaN(value) ? value.toFixed(1) : (entity?.state !== undefined && entity?.state !== null && String(entity.state) !== 'NaN' ? String(entity.state) : 'N/A')
     const unit = entity?.unit_of_measurement || ''
 
+    const isPing = title.toLowerCase().includes('ping') || title.toLowerCase().includes('latency')
+
     // Status color
     let strokeColor = '#00f3ff' // Cyan (normal)
     let glowColor = 'rgba(0, 243, 255, 0.4)'
-    if (percentage > 80) {
-        strokeColor = '#ef4444' // Red (critical)
-        glowColor = 'rgba(239, 68, 68, 0.5)'
-    } else if (percentage > 50) {
-        strokeColor = '#f59e0b' // Amber (warning)
-        glowColor = 'rgba(245, 158, 11, 0.5)'
+
+    if (isPing) {
+        // Ping/Latency: lower value is better!
+        if (safeVal > 80) {
+            strokeColor = '#ef4444' // Red (high latency > 80ms)
+            glowColor = 'rgba(239, 68, 68, 0.5)'
+        } else if (safeVal > 40) {
+            strokeColor = '#f59e0b' // Amber (medium latency 40-80ms)
+            glowColor = 'rgba(245, 158, 11, 0.5)'
+        } else {
+            strokeColor = '#00ff9d' // Green (excellent low latency < 40ms)
+            glowColor = 'rgba(0, 255, 157, 0.4)'
+        }
+    } else {
+        // Bandwidth/Throughput: higher value is better
+        if (percentage > 80) {
+            strokeColor = '#00ff9d' // Green (high bandwidth)
+            glowColor = 'rgba(0, 255, 157, 0.4)'
+        } else if (percentage > 20) {
+            strokeColor = '#00f3ff' // Cyan (normal)
+            glowColor = 'rgba(0, 243, 255, 0.4)'
+        } else {
+            strokeColor = '#f59e0b' // Amber (low)
+            glowColor = 'rgba(245, 158, 11, 0.5)'
+        }
     }
 
     const radius = 38
