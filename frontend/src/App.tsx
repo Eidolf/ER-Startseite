@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { AppIcon } from './components/AppIcon'
 import { AnimatedLogo } from './components/AnimatedLogo'
-import { Plus, Search, Settings, LayoutGrid, X, Trash, EyeOff, Folder, Pencil, PlusCircle, UserCheck, ArrowUpFromLine } from 'lucide-react'
+import { Plus, Search, Settings, LayoutGrid, X, Trash, EyeOff, Folder, Pencil, PlusCircle, UserCheck, ArrowUpFromLine, Radio } from 'lucide-react'
 import { SettingsModal } from './components/SettingsModal'
 import { AppDetailsModal } from './components/AppDetailsModal'
 import { LayoutMenu } from './components/LayoutMenu'
@@ -20,6 +20,8 @@ import { CalendarWidget } from './components/widgets/CalendarWidget'
 import { VacationWidget } from './components/widgets/VacationWidget'
 import { WidgetContextModal } from './components/WidgetContextModal'
 import { FreeCanvasBoard } from './components/FreeCanvasBoard'
+import { MonitoringProvider, useMonitoring } from './components/monitoring/MonitoringContext'
+import { MonitoringOverlay } from './components/monitoring/MonitoringOverlay'
 
 interface SortableAppTileProps {
     app: AppData
@@ -321,7 +323,20 @@ function NoteWidgetTile({ text, useAppDesign = false }: { text?: string; useAppD
     )
 }
 
-function App() {
+function AppContent() {
+    const { setIsOpen: setIsMonitoringOpen } = useMonitoring()
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'm') {
+                e.preventDefault()
+                setIsMonitoringOpen(prev => !prev)
+            }
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [setIsMonitoringOpen])
+
     // Auth State (Managed below)
 
     // Load defaults initially
@@ -1747,6 +1762,7 @@ function App() {
                     onToggleShowHidden={() => handleProtectedAction('show_hidden')}
                     clickToResetView={logoConfig.clickToResetView !== false}
                     onToggleClickToResetView={() => setLogoConfig(prev => ({ ...prev, clickToResetView: prev.clickToResetView === false }))}
+                    onOpenMonitoring={() => setIsMonitoringOpen(true)}
                 />
             )}
 
@@ -1887,6 +1903,13 @@ function App() {
                 {/* Right: Settings Icons */}
                 <div className="absolute top-2 right-2 flex gap-2 pointer-events-auto items-center">
                     <button
+                        onClick={() => setIsMonitoringOpen(true)}
+                        className="p-2 rounded-full glass-panel hover:bg-white/10 transition shadow-[0_0_12px_rgba(0,243,255,0.3)]"
+                        title="Monitoring Bridge (Ctrl+Shift+M)"
+                    >
+                        <Radio className="w-5 h-5 text-neon-cyan animate-pulse" />
+                    </button>
+                    <button
                         onClick={() => handleProtectedAction('add_app')}
                         className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
                         title="Add App"
@@ -1946,6 +1969,13 @@ function App() {
 
                 {/* Right: Settings Buttons */}
                 <div className="flex gap-4 pointer-events-auto w-40 justify-end p-2">
+                    <button
+                        onClick={() => setIsMonitoringOpen(true)}
+                        className="p-2 rounded-full glass-panel hover:bg-white/10 transition shadow-[0_0_15px_rgba(0,243,255,0.3)]"
+                        title="Monitoring Bridge (Ctrl+Shift+M)"
+                    >
+                        <Radio className="w-6 h-6 text-neon-cyan animate-pulse" />
+                    </button>
                     <button
                         onClick={() => handleProtectedAction('add_app')}
                         className="p-2 rounded-full glass-panel hover:bg-white/10 transition"
@@ -2112,5 +2142,11 @@ function FolderModal({ folder, isOpen, onClose, onRequestAdd, isEditMode, onDele
     )
 }
 
-
-export default App
+export default function App() {
+    return (
+        <MonitoringProvider>
+            <AppContent />
+            <MonitoringOverlay />
+        </MonitoringProvider>
+    )
+}

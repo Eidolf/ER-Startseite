@@ -1,4 +1,4 @@
-import { LayoutGrid, List, Check, Move, Folder, Eye, EyeOff, RotateCcw } from 'lucide-react'
+import { LayoutGrid, List, Check, Move, Folder, Eye, EyeOff, RotateCcw, Radio } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { LayoutMode } from '../types'
 
@@ -11,6 +11,7 @@ interface LayoutMenuProps {
     onToggleShowHidden: () => void
     clickToResetView?: boolean
     onToggleClickToResetView?: () => void
+    onOpenMonitoring?: () => void
     isOpen: boolean
     onClose: () => void
 }
@@ -24,6 +25,7 @@ export function LayoutMenu({
     onToggleShowHidden,
     clickToResetView = true,
     onToggleClickToResetView,
+    onOpenMonitoring,
     isOpen,
     onClose
 }: LayoutMenuProps) {
@@ -116,6 +118,19 @@ export function LayoutMenu({
                                     }`}
                                 />
                             </div>
+                        </button>
+                    )}
+
+                    {onOpenMonitoring && (
+                        <button
+                            onClick={() => {
+                                onOpenMonitoring()
+                                onClose()
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors hover:bg-neon-cyan/20 text-neon-cyan"
+                        >
+                            <Radio className="w-4 h-4 text-neon-cyan animate-pulse" />
+                            <span className="flex-1 text-left text-xs font-bold uppercase tracking-wider">Monitoring Bridge</span>
                         </button>
                     )}
 

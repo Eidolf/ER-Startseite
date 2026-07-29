@@ -126,3 +126,81 @@ class ConfigRepository:
             iconConfig=IconConfig(**DEFAULT_ICON_CONFIG),  # type: ignore[arg-type]
             layoutConfig=LayoutConfig(**DEFAULT_LAYOUT_CONFIG),  # type: ignore[arg-type]
         )
+
+
+class MonitoringRepository:
+    def __init__(self):
+        self._file_path = Path(os.path.join(settings.DATA_DIR, "monitoring.json"))
+
+    async def _ensure_dir(self):
+        parent = self._file_path.parent
+        if not await parent.exists():
+            await parent.mkdir(parents=True, exist_ok=True)
+
+    async def get_config(self):
+        from app.schemas.monitoring import MonitoringConfig
+        await self._ensure_dir()
+
+        if await self._file_path.exists():
+            try:
+                content = await self._file_path.read_text(encoding="utf-8")
+                return MonitoringConfig.model_validate_json(content)
+            except Exception:
+                pass
+
+        return self._get_default()
+
+    async def save_config(self, config: "MonitoringConfig"):
+        await self._ensure_dir()
+        content = config.model_dump_json(indent=2)
+        await self._file_path.write_text(content, encoding="utf-8")
+
+    def _get_default(self):
+        from app.schemas.monitoring import MonitoringConfig, MonitoringZone, MonitoringCard
+        return MonitoringConfig(
+            zones=[
+                MonitoringZone(id="overview", name="Overview", icon="Activity"),
+                MonitoringZone(id="network", name="Network Operations", icon="Wifi"),
+                MonitoringZone(id="infrastructure", name="Infrastructure", icon="Server"),
+                MonitoringZone(id="smarthome", name="Smart Home", icon="Home"),
+                MonitoringZone(id="security", name="Security", icon="Shield"),
+                MonitoringZone(id="custom", name="Custom", icon="Sliders"),
+            ],
+            cards=[
+                MonitoringCard(
+                    id="card-download",
+                    title="Download Speed",
+                    card_type="live_traffic",
+                    entity_ids=["sensor.speedtest_download"],
+                    zone_id="network",
+                    x=0,
+                    y=0,
+                    w=2,
+                    h=2,
+                ),
+                MonitoringCard(
+                    id="card-upload",
+                    title="Upload Speed",
+                    card_type="live_traffic",
+                    entity_ids=["sensor.speedtest_upload"],
+                    zone_id="network",
+                    x=2,
+                    y=0,
+                    w=2,
+                    h=2,
+                ),
+                MonitoringCard(
+                    id="card-ping",
+                    title="Network Latency (Ping)",
+                    card_type="gauge",
+                    entity_ids=["sensor.speedtest_ping"],
+                    zone_id="network",
+                    x=4,
+                    y=0,
+                    w=2,
+                    h=2,
+                ),
+            ],
+            providers=[],
+        )
+
