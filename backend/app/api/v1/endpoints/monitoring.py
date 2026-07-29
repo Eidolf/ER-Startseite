@@ -213,12 +213,12 @@ def _parse_varco_manifest_and_brief(
             bridge_url = bridge_match.group(1).replace("wss://", "https://")
             provider_url = f"{bridge_url.rstrip('/')}/share/?authority={auth_id}"
 
-            varco_provider = next((p for p in config.providers if p.type == "varco"), None)
+            varco_provider = next((p for p in current_config.providers if p.type == "varco"), None)
             if varco_provider:
                 varco_provider.url = provider_url
                 varco_provider.enabled = True
             else:
-                config.providers.append(
+                current_config.providers.append(
                     MonitoringProviderConfig(
                         id="varco-main-provider",
                         name="Varco Bridge",
