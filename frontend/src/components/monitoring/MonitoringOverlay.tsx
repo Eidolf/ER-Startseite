@@ -41,6 +41,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
         isSystemOnline,
         isEditMode,
         setIsEditMode,
+        pairingCode,
         toggleDemoMode,
         refreshConfig,
     } = useMonitoring()
@@ -277,6 +278,29 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                     onClose={() => setIsImportModalOpen(false)}
                     onImportSuccess={() => refreshConfig()}
                 />
+
+                {/* Pairing Code Verification Overlay */}
+                {pairingCode && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+                        <div className="max-w-md w-full p-6 glass-panel rounded-2xl border-2 border-neon-cyan/80 shadow-[0_0_50px_rgba(0,243,255,0.4)] flex flex-col items-center text-center space-y-4">
+                            <div className="p-3 rounded-full bg-neon-cyan/20 border border-neon-cyan/50 animate-pulse">
+                                <Shield className="w-8 h-8 text-neon-cyan" />
+                            </div>
+                            <h3 className="text-lg font-black tracking-wider text-white uppercase">
+                                Home Assistant Varco Pairing Code
+                            </h3>
+                            <p className="text-xs text-gray-300 leading-relaxed">
+                                Bitte vergleiche und bestätige diesen Pairing-Code in deiner Home Assistant Varco Integration:
+                            </p>
+                            <div className="px-6 py-3 rounded-xl bg-black/90 border border-neon-cyan/60 text-4xl font-mono font-bold tracking-[0.3em] text-neon-cyan shadow-inner">
+                                {pairingCode}
+                            </div>
+                            <p className="text-[11px] text-gray-400 font-mono">
+                                Warte auf Freigabe in Home Assistant...
+                            </p>
+                        </div>
+                    </div>
+                )}
             </div>
         </AnimatePresence>
     )

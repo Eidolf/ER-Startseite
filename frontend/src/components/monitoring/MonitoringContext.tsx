@@ -19,6 +19,7 @@ interface MonitoringContextType {
     isSystemOnline: boolean
     isEditMode: boolean
     setIsEditMode: React.Dispatch<React.SetStateAction<boolean>>
+    pairingCode: string | null
     toggleEnabled: () => void
     toggleDemoMode: () => void
     refreshConfig: () => Promise<void>
@@ -98,6 +99,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const [config, setConfig] = useState<MonitoringConfig | null>(DEFAULT_CONFIG)
     const [isEditMode, setIsEditMode] = useState<boolean>(false)
     const [isSystemOnline, setIsSystemOnline] = useState<boolean>(true)
+    const [pairingCode, setPairingCode] = useState<string | null>(null)
 
     // Entity Live Simulation State
     const [entities, setEntities] = useState<Record<string, MonitoringEntity>>({
@@ -309,8 +311,19 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     const errMsg = connectErr?.message || String(connectErr)
                     if (errMsg.includes('No active grant')) {
                         if (typeof client.requestAccess === 'function') {
-                            await client.requestAccess().catch(() => {})
+                            const manifestPayload = {
+                                name: 'ER-Startseite Dashboard',
+                                version: '0.1.0',
+                                read_entities: requestedEntities,
+                                subscriptions: requestedEntities,
+                            }
+                            const access = await client.requestAccess(manifestPayload).catch(() => null)
+                            const pCode = access?.pairing_code || access?.pairingCode || access?.code
+                            if (pCode) {
+                                setPairingCode(String(pCode))
+                            }
                             await client.connect().catch(() => {})
+                            setPairingCode(null)
                         }
                     } else {
                         throw connectErr
@@ -486,6 +499,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 isSystemOnline,
                 isEditMode,
                 setIsEditMode,
+                pairingCode,
                 toggleEnabled,
                 toggleDemoMode,
                 refreshConfig,
