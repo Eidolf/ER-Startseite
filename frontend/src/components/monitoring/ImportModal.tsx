@@ -251,6 +251,14 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                     </div>
                 )}
 
+                {/* Home Assistant Permission Hint Alert */}
+                <div className="mb-4 p-3 rounded-xl bg-neon-cyan/10 border border-neon-cyan/30 flex items-start gap-2.5">
+                    <AlertCircle className="w-4 h-4 text-neon-cyan flex-shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-gray-200 leading-relaxed font-sans">
+                        <strong className="text-neon-cyan font-semibold">Wichtiger Hinweis:</strong> Nach dem Import sendet das Dashboard eine Berechtigungsanfrage an deine Home Assistant Varco Integration. Bitte wähle dort alle gewünschten Sensoren aus und bestätige den Zugriff.
+                    </p>
+                </div>
+
                 {/* URL Share Link Tab */}
                 {activeTab === 'url' && (
                     <div className="space-y-4">

@@ -276,11 +276,27 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     removeItem: (key: string) => localStorage.removeItem(prefix + key),
                 }
 
+                const cardEntityIds = (config?.cards || []).flatMap((c) => c.entity_ids || c.entityIds || [])
+                const requestedEntities = Array.from(
+                    new Set([
+                        'sensor.speedtest_download',
+                        'sensor.speedtest_upload',
+                        'sensor.speedtest_ping',
+                        ...(config?.entities || []).map((e) => e.id),
+                        ...cardEntityIds,
+                    ])
+                )
+
                 const client = createVarcoClient({
                     authorityId: params.authorityId,
                     bridgeUrl: params.bridgeUrl,
                     storage,
-                    manifest: { name: 'ER-Startseite Dashboard', version: '2.0' },
+                    manifest: {
+                        name: 'ER-Startseite Dashboard',
+                        version: '0.1.0',
+                        read_entities: requestedEntities,
+                        subscriptions: requestedEntities,
+                    },
                 })
 
                 if (params.claimSecret && typeof client.claimShare === 'function') {
@@ -304,7 +320,6 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 setIsSystemOnline(true)
 
                 const grant = await client.getGrantInfo()
-                const cardEntityIds = (config?.cards || []).flatMap((c) => c.entity_ids || c.entityIds || [])
                 const entityIds = Array.from(
                     new Set([
                         ...(grant?.manifest?.read_entities || []),
