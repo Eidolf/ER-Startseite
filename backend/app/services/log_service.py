@@ -15,7 +15,9 @@ _LEVEL_SEVERITY = {
 }
 
 
-def add_system_log(level: str, message: str, details: dict[str, Any] | None = None):
+def add_system_log(
+    level: str, message: str, details: dict[str, Any] | None = None
+) -> None:
     """Adds a log entry to the in-memory log buffer if logging is enabled."""
     if _SYSTEM_LOG_LEVEL == "OFF":
         return
@@ -52,16 +54,18 @@ def get_system_logs(min_level: str = "DEBUG", limit: int = 100) -> list[dict[str
     return result
 
 
-def clear_system_logs():
+def clear_system_logs() -> None:
     """Clears the log buffer."""
     _LOG_BUFFER.clear()
 
 
-def set_system_log_level(level: str):
-    """Sets the active system log level."""
+def set_system_log_level(level: str) -> bool:
+    """Sets the active system log level. Returns True if valid level, False otherwise."""
     global _SYSTEM_LOG_LEVEL
     if level.upper() in _LEVEL_SEVERITY:
         _SYSTEM_LOG_LEVEL = level.upper()
+        return True
+    return False
 
 
 def get_system_log_level() -> str:

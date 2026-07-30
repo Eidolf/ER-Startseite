@@ -4,6 +4,7 @@ import {
     MonitoringEntity,
     OverlayWidthPercent,
     MonitoringCard,
+    SYSTEM_ZONE_IDS,
 } from '../../types/monitoring'
 import { parseVarcoShareUrl } from '../../utils/varcoClient'
 import { MonitoringContext } from './MonitoringContextDefinition'
@@ -277,7 +278,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             const cleanName = name.trim()
             const zoneId = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '_') || `zone_${Date.now()}`
             if (config.zones.some((z) => z.id === zoneId)) {
-                alert('Eine Kategorie mit diesem Namen existiert bereits.')
+                alert('A category with this name already exists.')
                 return
             }
             const newZone = { id: zoneId, name: cleanName, icon, hidden: false }
@@ -294,9 +295,8 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const deleteZone = useCallback(
         (zoneId: string) => {
             if (!config) return
-            const systemZones = ['overview', 'network', 'infrastructure', 'smarthome', 'security']
-            if (systemZones.includes(zoneId)) {
-                alert('System-Kategorien können nicht gelöscht werden.')
+            if (SYSTEM_ZONE_IDS.includes(zoneId)) {
+                alert('System categories cannot be deleted.')
                 return
             }
             const updated: MonitoringConfig = {

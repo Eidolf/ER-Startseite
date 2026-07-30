@@ -41,6 +41,8 @@ export interface MonitoringZone {
     hidden?: boolean
 }
 
+export const SYSTEM_ZONE_IDS = ['overview', 'network', 'infrastructure', 'smarthome', 'security']
+
 export interface MonitoringProviderConfig {
     id: string
     name: string

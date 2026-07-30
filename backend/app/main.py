@@ -81,9 +81,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Startup: Initializing ER-Startseite Backend")
     get_project_version()
     start_varco_collector()
-    yield
-    logger.info("Shutdown: cleaning up resources")
-    stop_varco_collector()
+    try:
+        yield
+    finally:
+        logger.info("Shutdown: cleaning up resources")
+        await stop_varco_collector()
 
 
 app = FastAPI(

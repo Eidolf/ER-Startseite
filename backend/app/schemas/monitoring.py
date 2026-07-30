@@ -52,7 +52,7 @@ class MonitoringProviderConfig(BaseMonitoringModel):
     enabled: bool = False
     url: str | None = None
     api_key: str | None = Field(default=None, exclude=True)
-    polling_interval_seconds: int = 15
+    polling_interval_seconds: int = Field(default=15, ge=1)
     settings: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -60,7 +60,7 @@ class MonitoringConfig(BaseMonitoringModel):
     version: str = "1.0.0"
     enabled: bool = True
     demo_mode: bool = True
-    polling_interval_seconds: int = 15
+    polling_interval_seconds: int = Field(default=15, ge=1)
     zones: list[MonitoringZone] = Field(default_factory=list)
     cards: list[MonitoringCard] = Field(default_factory=list)
     entities: list[MonitoringEntity] = Field(default_factory=list)

@@ -55,10 +55,12 @@ function SystemLogsViewer() {
     }
 
     const clearLogs = async () => {
-        if (!window.confirm('System-Logs wirklich löschen?')) return
+        if (!window.confirm('Clear all system logs?')) return
         try {
-            await fetch('/api/v1/system/logs', { method: 'DELETE' })
-            setLogs([])
+            const res = await fetch('/api/v1/system/logs', { method: 'DELETE' })
+            if (res.ok) {
+                setLogs([])
+            }
         } catch {
             // ignore
         }
@@ -100,10 +102,10 @@ function SystemLogsViewer() {
                                 ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
                                 : 'bg-red-500/20 border-red-500/50 text-red-400'
                         }`}
-                        title="System & Collector Logging Ein/Ausschalten"
+                        title="Toggle System & Collector Logging"
                     >
                         <span className={`w-2 h-2 rounded-full ${isLoggingEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`} />
-                        <span>{isLoggingEnabled ? 'Logging: AN' : 'Logging: AUS'}</span>
+                        <span>{isLoggingEnabled ? 'Logging: ON' : 'Logging: OFF'}</span>
                     </button>
 
                     <select
@@ -132,7 +134,7 @@ function SystemLogsViewer() {
                         onClick={fetchLogs}
                         disabled={loading}
                         className="p-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-gray-300 transition"
-                        title="Jetzt aktualisieren"
+                        title="Refresh Now"
                     >
                         <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-neon-cyan' : ''}`} />
                     </button>
@@ -141,7 +143,7 @@ function SystemLogsViewer() {
                         type="button"
                         onClick={clearLogs}
                         className="p-1.5 rounded-lg bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 transition"
-                        title="Logs leeren"
+                        title="Clear Logs"
                     >
                         <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -150,7 +152,7 @@ function SystemLogsViewer() {
 
             <div className="h-96 overflow-y-auto custom-scrollbar p-3 rounded-xl bg-black/60 border border-white/10 font-mono text-xs space-y-2">
                 {logs.length === 0 ? (
-                    <div className="text-center py-16 text-gray-500">Keine Logs in der aktuellen Ansicht vorhanden...</div>
+                    <div className="text-center py-16 text-gray-500">No logs available in current view...</div>
                 ) : (
                     logs.map((entry, idx) => (
                         <div key={idx} className="p-2 rounded bg-white/[0.02] border border-white/5 space-y-1 hover:bg-white/[0.05] transition">
@@ -974,54 +976,61 @@ export function SettingsModal({
 
                                     {/* Custom Interval Input (Value + Unit) */}
                                     <div className="pt-2">
-                                        <label className="block text-xs font-medium text-gray-400 mb-1.5">Benutzerdefiniertes Intervall (Custom)</label>
+                                        <label className="block text-xs font-medium text-gray-400 mb-1.5">Custom Refresh Interval</label>
                                         <div className="flex items-center gap-2">
-                                            <input
-                                                type="number"
-                                                min={5}
-                                                max={86400}
-                                                value={(() => {
-                                                    const totalSec = monitoringConfig?.polling_interval_seconds || monitoringConfig?.pollingIntervalSeconds || 15
-                                                    if (totalSec >= 3600 && totalSec % 3600 === 0) return totalSec / 3600
-                                                    if (totalSec >= 60 && totalSec % 60 === 0) return totalSec / 60
-                                                    return totalSec
-                                                })()}
-                                                onChange={(e) => {
-                                                    const num = parseInt(e.target.value, 10) || 5
-                                                    const totalSec = monitoringConfig?.polling_interval_seconds || monitoringConfig?.pollingIntervalSeconds || 15
-                                                    let unitMultiplier = 1
-                                                    if (totalSec >= 3600 && totalSec % 3600 === 0) unitMultiplier = 3600
-                                                    else if (totalSec >= 60 && totalSec % 60 === 0) unitMultiplier = 60
-                                                    updateMonitoringPollingInterval(num * unitMultiplier)
-                                                }}
-                                                className="w-32 px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm font-mono focus:outline-none focus:border-neon-cyan"
-                                            />
-                                            <select
-                                                value={(() => {
-                                                    const totalSec = monitoringConfig?.polling_interval_seconds || monitoringConfig?.pollingIntervalSeconds || 15
-                                                    if (totalSec >= 3600 && totalSec % 3600 === 0) return 'hours'
-                                                    if (totalSec >= 60 && totalSec % 60 === 0) return 'minutes'
-                                                    return 'seconds'
-                                                })()}
-                                                onChange={(e) => {
-                                                    const totalSec = monitoringConfig?.polling_interval_seconds || monitoringConfig?.pollingIntervalSeconds || 15
-                                                    let currentNum = totalSec
-                                                    if (totalSec >= 3600 && totalSec % 3600 === 0) currentNum = totalSec / 3600
-                                                    else if (totalSec >= 60 && totalSec % 60 === 0) currentNum = totalSec / 60
+                                            {(() => {
+                                                const totalSec = monitoringConfig?.polling_interval_seconds || monitoringConfig?.pollingIntervalSeconds || 15
+                                                let unit: 'seconds' | 'minutes' | 'hours' = 'seconds'
+                                                let value = totalSec
+                                                let minVal = 5
+                                                let maxVal = 86400
 
-                                                    const unit = e.target.value
-                                                    let mult = 1
-                                                    if (unit === 'hours') mult = 3600
-                                                    else if (unit === 'minutes') mult = 60
+                                                if (totalSec >= 3600 && totalSec % 3600 === 0) {
+                                                    unit = 'hours'
+                                                    value = totalSec / 3600
+                                                    minVal = 1
+                                                    maxVal = 24
+                                                } else if (totalSec >= 60 && totalSec % 60 === 0) {
+                                                    unit = 'minutes'
+                                                    value = totalSec / 60
+                                                    minVal = 1
+                                                    maxVal = 1440
+                                                }
 
-                                                    updateMonitoringPollingInterval(currentNum * mult)
-                                                }}
-                                                className="px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm font-mono focus:outline-none focus:border-neon-cyan cursor-pointer"
-                                            >
-                                                <option value="seconds" className="bg-gray-900 text-white">Sekunden (Seconds)</option>
-                                                <option value="minutes" className="bg-gray-900 text-white">Minuten (Minutes)</option>
-                                                <option value="hours" className="bg-gray-900 text-white">Stunden (Hours)</option>
-                                            </select>
+                                                return (
+                                                    <>
+                                                        <input
+                                                            type="number"
+                                                            min={minVal}
+                                                            max={maxVal}
+                                                            value={value}
+                                                            onChange={(e) => {
+                                                                const num = Math.min(Math.max(parseInt(e.target.value, 10) || minVal, minVal), maxVal)
+                                                                let multiplier = 1
+                                                                if (unit === 'hours') multiplier = 3600
+                                                                else if (unit === 'minutes') multiplier = 60
+                                                                updateMonitoringPollingInterval(num * multiplier)
+                                                            }}
+                                                            className="w-32 px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm font-mono focus:outline-none focus:border-neon-cyan"
+                                                        />
+                                                        <select
+                                                            value={unit}
+                                                            onChange={(e) => {
+                                                                const newUnit = e.target.value
+                                                                let multiplier = 1
+                                                                if (newUnit === 'hours') multiplier = 3600
+                                                                else if (newUnit === 'minutes') multiplier = 60
+                                                                updateMonitoringPollingInterval(value * multiplier)
+                                                            }}
+                                                            className="px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-gray-300 text-sm font-mono focus:outline-none focus:border-neon-cyan"
+                                                        >
+                                                            <option value="seconds">Seconds (Sekunden)</option>
+                                                            <option value="minutes">Minutes (Minuten)</option>
+                                                            <option value="hours">Hours (Stunden)</option>
+                                                        </select>
+                                                    </>
+                                                )
+                                            })()}
                                         </div>
                                     </div>
 

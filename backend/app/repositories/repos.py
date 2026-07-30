@@ -1,3 +1,4 @@
+import asyncio
 import os
 from typing import TYPE_CHECKING
 
@@ -133,8 +134,14 @@ class ConfigRepository:
 
 
 class MonitoringRepository:
+    _lock = asyncio.Lock()
+
     def __init__(self):
         self._file_path = Path(os.path.join(settings.DATA_DIR, "monitoring.json"))
+
+    @property
+    def lock(self) -> asyncio.Lock:
+        return self._lock
 
     async def _ensure_dir(self):
         parent = self._file_path.parent

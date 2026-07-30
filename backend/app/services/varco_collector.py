@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import datetime
+import ipaddress
 import json
 import re
 import urllib.parse
@@ -17,6 +18,39 @@ logger = structlog.get_logger()
 
 _collector_task: asyncio.Task[None] | None = None
 _stop_event: asyncio.Event = asyncio.Event()
+
+
+def _is_safe_url(url_str: str) -> bool:
+    """Validates that a URL uses http/https scheme and targets a public IP/hostname."""
+    try:
+        parsed = urllib.parse.urlparse(url_str)
+        if parsed.scheme not in ("http", "https"):
+            return False
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+
+        # Prevent loopback, private, or link-local targets
+        if hostname.lower() in ("localhost", "127.0.0.1", "::1", "0.0.0.0"):
+            return False
+
+        try:
+            ip = ipaddress.ip_address(hostname)
+            if (
+                ip.is_private
+                or ip.is_loopback
+                or ip.is_link_local
+                or ip.is_multicast
+                or ip.is_reserved
+            ):
+                return False
+        except ValueError:
+            # Hostname is a domain name, allowed
+            pass
+
+        return True
+    except Exception:
+        return False
 
 
 def _parse_url_params(
@@ -65,14 +99,17 @@ def _parse_url_params(
             )
             if b_url:
                 bridge_url = b_url
-        except Exception:
-            pass
+        except Exception as parse_err:
+            logger.debug(
+                "URL parsing exception in _parse_url_params", exc_info=parse_err
+            )
 
     if not bridge_url and url:
         try:
             p = urllib.parse.urlparse(url)
             bridge_url = f"{p.scheme}://{p.netloc}"
-        except Exception:
+        except Exception as parse_err:
+            logger.debug("Bridge URL fallback parsing exception", exc_info=parse_err)
             bridge_url = "https://varco-bridge.andreabaccega.com"
 
     return share_code, authority_id, claim_secret, bridge_url
@@ -86,7 +123,6 @@ async def _fetch_varco_data(
     share_code, authority_id, claim_secret, bridge_url = _parse_url_params(
         clean_url, settings_dict
     )
-
     extracted_entities: list[dict[str, Any]] = []
 
     add_system_log(
@@ -101,7 +137,7 @@ async def _fetch_varco_data(
     )
 
     # 1. Direct Varco Bridge HTTP/JSON endpoint query
-    if bridge_url and authority_id and share_code:
+    if bridge_url and authority_id and share_code and _is_safe_url(bridge_url):
         try:
             base_b_url = (
                 bridge_url.replace("wss://", "https://")
@@ -111,93 +147,113 @@ async def _fetch_varco_data(
             api_endpoint = (
                 f"{base_b_url}/api/v1/share/{authority_id}/{share_code}/states"
             )
-            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-                resp = await client.get(api_endpoint)
-                add_system_log(
-                    "INFO" if resp.status_code == 200 else "WARNING",
-                    f"Varco Bridge API response HTTP {resp.status_code}",
-                    {"endpoint": api_endpoint, "status": resp.status_code},
-                )
-                if resp.status_code == 200:
-                    text_body = resp.text.strip()
-                    if text_body.startswith("{") or text_body.startswith("["):
-                        try:
-                            data = resp.json()
+            if _is_safe_url(api_endpoint):
+                async with httpx.AsyncClient(
+                    timeout=10.0, follow_redirects=False
+                ) as client:
+                    resp = await client.get(api_endpoint)
+                    add_system_log(
+                        "INFO" if resp.status_code == 200 else "WARNING",
+                        f"Varco Bridge API response HTTP {resp.status_code}",
+                        {"endpoint": api_endpoint, "status": resp.status_code},
+                    )
+                    if resp.status_code == 200:
+                        text_body = resp.text.strip()
+                        if text_body.startswith("{") or text_body.startswith("["):
+                            try:
+                                data = resp.json()
+                                add_system_log(
+                                    "DEBUG",
+                                    "Varco Bridge raw JSON data payload",
+                                    {
+                                        "keys": (
+                                            list(data.keys())
+                                            if isinstance(data, dict)
+                                            else []
+                                        ),
+                                        "sample": str(data)[:300],
+                                    },
+                                )
+                                states_dict: dict[str, Any] = {}
+                                if isinstance(data, dict):
+                                    raw_states = data.get("states")
+                                    if isinstance(raw_states, dict):
+                                        states_dict = raw_states
+                                    elif isinstance(raw_states, list):
+                                        for ent in raw_states:
+                                            if (
+                                                isinstance(ent, dict)
+                                                and "entity_id" in ent
+                                            ):
+                                                states_dict[ent["entity_id"]] = ent
+                                    elif not raw_states:
+                                        states_dict = data
+                                elif isinstance(data, list):
+                                    for ent in data:
+                                        if isinstance(ent, dict) and "entity_id" in ent:
+                                            states_dict[ent["entity_id"]] = ent
+                                for eid, ent_data in states_dict.items():
+                                    if ent_data:
+                                        val_state = (
+                                            ent_data.get("state")
+                                            if isinstance(ent_data, dict)
+                                            else ent_data
+                                        )
+                                        unit = (
+                                            ent_data.get("attributes", {}).get(
+                                                "unit_of_measurement"
+                                            )
+                                            if isinstance(ent_data, dict)
+                                            else None
+                                        )
+                                        name = (
+                                            ent_data.get("attributes", {}).get(
+                                                "friendly_name"
+                                            )
+                                            if isinstance(ent_data, dict)
+                                            else None
+                                        ) or eid.split(".")[-1].replace(
+                                            "_", " "
+                                        ).title()
+                                        extracted_entities.append(
+                                            {
+                                                "id": str(eid),
+                                                "name": str(name),
+                                                "state": (
+                                                    val_state
+                                                    if val_state is not None
+                                                    else "N/A"
+                                                ),
+                                                "unit": str(unit) if unit else None,
+                                                "domain": (
+                                                    "binary_sensor"
+                                                    if str(eid).startswith(
+                                                        "binary_sensor."
+                                                    )
+                                                    else "sensor"
+                                                ),
+                                            }
+                                        )
+                            except Exception as json_err:
+                                logger.debug(
+                                    "Varco Bridge HTTP response JSON parse info",
+                                    error=str(json_err),
+                                )
+                        else:
                             add_system_log(
                                 "DEBUG",
-                                "Varco Bridge raw JSON data payload",
-                                {
-                                    "keys": (
-                                        list(data.keys())
-                                        if isinstance(data, dict)
-                                        else []
-                                    ),
-                                    "sample": str(data)[:300],
-                                },
+                                "Varco Opaque Bridge response (WebSocket authentication required)",
+                                {"body": text_body[:100]},
                             )
-                            states_dict: dict[str, Any] = {}
-                            if isinstance(data, dict):
-                                raw_states = data.get("states")
-                                if isinstance(raw_states, dict):
-                                    states_dict = raw_states
-                                elif not raw_states:
-                                    states_dict = data
-                            for eid, ent_data in states_dict.items():
-                                if ent_data:
-                                    val_state = (
-                                        ent_data.get("state")
-                                        if isinstance(ent_data, dict)
-                                        else ent_data
-                                    )
-                                    unit = (
-                                        ent_data.get("attributes", {}).get(
-                                            "unit_of_measurement"
-                                        )
-                                        if isinstance(ent_data, dict)
-                                        else None
-                                    )
-                                    name = (
-                                        ent_data.get("attributes", {}).get(
-                                            "friendly_name"
-                                        )
-                                        if isinstance(ent_data, dict)
-                                        else None
-                                    ) or eid.split(".")[-1].replace("_", " ").title()
-                                    extracted_entities.append(
-                                        {
-                                            "id": str(eid),
-                                            "name": str(name),
-                                            "state": (
-                                                val_state
-                                                if val_state is not None
-                                                else "N/A"
-                                            ),
-                                            "unit": str(unit) if unit else None,
-                                            "domain": (
-                                                "binary_sensor"
-                                                if str(eid).startswith("binary_sensor.")
-                                                else "sensor"
-                                            ),
-                                        }
-                                    )
-                        except Exception as json_err:
-                            logger.debug(
-                                "Varco Bridge HTTP response JSON parse info",
-                                error=str(json_err),
-                            )
-                    else:
-                        add_system_log(
-                            "DEBUG",
-                            "Varco Opaque Bridge response (WebSocket authentication required)",
-                            {"body": text_body[:100]},
-                        )
         except Exception as e:
             logger.debug("Varco Bridge API endpoint query info", error=str(e))
 
     # 2. Try HTML section parsing from share URL as fallback
-    if not extracted_entities and clean_url:
+    if not extracted_entities and clean_url and _is_safe_url(clean_url):
         try:
-            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            async with httpx.AsyncClient(
+                timeout=10.0, follow_redirects=False
+            ) as client:
                 resp = await client.get(clean_url)
                 if resp.status_code == 200:
                     body_str = resp.text
@@ -211,21 +267,30 @@ async def _fetch_varco_data(
                             st_match = re.search(
                                 r'class="varco-card__state">([^<]+)</span>', sec_body
                             )
+                            name_match = re.search(
+                                r'class="varco-card__title">([^<]+)</div>', sec_body
+                            )
+                            unit_match = re.search(
+                                r'class="varco-card__unit">([^<]+)</span>', sec_body
+                            )
+
                             if st_match:
-                                raw_st = st_match.group(1).strip()
-                                parts = raw_st.split()
-                                html_val: Any = parts[0] if parts else raw_st
-                                unit = parts[1] if len(parts) > 1 else None
-                                with contextlib.suppress(ValueError):
-                                    html_val = float(html_val)
                                 extracted_entities.append(
                                     {
                                         "id": ent_id,
-                                        "name": ent_id.split(".")[-1]
-                                        .replace("_", " ")
-                                        .title(),
-                                        "state": html_val,
-                                        "unit": unit,
+                                        "name": (
+                                            name_match.group(1).strip()
+                                            if name_match
+                                            else ent_id.split(".")[-1]
+                                            .replace("_", " ")
+                                            .title()
+                                        ),
+                                        "state": st_match.group(1).strip(),
+                                        "unit": (
+                                            unit_match.group(1).strip()
+                                            if unit_match
+                                            else None
+                                        ),
                                         "domain": (
                                             "binary_sensor"
                                             if ent_id.startswith("binary_sensor.")
@@ -233,84 +298,65 @@ async def _fetch_varco_data(
                                         ),
                                     }
                                 )
-                    else:
-                        try:
-                            data = json.loads(body_str)
-                            raw_items: list[Any] = []
-                            if isinstance(data, dict):
-                                m = (
-                                    data.get("grant", {}).get("manifest")
-                                    if isinstance(data.get("grant"), dict)
-                                    else data.get("manifest") or data
+                    # Fallback JSON blob match inside script tags or data attributes
+                    if not extracted_entities:
+                        json_match = re.search(
+                            r'id="__VARCO_DATA__"[^>]*>(.*?)</script>',
+                            body_str,
+                            re.DOTALL,
+                        )
+                        if json_match:
+                            try:
+                                json_data = json.loads(json_match.group(1))
+                                if isinstance(json_data, list):
+                                    for item in json_data:
+                                        if isinstance(item, dict) and "id" in item:
+                                            st = item.get("state")
+                                            u = item.get(
+                                                "unit_of_measurement"
+                                            ) or item.get("unit")
+                                            extracted_entities.append(
+                                                {
+                                                    "id": str(item["id"]),
+                                                    "name": str(
+                                                        item.get("name")
+                                                        or item["id"]
+                                                        .split(".")[-1]
+                                                        .replace("_", " ")
+                                                        .title()
+                                                    ),
+                                                    "state": (
+                                                        st if st is not None else "N/A"
+                                                    ),
+                                                    "unit": str(u) if u else None,
+                                                    "domain": (
+                                                        "binary_sensor"
+                                                        if str(item["id"]).startswith(
+                                                            "binary_sensor."
+                                                        )
+                                                        else "sensor"
+                                                    ),
+                                                }
+                                            )
+                            except Exception as json_parse_err:
+                                logger.debug(
+                                    "JSON blob parse error in share page fallback",
+                                    exc_info=json_parse_err,
                                 )
-                                if isinstance(m, dict):
-                                    for k in [
-                                        "read_entities",
-                                        "subscriptions",
-                                        "entities",
-                                        "states",
-                                        "data",
-                                    ]:
-                                        v = m.get(k)
-                                        if isinstance(v, list):
-                                            raw_items.extend(v)
-                                        elif isinstance(v, dict):
-                                            for sub_k, sub_v in v.items():
-                                                if isinstance(sub_v, dict):
-                                                    item = dict(sub_v)
-                                                    item["id"] = sub_k
-                                                    raw_items.append(item)
-                                                elif isinstance(
-                                                    sub_v, (str, int, float, bool)
-                                                ):
-                                                    raw_items.append(
-                                                        {"id": sub_k, "state": sub_v}
-                                                    )
-                            elif isinstance(data, list):
-                                raw_items = data
-
-                            for item in raw_items:
-                                if isinstance(item, dict) and "id" in item:
-                                    st = item.get("state")
-                                    u = item.get("unit_of_measurement") or item.get(
-                                        "unit"
-                                    )
-                                    extracted_entities.append(
-                                        {
-                                            "id": str(item["id"]),
-                                            "name": str(
-                                                item.get("name")
-                                                or item["id"]
-                                                .split(".")[-1]
-                                                .replace("_", " ")
-                                                .title()
-                                            ),
-                                            "state": st if st is not None else "N/A",
-                                            "unit": str(u) if u else None,
-                                            "domain": (
-                                                "binary_sensor"
-                                                if str(item["id"]).startswith(
-                                                    "binary_sensor."
-                                                )
-                                                else "sensor"
-                                            ),
-                                        }
-                                    )
-                        except Exception:
-                            pass
         except Exception as e:
             logger.debug("Varco share URL fallback query info", error=str(e))
 
     return extracted_entities
 
 
-async def _run_collector_loop():
+async def _run_collector_loop() -> None:
     logger.info("Varco Background Collector started")
     repo = MonitoringRepository()
 
     while not _stop_event.is_set():
         try:
-            config = await repo.get_config()
+            async with repo.lock:
+                config = await repo.get_config()
 
             if config.enabled:
                 varco_provider = next(
@@ -323,33 +369,40 @@ async def _run_collector_loop():
                         varco_provider.url or "", varco_provider.settings or {}
                     )
                     if collected:
-                        ent_map = {e.id: e for e in config.entities}
-                        iso_now = datetime.datetime.now(
-                            datetime.timezone.utc
-                        ).isoformat()
+                        async with repo.lock:
+                            fresh_config = await repo.get_config()
+                            ent_map = {e.id: e for e in fresh_config.entities}
+                            iso_now = datetime.datetime.now(
+                                datetime.timezone.utc
+                            ).isoformat()
 
-                        for c in collected:
-                            eid = c["id"]
-                            existing = ent_map.get(eid)
-                            ent_map[eid] = MonitoringEntity(
-                                id=eid,
-                                provider_id="varco-server",
-                                name=c.get("name")
-                                or (existing.name if existing else eid),
-                                domain=c.get("domain") or "sensor",
-                                value_type=(
-                                    "numeric"
-                                    if isinstance(c.get("state"), (int, float))
-                                    else "string"
-                                ),
-                                state=c.get("state", "N/A"),
-                                unit_of_measurement=c.get("unit")
-                                or (existing.unit_of_measurement if existing else None),
-                                last_updated=iso_now,
-                            )
+                            for c in collected:
+                                eid = c["id"]
+                                existing = ent_map.get(eid)
+                                ent_map[eid] = MonitoringEntity(
+                                    id=eid,
+                                    provider_id="varco-server",
+                                    name=c.get("name")
+                                    or (existing.name if existing else eid),
+                                    domain=c.get("domain") or "sensor",
+                                    value_type=(
+                                        "numeric"
+                                        if isinstance(c.get("state"), (int, float))
+                                        else "string"
+                                    ),
+                                    state=c.get("state", "N/A"),
+                                    unit_of_measurement=c.get("unit")
+                                    or (
+                                        existing.unit_of_measurement
+                                        if existing
+                                        else None
+                                    ),
+                                    last_updated=iso_now,
+                                )
 
-                        config.entities = list(ent_map.values())
-                        await repo.save_config(config)
+                            fresh_config.entities = list(ent_map.values())
+                            await repo.save_config(fresh_config)
+
                         add_system_log(
                             "INFO",
                             f"Varco Collector synced {len(collected)} entities to server config",
@@ -366,9 +419,8 @@ async def _run_collector_loop():
             # Determine interval (minimum 5s, maximum 86400s / 24h, default 15s)
             interval = 15
             if config.enabled:
-                varco_p = next((p for p in config.providers if p.type == "varco"), None)
-                if varco_p and varco_p.polling_interval_seconds:
-                    interval = varco_p.polling_interval_seconds
+                if varco_provider and varco_provider.polling_interval_seconds:
+                    interval = varco_provider.polling_interval_seconds
                 elif config.polling_interval_seconds:
                     interval = config.polling_interval_seconds
 
@@ -387,16 +439,18 @@ async def _run_collector_loop():
     logger.info("Varco Background Collector stopped")
 
 
-def start_varco_collector():
+def start_varco_collector() -> None:
     global _collector_task
     _stop_event.clear()
     if _collector_task is None or _collector_task.done():
         _collector_task = asyncio.create_task(_run_collector_loop())
 
 
-def stop_varco_collector():
+async def stop_varco_collector() -> None:
     global _collector_task
     _stop_event.set()
     if _collector_task and not _collector_task.done():
         _collector_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await _collector_task
     _collector_task = None

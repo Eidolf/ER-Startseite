@@ -18,11 +18,33 @@ export function parseVarcoShareUrl(rawUrl: string, settings?: Record<string, unk
             return searchParams.get(key) || hashParams.get(key) || fallback
         }
 
-        const authorityId = searchParamsGet('authority') || searchParamsGet('authority_id') || searchParamsGet('authorityId') || settings?.authorityId || settings?.authority_id || ''
-        const claimSecret = searchParamsGet('claim') || searchParamsGet('key') || settings?.claimSecret || ''
-        const bridgeUrl = searchParamsGet('bridge') || searchParamsGet('bridge_url') || settings?.bridgeUrl || settings?.bridge_url || urlObj.origin
+        function getStringSetting(key: string): string {
+            const val = settings?.[key]
+            return typeof val === 'string' ? val : ''
+        }
 
-        const finalShareCode = searchParamsGet('shareCode') || searchParamsGet('share_code') || (pathParts.length >= 2 && pathParts[0] === 'share' ? pathParts[1] : pathParts[0] || '') || settings?.shareCode || settings?.share_code || ''
+        const authorityId =
+            searchParamsGet('authority') ||
+            searchParamsGet('authority_id') ||
+            searchParamsGet('authorityId') ||
+            getStringSetting('authorityId') ||
+            getStringSetting('authority_id')
+
+        const claimSecret = searchParamsGet('claim') || searchParamsGet('key') || getStringSetting('claimSecret')
+
+        const bridgeUrl =
+            searchParamsGet('bridge') ||
+            searchParamsGet('bridge_url') ||
+            getStringSetting('bridgeUrl') ||
+            getStringSetting('bridge_url') ||
+            urlObj.origin
+
+        const finalShareCode =
+            searchParamsGet('shareCode') ||
+            searchParamsGet('share_code') ||
+            (pathParts.length >= 2 && pathParts[0] === 'share' ? pathParts[1] : pathParts[0] || '') ||
+            getStringSetting('shareCode') ||
+            getStringSetting('share_code')
 
         if (!finalShareCode || !authorityId) {
             return null

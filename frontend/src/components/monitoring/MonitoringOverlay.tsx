@@ -25,7 +25,7 @@ import {
     Trash2,
     X,
 } from 'lucide-react'
-import { OverlayWidthPercent } from '../../types/monitoring'
+import { OverlayWidthPercent, SYSTEM_ZONE_IDS } from '../../types/monitoring'
 
 interface MonitoringOverlayProps {
     isAuthenticated?: boolean
@@ -254,7 +254,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                 .map((zone) => {
                                     const isActive = activeZoneId === zone.id
                                     const isHidden = zone.hidden === true
-                                    const isSystemZone = ['overview', 'network', 'infrastructure', 'smarthome', 'security'].includes(zone.id)
+                                    const isSystemZone = SYSTEM_ZONE_IDS.includes(zone.id)
                                     return (
                                         <div key={zone.id} className="relative flex items-center">
                                             <button
@@ -267,12 +267,19 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                                         : 'bg-black/40 text-gray-300 hover:bg-white/10 hover:text-white border border-white/5'
                                                 }`}
                                             >
-                                                {zone.id === 'overview' && <Activity className="w-3.5 h-3.5" />}
-                                                {zone.id === 'network' && <Wifi className="w-3.5 h-3.5" />}
-                                                {zone.id === 'infrastructure' && <Server className="w-3.5 h-3.5" />}
-                                                {zone.id === 'smarthome' && <HomeIcon className="w-3.5 h-3.5" />}
-                                                {zone.id === 'security' && <Shield className="w-3.5 h-3.5" />}
-                                                {zone.id === 'custom' && <Sliders className="w-3.5 h-3.5" />}
+                                                {zone.id === 'overview' ? (
+                                                    <Activity className="w-3.5 h-3.5" />
+                                                ) : zone.id === 'network' ? (
+                                                    <Wifi className="w-3.5 h-3.5" />
+                                                ) : zone.id === 'infrastructure' ? (
+                                                    <Server className="w-3.5 h-3.5" />
+                                                ) : zone.id === 'smarthome' ? (
+                                                    <HomeIcon className="w-3.5 h-3.5" />
+                                                ) : zone.id === 'security' ? (
+                                                    <Shield className="w-3.5 h-3.5" />
+                                                ) : (
+                                                    <Sliders className="w-3.5 h-3.5" />
+                                                )}
                                                 <span>{zone.name}</span>
                                                 {effectiveEditMode && (
                                                     <div className="flex items-center gap-1 ml-1">
@@ -282,7 +289,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                                                 toggleZoneVisibility(zone.id)
                                                             }}
                                                             className="p-0.5 rounded hover:bg-white/20 text-gray-400 hover:text-white transition cursor-pointer"
-                                                            title={isHidden ? 'Kategorie einblenden' : 'Kategorie ausblenden'}
+                                                            title={isHidden ? 'Show Category' : 'Hide Category'}
                                                         >
                                                             {isHidden ? <EyeOff className="w-3.5 h-3.5 text-red-400" /> : <Eye className="w-3.5 h-3.5 text-emerald-400" />}
                                                         </span>
@@ -290,12 +297,12 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                                             <span
                                                                 onClick={(e) => {
                                                                     e.stopPropagation()
-                                                                    if (window.confirm(`Kategorie "${zone.name}" wirklich löschen?`)) {
+                                                                    if (window.confirm(`Delete category "${zone.name}"?`)) {
                                                                         deleteZone(zone.id)
                                                                     }
                                                                 }}
                                                                 className="p-0.5 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition cursor-pointer"
-                                                                title="Kategorie löschen"
+                                                                title="Delete Category"
                                                             >
                                                                 <Trash2 className="w-3.5 h-3.5" />
                                                             </span>
@@ -326,13 +333,13 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                                 autoFocus
                                                 value={newZoneName}
                                                 onChange={(e) => setNewZoneName(e.target.value)}
-                                                placeholder="Kategorie Name..."
+                                                placeholder="Category Name..."
                                                 className="px-2 py-0.5 bg-transparent text-white text-xs font-mono focus:outline-none w-28"
                                             />
                                             <button
                                                 type="submit"
                                                 className="p-1 rounded-lg bg-neon-cyan text-black hover:bg-white transition"
-                                                title="Kategorie Speichern"
+                                                title="Save Category"
                                             >
                                                 <Check className="w-3.5 h-3.5" />
                                             </button>
@@ -343,7 +350,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                                     setNewZoneName('')
                                                 }}
                                                 className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition"
-                                                title="Abbrechen"
+                                                title="Cancel"
                                             >
                                                 <X className="w-3.5 h-3.5" />
                                             </button>
@@ -352,10 +359,10 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                         <button
                                             onClick={() => setIsAddingZone(true)}
                                             className="px-3 py-1.5 rounded-xl bg-neon-cyan/10 border border-neon-cyan/30 text-neon-cyan hover:bg-neon-cyan hover:text-black transition text-xs font-mono font-semibold flex items-center gap-1.5 whitespace-nowrap"
-                                            title="Neue Monitoring-Kategorie hinzufügen"
+                                            title="Add Custom Monitoring Category"
                                         >
                                             <Plus className="w-3.5 h-3.5" />
-                                            <span>Kategorie</span>
+                                            <span>Category</span>
                                         </button>
                                     )}
                                 </div>
