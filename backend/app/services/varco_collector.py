@@ -120,6 +120,14 @@ async def _fetch_varco_data(
                 )
                 if resp.status_code == 200:
                     data = resp.json()
+                    add_system_log(
+                        "DEBUG",
+                        "Varco Bridge raw JSON data payload",
+                        {
+                            "keys": list(data.keys()) if isinstance(data, dict) else [],
+                            "sample": str(data)[:300],
+                        },
+                    )
                     states_dict: dict[str, Any] = {}
                     if isinstance(data, dict):
                         raw_states = data.get("states")
