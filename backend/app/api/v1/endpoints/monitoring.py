@@ -19,6 +19,7 @@ from app.schemas.monitoring import (
     MonitoringZone,
     VarcoManifestImportPayload,
 )
+from app.services.log_service import add_system_log
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -133,6 +134,11 @@ async def update_monitoring_telemetry(payload: dict[str, Any]) -> dict[str, Any]
                     ent_map[ie["id"]] = MonitoringEntity(**ie)
         config.entities = list(ent_map.values())
         await repo.save_config(config)
+        add_system_log(
+            "INFO",
+            f"Varco Browser Relay synced {len(incoming_entities)} entities to server",
+            {"count": len(incoming_entities)},
+        )
 
     return {"status": "ok", "count": len(config.entities)}
 
