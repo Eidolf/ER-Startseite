@@ -194,7 +194,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                     </button>
                                 )}
 
-                                {config?.providers?.find((p) => p.type === 'varco')?.enabled !== false && (
+                                {config?.providers?.find((p) => p.type === 'varco')?.enabled === true && (
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation()

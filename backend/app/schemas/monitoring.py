@@ -49,7 +49,7 @@ class MonitoringProviderConfig(BaseMonitoringModel):
     id: str
     name: str
     type: str  # varco, homeassistant, prometheus, uptime_kuma, etc.
-    enabled: bool = True
+    enabled: bool = False
     url: str | None = None
     api_key: str | None = Field(default=None, exclude=True)
     polling_interval_seconds: int = 15

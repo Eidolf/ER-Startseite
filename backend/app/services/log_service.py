@@ -4,19 +4,28 @@ from typing import Any
 
 _MAX_LOGS = 500
 _LOG_BUFFER: deque[dict[str, Any]] = deque(maxlen=_MAX_LOGS)
-_SYSTEM_LOG_LEVEL = "INFO"
+_SYSTEM_LOG_LEVEL = "OFF"
 
 _LEVEL_SEVERITY = {
     "DEBUG": 10,
     "INFO": 20,
     "WARNING": 30,
     "ERROR": 40,
+    "OFF": 100,
 }
 
 
 def add_system_log(level: str, message: str, details: dict[str, Any] | None = None):
-    """Adds a log entry to the in-memory log buffer."""
+    """Adds a log entry to the in-memory log buffer if logging is enabled."""
+    if _SYSTEM_LOG_LEVEL == "OFF":
+        return
+
     level_upper = level.upper()
+    entry_sev = _LEVEL_SEVERITY.get(level_upper, 20)
+    current_sev = _LEVEL_SEVERITY.get(_SYSTEM_LOG_LEVEL, 100)
+    if entry_sev < current_sev:
+        return
+
     iso_now = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
     entry = {
