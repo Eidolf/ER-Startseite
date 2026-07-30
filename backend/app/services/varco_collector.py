@@ -119,15 +119,24 @@ async def _fetch_varco_data(
                     {"endpoint": api_endpoint, "status": resp.status_code},
                 )
                 if resp.status_code == 200:
-                    data = resp.json()
-                    add_system_log(
-                        "DEBUG",
-                        "Varco Bridge raw JSON data payload",
-                        {
-                            "keys": list(data.keys()) if isinstance(data, dict) else [],
-                            "sample": str(data)[:300],
-                        },
-                    )
+                    try:
+                        data = resp.json()
+                        add_system_log(
+                            "DEBUG",
+                            "Varco Bridge raw JSON data payload",
+                            {
+                                "keys": (
+                                    list(data.keys()) if isinstance(data, dict) else []
+                                ),
+                                "sample": str(data)[:300],
+                            },
+                        )
+                    except Exception as json_err:
+                        add_system_log(
+                            "WARNING",
+                            "Varco Bridge response HTTP 200 but not valid JSON",
+                            {"error": str(json_err), "body_sample": resp.text[:300]},
+                        )
                     states_dict: dict[str, Any] = {}
                     if isinstance(data, dict):
                         raw_states = data.get("states")
