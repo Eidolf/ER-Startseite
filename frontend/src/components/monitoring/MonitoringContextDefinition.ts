@@ -25,6 +25,8 @@ export interface MonitoringContextType {
     addCard: (card: MonitoringCard) => void
     updateCardZone: (cardId: string, zoneId: string) => void
     moveCardOrder: (cardId: string, direction: 'up' | 'down') => void
+    addZone: (name: string, icon?: string) => void
+    deleteZone: (zoneId: string) => void
     toggleZoneVisibility: (zoneId: string) => void
     toggleCardVisibility: (cardId: string) => void
     resetMonitoringConfig: () => Promise<void>

@@ -271,6 +271,45 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         [config, saveConfig]
     )
 
+    const addZone = useCallback(
+        (name: string, icon: string = 'Sliders') => {
+            if (!config || !name.trim()) return
+            const cleanName = name.trim()
+            const zoneId = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '_') || `zone_${Date.now()}`
+            if (config.zones.some((z) => z.id === zoneId)) {
+                alert('Eine Kategorie mit diesem Namen existiert bereits.')
+                return
+            }
+            const newZone = { id: zoneId, name: cleanName, icon, hidden: false }
+            const updated: MonitoringConfig = {
+                ...config,
+                zones: [...config.zones, newZone],
+            }
+            saveConfig(updated)
+            setActiveZoneId(zoneId)
+        },
+        [config, saveConfig]
+    )
+
+    const deleteZone = useCallback(
+        (zoneId: string) => {
+            if (!config) return
+            const systemZones = ['overview', 'network', 'infrastructure', 'smarthome', 'security']
+            if (systemZones.includes(zoneId)) {
+                alert('System-Kategorien können nicht gelöscht werden.')
+                return
+            }
+            const updated: MonitoringConfig = {
+                ...config,
+                zones: config.zones.filter((z) => z.id !== zoneId),
+                cards: config.cards.map((c) => (c.zone_id === zoneId || c.zoneId === zoneId ? { ...c, zone_id: 'overview', zoneId: 'overview' } : c)),
+            }
+            saveConfig(updated)
+            setActiveZoneId('overview')
+        },
+        [config, saveConfig]
+    )
+
     const toggleZoneVisibility = useCallback(
         (zoneId: string) => {
             if (!config) return
@@ -669,6 +708,8 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 addCard,
                 updateCardZone,
                 moveCardOrder,
+                addZone,
+                deleteZone,
                 toggleZoneVisibility,
                 toggleCardVisibility,
                 resetMonitoringConfig,
