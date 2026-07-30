@@ -12,6 +12,7 @@ interface LogEntry {
 
 function SystemLogsViewer() {
     const [logs, setLogs] = useState<LogEntry[]>([])
+    const [isLoggingEnabled, setIsLoggingEnabled] = useState(false)
     const [minLevel, setMinLevel] = useState<string>('DEBUG')
     const [loading, setLoading] = useState(false)
     const [autoRefresh, setAutoRefresh] = useState(true)
@@ -23,6 +24,7 @@ function SystemLogsViewer() {
             if (res.ok) {
                 const data = await res.json()
                 setLogs(data.logs || [])
+                setIsLoggingEnabled(data.active_level !== 'OFF')
             }
         } catch {
             // ignore network errors
@@ -30,6 +32,27 @@ function SystemLogsViewer() {
             setLoading(false)
         }
     }, [minLevel])
+
+    const toggleLoggingMaster = async () => {
+        const nextLevel = isLoggingEnabled ? 'OFF' : 'DEBUG'
+        try {
+            const res = await fetch('/api/v1/system/logs/level', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ level: nextLevel }),
+            })
+            if (res.ok) {
+                const data = await res.json()
+                setIsLoggingEnabled(data.active_level !== 'OFF')
+                if (data.active_level !== 'OFF') {
+                    setMinLevel('DEBUG')
+                }
+                fetchLogs()
+            }
+        } catch {
+            // ignore
+        }
+    }
 
     const clearLogs = async () => {
         if (!window.confirm('System-Logs wirklich löschen?')) return
@@ -69,6 +92,20 @@ function SystemLogsViewer() {
                     <h3 className="text-sm font-semibold text-white">System & Collector Live Logs</h3>
                 </div>
                 <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={toggleLoggingMaster}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-xl border transition flex items-center gap-1.5 shadow-sm ${
+                            isLoggingEnabled
+                                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                                : 'bg-red-500/20 border-red-500/50 text-red-400'
+                        }`}
+                        title="System & Collector Logging Ein/Ausschalten"
+                    >
+                        <span className={`w-2 h-2 rounded-full ${isLoggingEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`} />
+                        <span>{isLoggingEnabled ? 'Logging: AN' : 'Logging: AUS'}</span>
+                    </button>
+
                     <select
                         value={minLevel}
                         onChange={(e) => setMinLevel(e.target.value)}
@@ -503,24 +540,6 @@ export function SettingsModal({
                             General
                         </button>
                         <button
-                            onClick={() => setActiveTab('widgets')}
-                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'widgets' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
-                        >
-                            Widgets
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('monitoring')}
-                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'monitoring' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
-                        >
-                            Monitoring
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('logs')}
-                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'logs' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
-                        >
-                            Logs & Diagnose
-                        </button>
-                        <button
                             onClick={() => setActiveTab('background')}
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'background' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
@@ -537,6 +556,24 @@ export function SettingsModal({
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'effects' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
                             Effects
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('widgets')}
+                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'widgets' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            Widgets
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('monitoring')}
+                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'monitoring' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            Monitoring
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('logs')}
+                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'logs' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            Logs & Diagnose
                         </button>
                         <button
                             onClick={() => setActiveTab('security')}
