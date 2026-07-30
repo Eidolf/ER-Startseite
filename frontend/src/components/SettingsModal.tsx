@@ -72,7 +72,7 @@ function SystemLogsViewer() {
     }, [fetchLogs, autoRefresh])
 
     const getLevelBadgeClass = (lvl: string) => {
-        switch (lvl.upperCase ? lvl.upperCase() : String(lvl).toUpperCase()) {
+        switch (String(lvl).toUpperCase()) {
             case 'ERROR':
                 return 'bg-red-500/20 text-red-400 border-red-500/30'
             case 'WARNING':

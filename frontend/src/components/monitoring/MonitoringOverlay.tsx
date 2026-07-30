@@ -23,6 +23,7 @@ import {
     RotateCcw,
     Plus,
     Trash2,
+    X,
 } from 'lucide-react'
 import { OverlayWidthPercent } from '../../types/monitoring'
 
