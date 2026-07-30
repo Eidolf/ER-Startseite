@@ -113,6 +113,11 @@ async def _fetch_varco_data(
             )
             async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
                 resp = await client.get(api_endpoint)
+                add_system_log(
+                    "INFO" if resp.status_code == 200 else "WARNING",
+                    f"Varco Bridge API response HTTP {resp.status_code}",
+                    {"endpoint": api_endpoint, "status": resp.status_code},
+                )
                 if resp.status_code == 200:
                     text_body = resp.text.strip()
                     if text_body.startswith("{") or text_body.startswith("["):
