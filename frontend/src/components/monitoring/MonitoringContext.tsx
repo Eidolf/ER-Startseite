@@ -520,7 +520,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [config?.enabled, config?.providers])
 
-    // Periodic Telemetry & System Health Check (Runs immediately & polls every 3s)
+    // Periodic Telemetry & System Health Check (Runs immediately upon mount & polls every 3s when overlay is open)
     useEffect(() => {
         let failCount = 0
         const fetchTelemetry = async () => {
@@ -555,9 +555,11 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
 
         fetchTelemetry()
+        if (!isOpen) return
+
         const interval = setInterval(fetchTelemetry, 3000)
         return () => clearInterval(interval)
-    }, [config?.enabled])
+    }, [config?.enabled, isOpen])
 
     // Live Telemetry Interpolation / Jitter Simulator (Only when Demo Mode is ON)
     useEffect(() => {
