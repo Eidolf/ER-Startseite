@@ -11,6 +11,7 @@ import structlog
 
 from app.repositories.repos import MonitoringRepository
 from app.schemas.monitoring import MonitoringEntity
+from app.services.log_service import add_system_log
 
 logger = structlog.get_logger()
 
@@ -88,6 +89,17 @@ async def _fetch_varco_data(
 
     extracted_entities: list[dict[str, Any]] = []
 
+    add_system_log(
+        "DEBUG",
+        "Varco Collector starting fetch check",
+        {
+            "bridge_url": bridge_url,
+            "authority_id": authority_id,
+            "has_share_code": bool(share_code),
+            "has_url": bool(clean_url),
+        },
+    )
+
     # 1. Direct Varco Bridge HTTP/JSON endpoint query
     if bridge_url and authority_id and share_code:
         try:
@@ -101,6 +113,11 @@ async def _fetch_varco_data(
             )
             async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
                 resp = await client.get(api_endpoint)
+                add_system_log(
+                    "INFO" if resp.status_code == 200 else "WARNING",
+                    f"Varco Bridge API response HTTP {resp.status_code}",
+                    {"endpoint": api_endpoint, "status": resp.status_code},
+                )
                 if resp.status_code == 200:
                     data = resp.json()
                     states_dict: dict[str, Any] = {}
@@ -303,6 +320,14 @@ async def _run_collector_loop():
 
                         config.entities = list(ent_map.values())
                         await repo.save_config(config)
+                        add_system_log(
+                            "INFO",
+                            f"Varco Collector synced {len(collected)} entities to server config",
+                            {
+                                "count": len(collected),
+                                "first_entity": collected[0] if collected else None,
+                            },
+                        )
                         logger.info(
                             "Varco Background Collector synced entities",
                             count=len(collected),

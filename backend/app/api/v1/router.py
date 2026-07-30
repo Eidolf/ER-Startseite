@@ -8,6 +8,7 @@ from app.api.v1.endpoints import (
     monitoring,
     proxy,
     registry,
+    system,
     webhooks,
 )
 
@@ -22,3 +23,4 @@ api_router.include_router(registry.router, prefix="/registry", tags=["registry"]
 api_router.include_router(proxy.router, prefix="/proxy", tags=["proxy"])
 api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 api_router.include_router(monitoring.router, prefix="/monitoring", tags=["monitoring"])
+api_router.include_router(system.router, prefix="/system", tags=["system"])

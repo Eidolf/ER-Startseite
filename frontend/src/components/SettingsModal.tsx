@@ -1,7 +1,141 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github, LayoutGrid, Clock, CloudSun, Save, LogOut } from 'lucide-react'
+import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github, LayoutGrid, Clock, CloudSun, Save, LogOut, Terminal, RefreshCw } from 'lucide-react'
 import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig, WidgetData, LayoutMode, WidgetDefaults } from '../types'
 import { useMonitoring } from './monitoring/useMonitoring'
+
+interface LogEntry {
+    timestamp: string
+    level: string
+    message: string
+    details?: Record<string, unknown>
+}
+
+function SystemLogsViewer() {
+    const [logs, setLogs] = useState<LogEntry[]>([])
+    const [minLevel, setMinLevel] = useState<string>('DEBUG')
+    const [loading, setLoading] = useState(false)
+    const [autoRefresh, setAutoRefresh] = useState(true)
+
+    const fetchLogs = React.useCallback(async () => {
+        setLoading(true)
+        try {
+            const res = await fetch(`/api/v1/system/logs?min_level=${minLevel}&limit=150`)
+            if (res.ok) {
+                const data = await res.json()
+                setLogs(data.logs || [])
+            }
+        } catch {
+            // ignore network errors
+        } finally {
+            setLoading(false)
+        }
+    }, [minLevel])
+
+    const clearLogs = async () => {
+        if (!window.confirm('System-Logs wirklich löschen?')) return
+        try {
+            await fetch('/api/v1/system/logs', { method: 'DELETE' })
+            setLogs([])
+        } catch {
+            // ignore
+        }
+    }
+
+    useEffect(() => {
+        fetchLogs()
+        if (!autoRefresh) return
+        const interval = setInterval(fetchLogs, 3000)
+        return () => clearInterval(interval)
+    }, [fetchLogs, autoRefresh])
+
+    const getLevelBadgeClass = (lvl: string) => {
+        switch (lvl.upperCase ? lvl.upperCase() : String(lvl).toUpperCase()) {
+            case 'ERROR':
+                return 'bg-red-500/20 text-red-400 border-red-500/30'
+            case 'WARNING':
+                return 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+            case 'INFO':
+                return 'bg-neon-cyan/20 text-neon-cyan border-neon-cyan/30'
+            default:
+                return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+        }
+    }
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Terminal className="w-5 h-5 text-neon-cyan" />
+                    <h3 className="text-sm font-semibold text-white">System & Collector Live Logs</h3>
+                </div>
+                <div className="flex items-center gap-2">
+                    <select
+                        value={minLevel}
+                        onChange={(e) => setMinLevel(e.target.value)}
+                        className="px-2.5 py-1 text-xs bg-black/40 border border-white/10 rounded-lg text-gray-300 focus:outline-none focus:border-neon-cyan"
+                    >
+                        <option value="DEBUG">Min Level: DEBUG</option>
+                        <option value="INFO">Min Level: INFO</option>
+                        <option value="WARNING">Min Level: WARNING</option>
+                        <option value="ERROR">Min Level: ERROR</option>
+                    </select>
+
+                    <button
+                        type="button"
+                        onClick={() => setAutoRefresh(!autoRefresh)}
+                        className={`px-2.5 py-1 text-xs rounded-lg border transition ${
+                            autoRefresh ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan' : 'bg-black/20 border-white/10 text-gray-400'
+                        }`}
+                    >
+                        {autoRefresh ? 'Auto 3s: ON' : 'Auto: OFF'}
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={fetchLogs}
+                        disabled={loading}
+                        className="p-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-gray-300 transition"
+                        title="Jetzt aktualisieren"
+                    >
+                        <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-neon-cyan' : ''}`} />
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={clearLogs}
+                        className="p-1.5 rounded-lg bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 transition"
+                        title="Logs leeren"
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            </div>
+
+            <div className="h-96 overflow-y-auto custom-scrollbar p-3 rounded-xl bg-black/60 border border-white/10 font-mono text-xs space-y-2">
+                {logs.length === 0 ? (
+                    <div className="text-center py-16 text-gray-500">Keine Logs in der aktuellen Ansicht vorhanden...</div>
+                ) : (
+                    logs.map((entry, idx) => (
+                        <div key={idx} className="p-2 rounded bg-white/[0.02] border border-white/5 space-y-1 hover:bg-white/[0.05] transition">
+                            <div className="flex items-center justify-between text-[10px]">
+                                <span className="text-gray-500">{new Date(entry.timestamp).toLocaleTimeString()}</span>
+                                <span className={`px-1.5 py-0.5 rounded border text-[9px] font-bold ${getLevelBadgeClass(entry.level)}`}>
+                                    {entry.level}
+                                </span>
+                            </div>
+                            <div className="text-gray-200 font-semibold">{entry.message}</div>
+                            {entry.details && Object.keys(entry.details).length > 0 && (
+                                <pre className="text-[10px] text-gray-400 bg-black/40 p-1.5 rounded overflow-x-auto">
+                                    {JSON.stringify(entry.details, null, 2)}
+                                </pre>
+                            )}
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
+    )
+}
 
 interface MediaItem {
     name: string
@@ -252,7 +386,7 @@ export function SettingsModal({
         toggleVarcoIntegration,
         updatePollingInterval: updateMonitoringPollingInterval,
     } = useMonitoring()
-    const [activeTab, setActiveTab] = useState<'general' | 'widgets' | 'monitoring' | 'background' | 'logo' | 'effects' | 'security' | 'about'>('general')
+    const [activeTab, setActiveTab] = useState<'general' | 'widgets' | 'monitoring' | 'logs' | 'background' | 'logo' | 'effects' | 'security' | 'about'>('general')
     const [uploading, setUploading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const logoFileInputRef = useRef<HTMLInputElement>(null)
@@ -379,6 +513,12 @@ export function SettingsModal({
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'monitoring' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
                             Monitoring
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('logs')}
+                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'logs' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            Logs & Diagnose
                         </button>
                         <button
                             onClick={() => setActiveTab('background')}
@@ -855,6 +995,8 @@ export function SettingsModal({
                             </div>
                         </div>
                     )}
+
+                    {activeTab === 'logs' && <SystemLogsViewer />}
 
                     {activeTab === 'background' && (
                         <div className="space-y-6">
