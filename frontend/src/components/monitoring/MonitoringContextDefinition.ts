@@ -17,6 +17,7 @@ export interface MonitoringContextType {
     clearPairingCode: () => void
     toggleEnabled: () => void
     toggleDemoMode: () => void
+    toggleVarcoIntegration: () => void
     updatePollingInterval: (seconds: number) => void
     refreshConfig: () => Promise<void>
     saveConfig: (cfg: MonitoringConfig) => Promise<void>

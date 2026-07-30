@@ -249,6 +249,7 @@ export function SettingsModal({
         config: monitoringConfig,
         toggleEnabled: toggleMonitoringEnabled,
         toggleDemoMode: toggleMonitoringDemoMode,
+        toggleVarcoIntegration,
         updatePollingInterval: updateMonitoringPollingInterval,
     } = useMonitoring()
     const [activeTab, setActiveTab] = useState<'general' | 'widgets' | 'monitoring' | 'background' | 'logo' | 'effects' | 'security' | 'about'>('general')
@@ -735,6 +736,26 @@ export function SettingsModal({
                                 </div>
 
                                 <div className="h-px bg-white/10" />
+
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <div className="text-sm font-semibold text-white">Varco Bridge Integration</div>
+                                        <div className="text-xs text-gray-400">Enables automatic background sync & manifest imports from Varco Bridge / Home Assistant.</div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={toggleVarcoIntegration}
+                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                            monitoringConfig?.providers?.find((p) => p.type === 'varco')?.enabled !== false ? 'bg-neon-cyan' : 'bg-gray-700'
+                                        }`}
+                                    >
+                                        <span
+                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                                monitoringConfig?.providers?.find((p) => p.type === 'varco')?.enabled !== false ? 'translate-x-5' : 'translate-x-0'
+                                            }`}
+                                        />
+                                    </button>
+                                </div>
 
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between">

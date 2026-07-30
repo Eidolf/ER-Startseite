@@ -213,6 +213,23 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         saveConfig(updated)
     }, [config, saveConfig])
 
+    const toggleVarcoIntegration = useCallback(() => {
+        if (!config) return
+        const providers = [...(config.providers || [])]
+        const idx = providers.findIndex((p) => p.type === 'varco')
+        if (idx >= 0) {
+            providers[idx] = { ...providers[idx], enabled: !providers[idx].enabled }
+        } else {
+            providers.push({
+                id: 'varco-main-provider',
+                name: 'Varco Bridge',
+                type: 'varco',
+                enabled: true,
+            })
+        }
+        saveConfig({ ...config, providers })
+    }, [config, saveConfig])
+
     const updatePollingInterval = useCallback((seconds: number) => {
         if (!config) return
         const interval = Math.max(5, Math.min(600, seconds))
@@ -635,6 +652,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 clearPairingCode: () => setPairingCode(null),
                 toggleEnabled,
                 toggleDemoMode,
+                toggleVarcoIntegration,
                 updatePollingInterval,
                 refreshConfig,
                 saveConfig,
