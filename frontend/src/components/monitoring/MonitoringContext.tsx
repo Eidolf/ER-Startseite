@@ -542,11 +542,20 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         connectVarcoBridge()
 
+        // Background Telemetry Sync Relay loop (Runs while browser tab is open)
+        const pollingSec = config?.polling_interval_seconds || config?.pollingIntervalSeconds || 15
+        const pollInterval = setInterval(() => {
+            if (isMounted) {
+                connectVarcoBridge()
+            }
+        }, Math.max(5000, pollingSec * 1000))
+
         return () => {
             isMounted = false
+            clearInterval(pollInterval)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [config?.enabled, config?.providers])
+    }, [config?.enabled, config?.providers, config?.polling_interval_seconds])
 
     // Periodic Telemetry & System Health Check (Runs immediately upon mount & polls every 3s when overlay is open)
     useEffect(() => {
