@@ -496,6 +496,33 @@
       "file": "backend/app/api/v1/endpoints/monitoring.py"
     },
     {
+      "path": "/api/v1/logs",
+      "method": "DELETE",
+      "summary": "DELETE /api/v1/logs",
+      "description": "DELETE /api/v1/logs",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/system.py"
+    },
+    {
+      "path": "/api/v1/logs",
+      "method": "GET",
+      "summary": "GET /api/v1/logs",
+      "description": "GET /api/v1/logs",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/system.py"
+    },
+    {
+      "path": "/api/v1/logs/level",
+      "method": "POST",
+      "summary": "POST /api/v1/logs/level",
+      "description": "POST /api/v1/logs/level",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/system.py"
+    },
+    {
       "path": "/api/v1/media",
       "method": "GET",
       "summary": "List all uploaded media files.",

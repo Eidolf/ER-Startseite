@@ -5,6 +5,23 @@ All notable changes to the **ER-Startseite** dashboard project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.M.PATCH`).
 
+## [2026.7.7] - 2026-07-30
+
+### Added
+- **Centralized Varco Bridge Background Data Sync & Relay**: Integrated persistent, server-side monitoring data storage (`data/monitoring.json`) and client-side background polling relay to sync live Varco Bridge states seamlessly across all browser sessions without requiring a primary browser tab.
+- **In-Memory Live System & Collector Log Viewer**: Implemented a ring-buffered system log service (`log_service.py`) and backend endpoints (`/api/v1/system/logs`) paired with a live, auto-refreshing **Logs & Diagnose** tab in the main Settings modal for real-time debugging.
+- **Master Logging Enable Toggle**: Added a master toggle button (`Logging: AN / AUS`) to turn server-side logging on or off dynamically, defaulting to `OFF` to prevent memory and CPU overhead during normal operations.
+- **Custom Monitoring Categories & Management**: Enhanced the Monitoring Overlay to support creating custom categories/zones (`+ Kategorie`), deleting user-created categories (with automatic widget migration to Overview), and toggling category visibility.
+
+### Changed
+- **Reordered Settings Navigation**: Re-ordered tab navigation in the Settings modal into a logical flow: `General` → `Background` → `Logo` → `Effects` → `Widgets` → `Monitoring` → `Logs & Diagnose` → `Security` → `About`.
+- **Default Privacy & Performance Settings**: Configured the Varco Bridge integration and system logging service to be disabled (`enabled = False`) by default, requiring explicit user activation.
+
+### Fixed & Improved
+- **Varco Bridge Opaque Response Handling**: Added response body inspection and graceful exception handling for Varco Bridge non-JSON opaque responses, eliminating warning log noise for standard WebSocket security handshakes.
+
+---
+
 ## [2026.7.6] - 2026-07-27
 
 ### Added

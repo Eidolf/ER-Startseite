@@ -19,6 +19,7 @@ from app.schemas.monitoring import (
     MonitoringZone,
     VarcoManifestImportPayload,
 )
+from app.services.log_service import add_system_log
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -122,17 +123,27 @@ async def get_monitoring_telemetry() -> dict[str, Any]:
 @router.post("/telemetry")
 async def update_monitoring_telemetry(payload: dict[str, Any]) -> dict[str, Any]:
     repo = MonitoringRepository()
-    config = await repo.get_config()
     incoming_entities = payload.get("entities", [])
 
     if incoming_entities:
-        ent_map = {e.id: e for e in config.entities}
-        for ie in incoming_entities:
-            if isinstance(ie, dict) and "id" in ie:
-                with contextlib.suppress(Exception):
-                    ent_map[ie["id"]] = MonitoringEntity(**ie)
-        config.entities = list(ent_map.values())
-        await repo.save_config(config)
+        async with repo.lock:
+            config = await repo.get_config()
+            ent_map = {e.id: e for e in config.entities}
+            for ie in incoming_entities:
+                if isinstance(ie, dict) and "id" in ie:
+                    with contextlib.suppress(Exception):
+                        ent_map[ie["id"]] = MonitoringEntity(**ie)
+            config.entities = list(ent_map.values())
+            await repo.save_config(config)
+
+        add_system_log(
+            "INFO",
+            f"Varco Browser Relay synced {len(incoming_entities)} entities to server",
+            {"count": len(incoming_entities)},
+        )
+    else:
+        async with repo.lock:
+            config = await repo.get_config()
 
     return {"status": "ok", "count": len(config.entities)}
 

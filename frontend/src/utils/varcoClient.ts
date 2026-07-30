@@ -5,27 +5,52 @@ export interface VarcoShareParams {
     bridgeUrl: string
 }
 
-export function parseVarcoShareUrl(rawUrl: string): VarcoShareParams | null {
+export function parseVarcoShareUrl(rawUrl: string, settings?: Record<string, unknown>): VarcoShareParams | null {
     if (!rawUrl) return null
     try {
         const urlObj = new URL(rawUrl)
         const pathParts = urlObj.pathname.split('/').filter(Boolean)
 
-        // E.g. /share/U1ooH7ezOcAJiPVu2xopQg
-        const shareCode = pathParts.length >= 2 && pathParts[0] === 'share' ? pathParts[1] : pathParts[0] || ''
-
         const searchParams = new URLSearchParams(urlObj.search)
         const hashParams = new URLSearchParams(urlObj.hash.replace(/^#/, ''))
 
-        const authorityId = searchParams.get('authority') || hashParams.get('authority') || ''
-        const claimSecret = hashParams.get('claim') || hashParams.get('key') || ''
-        const bridgeUrl = searchParams.get('bridge') || hashParams.get('bridge') || urlObj.origin
+        function searchParamsGet(key: string, fallback: string = ''): string {
+            return searchParams.get(key) || hashParams.get(key) || fallback
+        }
 
-        if (!shareCode || !authorityId) {
+        function getStringSetting(key: string): string {
+            const val = settings?.[key]
+            return typeof val === 'string' ? val : ''
+        }
+
+        const authorityId =
+            searchParamsGet('authority') ||
+            searchParamsGet('authority_id') ||
+            searchParamsGet('authorityId') ||
+            getStringSetting('authorityId') ||
+            getStringSetting('authority_id')
+
+        const claimSecret = searchParamsGet('claim') || searchParamsGet('key') || getStringSetting('claimSecret')
+
+        const bridgeUrl =
+            searchParamsGet('bridge') ||
+            searchParamsGet('bridge_url') ||
+            getStringSetting('bridgeUrl') ||
+            getStringSetting('bridge_url') ||
+            urlObj.origin
+
+        const finalShareCode =
+            searchParamsGet('shareCode') ||
+            searchParamsGet('share_code') ||
+            (pathParts.length >= 2 && pathParts[0] === 'share' ? pathParts[1] : pathParts[0] || '') ||
+            getStringSetting('shareCode') ||
+            getStringSetting('share_code')
+
+        if (!finalShareCode || !authorityId) {
             return null
         }
 
-        return { shareCode, authorityId, claimSecret, bridgeUrl }
+        return { shareCode: finalShareCode, authorityId, claimSecret, bridgeUrl }
     } catch {
         return null
     }

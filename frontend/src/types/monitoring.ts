@@ -41,6 +41,8 @@ export interface MonitoringZone {
     hidden?: boolean
 }
 
+export const SYSTEM_ZONE_IDS = ['overview', 'network', 'infrastructure', 'smarthome', 'security']
+
 export interface MonitoringProviderConfig {
     id: string
     name: string
@@ -49,6 +51,8 @@ export interface MonitoringProviderConfig {
     url?: string
     api_key?: string
     apiKey?: string
+    polling_interval_seconds?: number
+    pollingIntervalSeconds?: number
     settings?: Record<string, unknown>
 }
 
@@ -57,6 +61,8 @@ export interface MonitoringConfig {
     enabled: boolean
     demoMode: boolean
     demo_mode?: boolean
+    polling_interval_seconds?: number
+    pollingIntervalSeconds?: number
     zones: MonitoringZone[]
     cards: MonitoringCard[]
     entities?: MonitoringEntity[]

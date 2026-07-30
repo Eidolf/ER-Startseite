@@ -1,7 +1,180 @@
 import React, { useRef, useState, useEffect } from 'react'
-import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github, LayoutGrid, Clock, CloudSun, Save, LogOut } from 'lucide-react'
+import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github, LayoutGrid, Clock, CloudSun, Save, LogOut, Terminal, RefreshCw } from 'lucide-react'
 import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig, WidgetData, LayoutMode, WidgetDefaults } from '../types'
 import { useMonitoring } from './monitoring/useMonitoring'
+
+interface LogEntry {
+    timestamp: string
+    level: string
+    message: string
+    details?: Record<string, unknown>
+}
+
+function SystemLogsViewer() {
+    const [logs, setLogs] = useState<LogEntry[]>([])
+    const [isLoggingEnabled, setIsLoggingEnabled] = useState(false)
+    const [minLevel, setMinLevel] = useState<string>('DEBUG')
+    const [loading, setLoading] = useState(false)
+    const [autoRefresh, setAutoRefresh] = useState(true)
+
+    const fetchLogs = React.useCallback(async () => {
+        setLoading(true)
+        try {
+            const res = await fetch(`/api/v1/system/logs?min_level=${minLevel}&limit=150`)
+            if (res.ok) {
+                const data = await res.json()
+                setLogs(data.logs || [])
+                setIsLoggingEnabled(data.active_level !== 'OFF')
+            }
+        } catch {
+            // ignore network errors
+        } finally {
+            setLoading(false)
+        }
+    }, [minLevel])
+
+    const toggleLoggingMaster = async () => {
+        const nextLevel = isLoggingEnabled ? 'OFF' : 'DEBUG'
+        try {
+            const res = await fetch('/api/v1/system/logs/level', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ level: nextLevel }),
+            })
+            if (res.ok) {
+                const data = await res.json()
+                setIsLoggingEnabled(data.active_level !== 'OFF')
+                if (data.active_level !== 'OFF') {
+                    setMinLevel('DEBUG')
+                }
+                fetchLogs()
+            }
+        } catch {
+            // ignore
+        }
+    }
+
+    const clearLogs = async () => {
+        if (!window.confirm('Clear all system logs?')) return
+        try {
+            const res = await fetch('/api/v1/system/logs', { method: 'DELETE' })
+            if (res.ok) {
+                setLogs([])
+            }
+        } catch {
+            // ignore
+        }
+    }
+
+    useEffect(() => {
+        fetchLogs()
+        if (!autoRefresh) return
+        const interval = setInterval(fetchLogs, 3000)
+        return () => clearInterval(interval)
+    }, [fetchLogs, autoRefresh])
+
+    const getLevelBadgeClass = (lvl: string) => {
+        switch (String(lvl).toUpperCase()) {
+            case 'ERROR':
+                return 'bg-red-500/20 text-red-400 border-red-500/30'
+            case 'WARNING':
+                return 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+            case 'INFO':
+                return 'bg-neon-cyan/20 text-neon-cyan border-neon-cyan/30'
+            default:
+                return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+        }
+    }
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Terminal className="w-5 h-5 text-neon-cyan" />
+                    <h3 className="text-sm font-semibold text-white">System & Collector Live Logs</h3>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={toggleLoggingMaster}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-xl border transition flex items-center gap-1.5 shadow-sm ${
+                            isLoggingEnabled
+                                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                                : 'bg-red-500/20 border-red-500/50 text-red-400'
+                        }`}
+                        title="Toggle System & Collector Logging"
+                    >
+                        <span className={`w-2 h-2 rounded-full ${isLoggingEnabled ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`} />
+                        <span>{isLoggingEnabled ? 'Logging: ON' : 'Logging: OFF'}</span>
+                    </button>
+
+                    <select
+                        value={minLevel}
+                        onChange={(e) => setMinLevel(e.target.value)}
+                        className="px-2.5 py-1 text-xs bg-black/40 border border-white/10 rounded-lg text-gray-300 focus:outline-none focus:border-neon-cyan"
+                    >
+                        <option value="DEBUG">Min Level: DEBUG</option>
+                        <option value="INFO">Min Level: INFO</option>
+                        <option value="WARNING">Min Level: WARNING</option>
+                        <option value="ERROR">Min Level: ERROR</option>
+                    </select>
+
+                    <button
+                        type="button"
+                        onClick={() => setAutoRefresh(!autoRefresh)}
+                        className={`px-2.5 py-1 text-xs rounded-lg border transition ${
+                            autoRefresh ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan' : 'bg-black/20 border-white/10 text-gray-400'
+                        }`}
+                    >
+                        {autoRefresh ? 'Auto 3s: ON' : 'Auto: OFF'}
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={fetchLogs}
+                        disabled={loading}
+                        className="p-1.5 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 text-gray-300 transition"
+                        title="Refresh Now"
+                    >
+                        <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-neon-cyan' : ''}`} />
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={clearLogs}
+                        className="p-1.5 rounded-lg bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 transition"
+                        title="Clear Logs"
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            </div>
+
+            <div className="h-96 overflow-y-auto custom-scrollbar p-3 rounded-xl bg-black/60 border border-white/10 font-mono text-xs space-y-2">
+                {logs.length === 0 ? (
+                    <div className="text-center py-16 text-gray-500">No logs available in current view...</div>
+                ) : (
+                    logs.map((entry, idx) => (
+                        <div key={idx} className="p-2 rounded bg-white/[0.02] border border-white/5 space-y-1 hover:bg-white/[0.05] transition">
+                            <div className="flex items-center justify-between text-[10px]">
+                                <span className="text-gray-500">{new Date(entry.timestamp).toLocaleTimeString()}</span>
+                                <span className={`px-1.5 py-0.5 rounded border text-[9px] font-bold ${getLevelBadgeClass(entry.level)}`}>
+                                    {entry.level}
+                                </span>
+                            </div>
+                            <div className="text-gray-200 font-semibold">{entry.message}</div>
+                            {entry.details && Object.keys(entry.details).length > 0 && (
+                                <pre className="text-[10px] text-gray-400 bg-black/40 p-1.5 rounded overflow-x-auto">
+                                    {JSON.stringify(entry.details, null, 2)}
+                                </pre>
+                            )}
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
+    )
+}
 
 interface MediaItem {
     name: string
@@ -245,8 +418,14 @@ export function SettingsModal({
     serverMode,
     onLogout
 }: SettingsModalProps) {
-    const { config: monitoringConfig, toggleEnabled: toggleMonitoringEnabled, toggleDemoMode: toggleMonitoringDemoMode } = useMonitoring()
-    const [activeTab, setActiveTab] = useState<'general' | 'widgets' | 'monitoring' | 'background' | 'logo' | 'effects' | 'security' | 'about'>('general')
+    const {
+        config: monitoringConfig,
+        toggleEnabled: toggleMonitoringEnabled,
+        toggleDemoMode: toggleMonitoringDemoMode,
+        toggleVarcoIntegration,
+        updatePollingInterval: updateMonitoringPollingInterval,
+    } = useMonitoring()
+    const [activeTab, setActiveTab] = useState<'general' | 'widgets' | 'monitoring' | 'logs' | 'background' | 'logo' | 'effects' | 'security' | 'about'>('general')
     const [uploading, setUploading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const logoFileInputRef = useRef<HTMLInputElement>(null)
@@ -363,18 +542,6 @@ export function SettingsModal({
                             General
                         </button>
                         <button
-                            onClick={() => setActiveTab('widgets')}
-                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'widgets' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
-                        >
-                            Widgets
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('monitoring')}
-                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'monitoring' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
-                        >
-                            Monitoring
-                        </button>
-                        <button
                             onClick={() => setActiveTab('background')}
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'background' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
@@ -391,6 +558,24 @@ export function SettingsModal({
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'effects' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
                             Effects
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('widgets')}
+                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'widgets' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            Widgets
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('monitoring')}
+                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'monitoring' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            Monitoring
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('logs')}
+                            className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'logs' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
+                        >
+                            Logs & Diagnose
                         </button>
                         <button
                             onClick={() => setActiveTab('security')}
@@ -689,8 +874,8 @@ export function SettingsModal({
                             <div className="p-4 rounded-xl bg-black/40 border border-white/10 space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
-                                        <div className="text-sm font-semibold text-white">Monitoring Overlay Aktivieren</div>
-                                        <div className="text-xs text-gray-400">Aktiviert das Monitoring Bridge Overlay und Tastaturkürzel (Ctrl+Shift+M).</div>
+                                        <div className="text-sm font-semibold text-white">Enable Monitoring Overlay</div>
+                                        <div className="text-xs text-gray-400">Activates the Monitoring Bridge Overlay and keyboard shortcut (Ctrl+Shift+M).</div>
                                     </div>
                                     <button
                                         type="button"
@@ -711,8 +896,8 @@ export function SettingsModal({
 
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
-                                        <div className="text-sm font-semibold text-white">Demo-Modus / Live-Simulation</div>
-                                        <div className="text-xs text-gray-400">Generiert simulierte Livedaten & Netzwerkschwankungen für Demo-Zwecke.</div>
+                                        <div className="text-sm font-semibold text-white">Demo Mode / Live Simulation</div>
+                                        <div className="text-xs text-gray-400">Generates simulated live data & network jitter for demo purposes.</div>
                                     </div>
                                     <button
                                         type="button"
@@ -728,9 +913,136 @@ export function SettingsModal({
                                         />
                                     </button>
                                 </div>
+
+                                <div className="h-px bg-white/10" />
+
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-0.5">
+                                        <div className="text-sm font-semibold text-white">Varco Bridge Integration</div>
+                                        <div className="text-xs text-gray-400">Enables automatic background sync & manifest imports from Varco Bridge / Home Assistant.</div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={toggleVarcoIntegration}
+                                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                            monitoringConfig?.providers?.find((p) => p.type === 'varco')?.enabled === true ? 'bg-neon-cyan' : 'bg-gray-700'
+                                        }`}
+                                    >
+                                        <span
+                                            className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                                monitoringConfig?.providers?.find((p) => p.type === 'varco')?.enabled === true ? 'translate-x-5' : 'translate-x-0'
+                                            }`}
+                                        />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-sm font-semibold text-white">Server Background Polling Interval</label>
+                                        <span className="text-xs font-mono text-neon-cyan bg-neon-cyan/10 px-2 py-0.5 rounded border border-neon-cyan/30">
+                                            {(() => {
+                                                const totalSec = monitoringConfig?.polling_interval_seconds || monitoringConfig?.pollingIntervalSeconds || 15
+                                                if (totalSec >= 3600 && totalSec % 3600 === 0) return `${totalSec / 3600} hours`
+                                                if (totalSec >= 60 && totalSec % 60 === 0) return `${totalSec / 60} minutes`
+                                                return `${totalSec} seconds`
+                                            })()}
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {[
+                                            { sec: 5, label: '5s (Fast)' },
+                                            { sec: 15, label: '15s (Recommended)' },
+                                            { sec: 30, label: '30s (Balanced)' },
+                                            { sec: 60, label: '60s (Low Traffic)' },
+                                        ].map((opt) => {
+                                            const currentSec = monitoringConfig?.polling_interval_seconds || monitoringConfig?.pollingIntervalSeconds || 15
+                                            const isSelected = currentSec === opt.sec
+                                            return (
+                                                <button
+                                                    key={opt.sec}
+                                                    type="button"
+                                                    onClick={() => updateMonitoringPollingInterval(opt.sec)}
+                                                    className={`py-2 px-3 text-xs font-medium rounded-xl border transition ${
+                                                        isSelected
+                                                            ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan shadow-[0_0_10px_rgba(6,182,212,0.3)]'
+                                                            : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                                    }`}
+                                                >
+                                                    {opt.label}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+
+                                    {/* Custom Interval Input (Value + Unit) */}
+                                    <div className="pt-2">
+                                        <label className="block text-xs font-medium text-gray-400 mb-1.5">Custom Refresh Interval</label>
+                                        <div className="flex items-center gap-2">
+                                            {(() => {
+                                                const totalSec = monitoringConfig?.polling_interval_seconds || monitoringConfig?.pollingIntervalSeconds || 15
+                                                let unit: 'seconds' | 'minutes' | 'hours' = 'seconds'
+                                                let value = totalSec
+                                                let minVal = 5
+                                                let maxVal = 86400
+
+                                                if (totalSec >= 3600 && totalSec % 3600 === 0) {
+                                                    unit = 'hours'
+                                                    value = totalSec / 3600
+                                                    minVal = 1
+                                                    maxVal = 24
+                                                } else if (totalSec >= 60 && totalSec % 60 === 0) {
+                                                    unit = 'minutes'
+                                                    value = totalSec / 60
+                                                    minVal = 1
+                                                    maxVal = 1440
+                                                }
+
+                                                return (
+                                                    <>
+                                                        <input
+                                                            type="number"
+                                                            min={minVal}
+                                                            max={maxVal}
+                                                            value={value}
+                                                            onChange={(e) => {
+                                                                const num = Math.min(Math.max(parseInt(e.target.value, 10) || minVal, minVal), maxVal)
+                                                                let multiplier = 1
+                                                                if (unit === 'hours') multiplier = 3600
+                                                                else if (unit === 'minutes') multiplier = 60
+                                                                updateMonitoringPollingInterval(num * multiplier)
+                                                            }}
+                                                            className="w-32 px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm font-mono focus:outline-none focus:border-neon-cyan"
+                                                        />
+                                                        <select
+                                                            value={unit}
+                                                            onChange={(e) => {
+                                                                const newUnit = e.target.value
+                                                                let multiplier = 1
+                                                                if (newUnit === 'hours') multiplier = 3600
+                                                                else if (newUnit === 'minutes') multiplier = 60
+                                                                updateMonitoringPollingInterval(value * multiplier)
+                                                            }}
+                                                            className="px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-gray-300 text-sm font-mono focus:outline-none focus:border-neon-cyan"
+                                                        >
+                                                            <option value="seconds">Seconds (Sekunden)</option>
+                                                            <option value="minutes">Minutes (Minuten)</option>
+                                                            <option value="hours">Hours (Stunden)</option>
+                                                        </select>
+                                                    </>
+                                                )
+                                            })()}
+                                        </div>
+                                    </div>
+
+                                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200/90 leading-relaxed">
+                                        💡 <strong>Recommendation Note:</strong> Setting an interval lower than 5s causes unnecessary CPU and network overhead on the Home Assistant / Varco Bridge server. Setting it above 60s will delay live metric updates in all browser sessions.
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}
+
+                    {activeTab === 'logs' && <SystemLogsViewer />}
 
                     {activeTab === 'background' && (
                         <div className="space-y-6">

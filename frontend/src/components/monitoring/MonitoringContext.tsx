@@ -4,6 +4,7 @@ import {
     MonitoringEntity,
     OverlayWidthPercent,
     MonitoringCard,
+    SYSTEM_ZONE_IDS,
 } from '../../types/monitoring'
 import { parseVarcoShareUrl } from '../../utils/varcoClient'
 import { MonitoringContext } from './MonitoringContextDefinition'
@@ -213,6 +214,34 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         saveConfig(updated)
     }, [config, saveConfig])
 
+    const toggleVarcoIntegration = useCallback(() => {
+        if (!config) return
+        const providers = [...(config.providers || [])]
+        const idx = providers.findIndex((p) => p.type === 'varco')
+        if (idx >= 0) {
+            providers[idx] = { ...providers[idx], enabled: !providers[idx].enabled }
+        } else {
+            providers.push({
+                id: 'varco-main-provider',
+                name: 'Varco Bridge',
+                type: 'varco',
+                enabled: true,
+            })
+        }
+        saveConfig({ ...config, providers })
+    }, [config, saveConfig])
+
+    const updatePollingInterval = useCallback((seconds: number) => {
+        if (!config) return
+        const interval = Math.max(5, Math.min(86400, seconds))
+        const updated = {
+            ...config,
+            polling_interval_seconds: interval,
+            pollingIntervalSeconds: interval,
+        }
+        saveConfig(updated)
+    }, [config, saveConfig])
+
     const updateCardZone = useCallback(
         (cardId: string, zoneId: string) => {
             if (!config) return
@@ -239,6 +268,44 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
             const updated: MonitoringConfig = { ...config, cards: newCards }
             saveConfig(updated)
+        },
+        [config, saveConfig]
+    )
+
+    const addZone = useCallback(
+        (name: string, icon: string = 'Sliders') => {
+            if (!config || !name.trim()) return
+            const cleanName = name.trim()
+            const zoneId = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '_') || `zone_${Date.now()}`
+            if (config.zones.some((z) => z.id === zoneId)) {
+                alert('A category with this name already exists.')
+                return
+            }
+            const newZone = { id: zoneId, name: cleanName, icon, hidden: false }
+            const updated: MonitoringConfig = {
+                ...config,
+                zones: [...config.zones, newZone],
+            }
+            saveConfig(updated)
+            setActiveZoneId(zoneId)
+        },
+        [config, saveConfig]
+    )
+
+    const deleteZone = useCallback(
+        (zoneId: string) => {
+            if (!config) return
+            if (SYSTEM_ZONE_IDS.includes(zoneId)) {
+                alert('System categories cannot be deleted.')
+                return
+            }
+            const updated: MonitoringConfig = {
+                ...config,
+                zones: config.zones.filter((z) => z.id !== zoneId),
+                cards: config.cards.map((c) => (c.zone_id === zoneId || c.zoneId === zoneId ? { ...c, zone_id: 'overview', zoneId: 'overview' } : c)),
+            }
+            saveConfig(updated)
+            setActiveZoneId('overview')
         },
         [config, saveConfig]
     )
@@ -300,7 +367,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const varcoProvider = config?.providers.find((p) => p.type === 'varco' && p.enabled)
         if (!varcoProvider || !varcoProvider.url) return
 
-        const params = parseVarcoShareUrl(varcoProvider.url)
+        const params = parseVarcoShareUrl(varcoProvider.url, varcoProvider.settings)
         if (!params) return
 
         let isMounted = true
@@ -514,13 +581,22 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         connectVarcoBridge()
 
+        // Background Telemetry Sync Relay loop (Runs while browser tab is open)
+        const pollingSec = config?.polling_interval_seconds || config?.pollingIntervalSeconds || 15
+        const pollInterval = setInterval(() => {
+            if (isMounted) {
+                connectVarcoBridge()
+            }
+        }, Math.max(5000, pollingSec * 1000))
+
         return () => {
             isMounted = false
+            clearInterval(pollInterval)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [config?.enabled, config?.providers])
+    }, [config?.enabled, config?.providers, config?.polling_interval_seconds])
 
-    // Periodic Telemetry & System Health Check (Runs immediately & polls every 3s)
+    // Periodic Telemetry & System Health Check (Runs immediately upon mount & polls every 3s when overlay is open)
     useEffect(() => {
         let failCount = 0
         const fetchTelemetry = async () => {
@@ -535,8 +611,9 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         setEntities((prev) => {
                             const next = { ...prev }
                             data.entities.forEach((ent: MonitoringEntity) => {
-                                // Update or set entity state from backend telemetry relay
-                                if (!next[ent.id] || next[ent.id].provider_id !== 'varco-live' || ent.state !== 'N/A') {
+                                // Sync entity states from backend telemetry relay across all browser sessions
+                                const current = next[ent.id]
+                                if (!current || current.last_updated === undefined || (ent.last_updated && new Date(ent.last_updated).getTime() >= new Date(current.last_updated).getTime())) {
                                     next[ent.id] = ent
                                 }
                             })
@@ -554,9 +631,11 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
 
         fetchTelemetry()
+        if (!isOpen) return
+
         const interval = setInterval(fetchTelemetry, 3000)
         return () => clearInterval(interval)
-    }, [config?.enabled])
+    }, [config?.enabled, isOpen])
 
     // Live Telemetry Interpolation / Jitter Simulator (Only when Demo Mode is ON)
     useEffect(() => {
@@ -621,12 +700,16 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 clearPairingCode: () => setPairingCode(null),
                 toggleEnabled,
                 toggleDemoMode,
+                toggleVarcoIntegration,
+                updatePollingInterval,
                 refreshConfig,
                 saveConfig,
                 deleteCard,
                 addCard,
                 updateCardZone,
                 moveCardOrder,
+                addZone,
+                deleteZone,
                 toggleZoneVisibility,
                 toggleCardVisibility,
                 resetMonitoringConfig,

@@ -21,8 +21,11 @@ import {
     Eye,
     EyeOff,
     RotateCcw,
+    Plus,
+    Trash2,
+    X,
 } from 'lucide-react'
-import { OverlayWidthPercent } from '../../types/monitoring'
+import { OverlayWidthPercent, SYSTEM_ZONE_IDS } from '../../types/monitoring'
 
 interface MonitoringOverlayProps {
     isAuthenticated?: boolean
@@ -48,11 +51,15 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
         clearPairingCode,
         toggleDemoMode,
         toggleZoneVisibility,
+        addZone,
+        deleteZone,
         resetMonitoringConfig,
         refreshConfig,
     } = useMonitoring()
 
     const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+    const [isAddingZone, setIsAddingZone] = useState(false)
+    const [newZoneName, setNewZoneName] = useState('')
     const [dragWidth, setDragWidth] = useState<number | null>(null)
 
     if (!isOpen) return null
@@ -194,17 +201,19 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                     </button>
                                 )}
 
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleAdminAction(() => setIsImportModalOpen(true))
-                                    }}
-                                    className="h-8 px-3 rounded-xl bg-neon-cyan/10 border border-neon-cyan/40 text-neon-cyan hover:bg-neon-cyan hover:text-black transition text-xs font-mono font-bold flex items-center gap-2 shadow-[0_0_10px_rgba(0,243,255,0.15)]"
-                                    title={isAuthenticated ? 'Import Varco Manifest or Brief' : 'Admin Lock (Login Required)'}
-                                >
-                                    <FileUp className="w-4 h-4" />
-                                    <span>Import</span>
-                                </button>
+                                {config?.providers?.find((p) => p.type === 'varco')?.enabled === true && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleAdminAction(() => setIsImportModalOpen(true))
+                                        }}
+                                        className="h-8 px-3 rounded-xl bg-neon-cyan/10 border border-neon-cyan/40 text-neon-cyan hover:bg-neon-cyan hover:text-black transition text-xs font-mono font-bold flex items-center gap-2 shadow-[0_0_10px_rgba(0,243,255,0.15)]"
+                                        title={isAuthenticated ? 'Import Varco Manifest or Brief' : 'Admin Lock (Login Required)'}
+                                    >
+                                        <FileUp className="w-4 h-4" />
+                                        <span>Import</span>
+                                    </button>
+                                )}
 
                                 <button
                                     onClick={(e) => {
@@ -245,6 +254,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                 .map((zone) => {
                                     const isActive = activeZoneId === zone.id
                                     const isHidden = zone.hidden === true
+                                    const isSystemZone = SYSTEM_ZONE_IDS.includes(zone.id)
                                     return (
                                         <div key={zone.id} className="relative flex items-center">
                                             <button
@@ -257,29 +267,106 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                                         : 'bg-black/40 text-gray-300 hover:bg-white/10 hover:text-white border border-white/5'
                                                 }`}
                                             >
-                                                {zone.id === 'overview' && <Activity className="w-3.5 h-3.5" />}
-                                                {zone.id === 'network' && <Wifi className="w-3.5 h-3.5" />}
-                                                {zone.id === 'infrastructure' && <Server className="w-3.5 h-3.5" />}
-                                                {zone.id === 'smarthome' && <HomeIcon className="w-3.5 h-3.5" />}
-                                                {zone.id === 'security' && <Shield className="w-3.5 h-3.5" />}
-                                                {zone.id === 'custom' && <Sliders className="w-3.5 h-3.5" />}
+                                                {zone.id === 'overview' ? (
+                                                    <Activity className="w-3.5 h-3.5" />
+                                                ) : zone.id === 'network' ? (
+                                                    <Wifi className="w-3.5 h-3.5" />
+                                                ) : zone.id === 'infrastructure' ? (
+                                                    <Server className="w-3.5 h-3.5" />
+                                                ) : zone.id === 'smarthome' ? (
+                                                    <HomeIcon className="w-3.5 h-3.5" />
+                                                ) : zone.id === 'security' ? (
+                                                    <Shield className="w-3.5 h-3.5" />
+                                                ) : (
+                                                    <Sliders className="w-3.5 h-3.5" />
+                                                )}
                                                 <span>{zone.name}</span>
                                                 {effectiveEditMode && (
-                                                    <span
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            toggleZoneVisibility(zone.id)
-                                                        }}
-                                                        className="ml-1 p-0.5 rounded hover:bg-white/20 text-gray-400 hover:text-white transition cursor-pointer"
-                                                        title={isHidden ? 'Kategorie einblenden' : 'Kategorie ausblenden'}
-                                                    >
-                                                        {isHidden ? <EyeOff className="w-3.5 h-3.5 text-red-400" /> : <Eye className="w-3.5 h-3.5 text-emerald-400" />}
-                                                    </span>
+                                                    <div className="flex items-center gap-1 ml-1">
+                                                        <span
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                toggleZoneVisibility(zone.id)
+                                                            }}
+                                                            className="p-0.5 rounded hover:bg-white/20 text-gray-400 hover:text-white transition cursor-pointer"
+                                                            title={isHidden ? 'Show Category' : 'Hide Category'}
+                                                        >
+                                                            {isHidden ? <EyeOff className="w-3.5 h-3.5 text-red-400" /> : <Eye className="w-3.5 h-3.5 text-emerald-400" />}
+                                                        </span>
+                                                        {!isSystemZone && (
+                                                            <span
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    if (window.confirm(`Delete category "${zone.name}"?`)) {
+                                                                        deleteZone(zone.id)
+                                                                    }
+                                                                }}
+                                                                className="p-0.5 rounded hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition cursor-pointer"
+                                                                title="Delete Category"
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </button>
                                         </div>
                                     )
                                 })}
+
+                            {effectiveEditMode && (
+                                <div className="flex items-center">
+                                    {isAddingZone ? (
+                                        <form
+                                            onSubmit={(e) => {
+                                                e.preventDefault()
+                                                if (newZoneName.trim()) {
+                                                    addZone(newZoneName.trim())
+                                                    setNewZoneName('')
+                                                    setIsAddingZone(false)
+                                                }
+                                            }}
+                                            className="flex items-center gap-1 bg-black/60 border border-neon-cyan/50 p-1 rounded-xl"
+                                        >
+                                            <input
+                                                type="text"
+                                                autoFocus
+                                                value={newZoneName}
+                                                onChange={(e) => setNewZoneName(e.target.value)}
+                                                placeholder="Category Name..."
+                                                className="px-2 py-0.5 bg-transparent text-white text-xs font-mono focus:outline-none w-28"
+                                            />
+                                            <button
+                                                type="submit"
+                                                className="p-1 rounded-lg bg-neon-cyan text-black hover:bg-white transition"
+                                                title="Save Category"
+                                            >
+                                                <Check className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setIsAddingZone(false)
+                                                    setNewZoneName('')
+                                                }}
+                                                className="p-1 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition"
+                                                title="Cancel"
+                                            >
+                                                <X className="w-3.5 h-3.5" />
+                                            </button>
+                                        </form>
+                                    ) : (
+                                        <button
+                                            onClick={() => setIsAddingZone(true)}
+                                            className="px-3 py-1.5 rounded-xl bg-neon-cyan/10 border border-neon-cyan/30 text-neon-cyan hover:bg-neon-cyan hover:text-black transition text-xs font-mono font-semibold flex items-center gap-1.5 whitespace-nowrap"
+                                            title="Add Custom Monitoring Category"
+                                        >
+                                            <Plus className="w-3.5 h-3.5" />
+                                            <span>Category</span>
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
 

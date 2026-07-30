@@ -17,12 +17,16 @@ export interface MonitoringContextType {
     clearPairingCode: () => void
     toggleEnabled: () => void
     toggleDemoMode: () => void
+    toggleVarcoIntegration: () => void
+    updatePollingInterval: (seconds: number) => void
     refreshConfig: () => Promise<void>
     saveConfig: (cfg: MonitoringConfig) => Promise<void>
     deleteCard: (cardId: string) => void
     addCard: (card: MonitoringCard) => void
     updateCardZone: (cardId: string, zoneId: string) => void
     moveCardOrder: (cardId: string, direction: 'up' | 'down') => void
+    addZone: (name: string, icon?: string) => void
+    deleteZone: (zoneId: string) => void
     toggleZoneVisibility: (zoneId: string) => void
     toggleCardVisibility: (cardId: string) => void
     resetMonitoringConfig: () => Promise<void>

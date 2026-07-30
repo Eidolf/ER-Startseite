@@ -14,6 +14,7 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.exceptions import BackendException
 from app.services.config_service import ConfigService
+from app.services.varco_collector import start_varco_collector, stop_varco_collector
 
 logger = structlog.get_logger()
 
@@ -79,8 +80,12 @@ def get_project_version() -> str:
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Startup: Initializing ER-Startseite Backend")
     get_project_version()
-    yield
-    logger.info("Shutdown: cleaning up resources")
+    start_varco_collector()
+    try:
+        yield
+    finally:
+        logger.info("Shutdown: cleaning up resources")
+        await stop_varco_collector()
 
 
 app = FastAPI(
