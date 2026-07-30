@@ -5,7 +5,7 @@ All notable changes to the **ER-Startseite** dashboard project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.M.PATCH`).
 
-## [2026.7.7] - 2026-07-30
+## [2026.7.8] - 2026-07-30
 
 ### Added
 - **Centralized Varco Bridge Background Data Sync & Relay**: Integrated persistent, server-side monitoring data storage (`data/monitoring.json`) and client-side background polling relay to sync live Varco Bridge states seamlessly across all browser sessions without requiring a primary browser tab.
