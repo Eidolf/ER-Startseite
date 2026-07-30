@@ -232,7 +232,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
     const updatePollingInterval = useCallback((seconds: number) => {
         if (!config) return
-        const interval = Math.max(5, Math.min(600, seconds))
+        const interval = Math.max(5, Math.min(86400, seconds))
         const updated = {
             ...config,
             polling_interval_seconds: interval,

@@ -308,7 +308,7 @@ async def _run_collector_loop():
                             count=len(collected),
                         )
 
-            # Determine interval (minimum 5s, maximum 600s, default 15s)
+            # Determine interval (minimum 5s, maximum 86400s / 24h, default 15s)
             interval = 15
             if config.enabled:
                 varco_p = next((p for p in config.providers if p.type == "varco"), None)
@@ -317,7 +317,7 @@ async def _run_collector_loop():
                 elif config.polling_interval_seconds:
                     interval = config.polling_interval_seconds
 
-            interval = max(5, min(600, interval))
+            interval = max(5, min(86400, interval))
 
             # Sleep in small ticks to respond quickly to shutdown
             for _ in range(interval):

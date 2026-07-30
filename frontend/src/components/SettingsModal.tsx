@@ -757,11 +757,16 @@ export function SettingsModal({
                                     </button>
                                 </div>
 
-                                <div className="space-y-2">
+                                <div className="space-y-3">
                                     <div className="flex items-center justify-between">
                                         <label className="text-sm font-semibold text-white">Server Background Polling Interval</label>
                                         <span className="text-xs font-mono text-neon-cyan bg-neon-cyan/10 px-2 py-0.5 rounded border border-neon-cyan/30">
-                                            {monitoringConfig?.polling_interval_seconds || monitoringConfig?.pollingIntervalSeconds || 15} seconds
+                                            {(() => {
+                                                const totalSec = monitoringConfig?.polling_interval_seconds || monitoringConfig?.pollingIntervalSeconds || 15
+                                                if (totalSec >= 3600 && totalSec % 3600 === 0) return `${totalSec / 3600} hours`
+                                                if (totalSec >= 60 && totalSec % 60 === 0) return `${totalSec / 60} minutes`
+                                                return `${totalSec} seconds`
+                                            })()}
                                         </span>
                                     </div>
                                     <div className="grid grid-cols-4 gap-2">
@@ -789,6 +794,60 @@ export function SettingsModal({
                                             )
                                         })}
                                     </div>
+
+                                    {/* Custom Interval Input (Value + Unit) */}
+                                    <div className="pt-2">
+                                        <label className="block text-xs font-medium text-gray-400 mb-1.5">Benutzerdefiniertes Intervall (Custom)</label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="number"
+                                                min={5}
+                                                max={86400}
+                                                value={(() => {
+                                                    const totalSec = monitoringConfig?.polling_interval_seconds || monitoringConfig?.pollingIntervalSeconds || 15
+                                                    if (totalSec >= 3600 && totalSec % 3600 === 0) return totalSec / 3600
+                                                    if (totalSec >= 60 && totalSec % 60 === 0) return totalSec / 60
+                                                    return totalSec
+                                                })()}
+                                                onChange={(e) => {
+                                                    const num = parseInt(e.target.value, 10) || 5
+                                                    const totalSec = monitoringConfig?.polling_interval_seconds || monitoringConfig?.pollingIntervalSeconds || 15
+                                                    let unitMultiplier = 1
+                                                    if (totalSec >= 3600 && totalSec % 3600 === 0) unitMultiplier = 3600
+                                                    else if (totalSec >= 60 && totalSec % 60 === 0) unitMultiplier = 60
+                                                    updateMonitoringPollingInterval(num * unitMultiplier)
+                                                }}
+                                                className="w-32 px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm font-mono focus:outline-none focus:border-neon-cyan"
+                                            />
+                                            <select
+                                                value={(() => {
+                                                    const totalSec = monitoringConfig?.polling_interval_seconds || monitoringConfig?.pollingIntervalSeconds || 15
+                                                    if (totalSec >= 3600 && totalSec % 3600 === 0) return 'hours'
+                                                    if (totalSec >= 60 && totalSec % 60 === 0) return 'minutes'
+                                                    return 'seconds'
+                                                })()}
+                                                onChange={(e) => {
+                                                    const totalSec = monitoringConfig?.polling_interval_seconds || monitoringConfig?.pollingIntervalSeconds || 15
+                                                    let currentNum = totalSec
+                                                    if (totalSec >= 3600 && totalSec % 3600 === 0) currentNum = totalSec / 3600
+                                                    else if (totalSec >= 60 && totalSec % 60 === 0) currentNum = totalSec / 60
+
+                                                    const unit = e.target.value
+                                                    let mult = 1
+                                                    if (unit === 'hours') mult = 3600
+                                                    else if (unit === 'minutes') mult = 60
+
+                                                    updateMonitoringPollingInterval(currentNum * mult)
+                                                }}
+                                                className="px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-white text-sm font-mono focus:outline-none focus:border-neon-cyan cursor-pointer"
+                                            >
+                                                <option value="seconds" className="bg-gray-900 text-white">Sekunden (Seconds)</option>
+                                                <option value="minutes" className="bg-gray-900 text-white">Minuten (Minutes)</option>
+                                                <option value="hours" className="bg-gray-900 text-white">Stunden (Hours)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
                                     <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200/90 leading-relaxed">
                                         💡 <strong>Recommendation Note:</strong> Setting an interval lower than 5s causes unnecessary CPU and network overhead on the Home Assistant / Varco Bridge server. Setting it above 60s will delay live metric updates in all browser sessions.
                                     </div>
