@@ -245,7 +245,12 @@ export function SettingsModal({
     serverMode,
     onLogout
 }: SettingsModalProps) {
-    const { config: monitoringConfig, toggleEnabled: toggleMonitoringEnabled, toggleDemoMode: toggleMonitoringDemoMode } = useMonitoring()
+    const {
+        config: monitoringConfig,
+        toggleEnabled: toggleMonitoringEnabled,
+        toggleDemoMode: toggleMonitoringDemoMode,
+        updatePollingInterval: updateMonitoringPollingInterval,
+    } = useMonitoring()
     const [activeTab, setActiveTab] = useState<'general' | 'widgets' | 'monitoring' | 'background' | 'logo' | 'effects' | 'security' | 'about'>('general')
     const [uploading, setUploading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -689,8 +694,8 @@ export function SettingsModal({
                             <div className="p-4 rounded-xl bg-black/40 border border-white/10 space-y-4">
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
-                                        <div className="text-sm font-semibold text-white">Monitoring Overlay Aktivieren</div>
-                                        <div className="text-xs text-gray-400">Aktiviert das Monitoring Bridge Overlay und Tastaturkürzel (Ctrl+Shift+M).</div>
+                                        <div className="text-sm font-semibold text-white">Enable Monitoring Overlay</div>
+                                        <div className="text-xs text-gray-400">Activates the Monitoring Bridge Overlay and keyboard shortcut (Ctrl+Shift+M).</div>
                                     </div>
                                     <button
                                         type="button"
@@ -711,8 +716,8 @@ export function SettingsModal({
 
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-0.5">
-                                        <div className="text-sm font-semibold text-white">Demo-Modus / Live-Simulation</div>
-                                        <div className="text-xs text-gray-400">Generiert simulierte Livedaten & Netzwerkschwankungen für Demo-Zwecke.</div>
+                                        <div className="text-sm font-semibold text-white">Demo Mode / Live Simulation</div>
+                                        <div className="text-xs text-gray-400">Generates simulated live data & network jitter for demo purposes.</div>
                                     </div>
                                     <button
                                         type="button"
@@ -727,6 +732,45 @@ export function SettingsModal({
                                             }`}
                                         />
                                     </button>
+                                </div>
+
+                                <div className="h-px bg-white/10" />
+
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-sm font-semibold text-white">Server Background Polling Interval</label>
+                                        <span className="text-xs font-mono text-neon-cyan bg-neon-cyan/10 px-2 py-0.5 rounded border border-neon-cyan/30">
+                                            {monitoringConfig?.polling_interval_seconds || monitoringConfig?.pollingIntervalSeconds || 15} seconds
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {[
+                                            { sec: 5, label: '5s (Fast)' },
+                                            { sec: 15, label: '15s (Recommended)' },
+                                            { sec: 30, label: '30s (Balanced)' },
+                                            { sec: 60, label: '60s (Low Traffic)' },
+                                        ].map((opt) => {
+                                            const currentSec = monitoringConfig?.polling_interval_seconds || monitoringConfig?.pollingIntervalSeconds || 15
+                                            const isSelected = currentSec === opt.sec
+                                            return (
+                                                <button
+                                                    key={opt.sec}
+                                                    type="button"
+                                                    onClick={() => updateMonitoringPollingInterval(opt.sec)}
+                                                    className={`py-2 px-3 text-xs font-medium rounded-xl border transition ${
+                                                        isSelected
+                                                            ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan shadow-[0_0_10px_rgba(6,182,212,0.3)]'
+                                                            : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                                    }`}
+                                                >
+                                                    {opt.label}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200/90 leading-relaxed">
+                                        💡 <strong>Recommendation Note:</strong> Setting an interval lower than 5s causes unnecessary CPU and network overhead on the Home Assistant / Varco Bridge server. Setting it above 60s will delay live metric updates in all browser sessions.
+                                    </div>
                                 </div>
                             </div>
                         </div>

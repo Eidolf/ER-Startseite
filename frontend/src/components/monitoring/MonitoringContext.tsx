@@ -213,6 +213,17 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         saveConfig(updated)
     }, [config, saveConfig])
 
+    const updatePollingInterval = useCallback((seconds: number) => {
+        if (!config) return
+        const interval = Math.max(5, Math.min(600, seconds))
+        const updated = {
+            ...config,
+            polling_interval_seconds: interval,
+            pollingIntervalSeconds: interval,
+        }
+        saveConfig(updated)
+    }, [config, saveConfig])
+
     const updateCardZone = useCallback(
         (cardId: string, zoneId: string) => {
             if (!config) return
@@ -624,6 +635,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 clearPairingCode: () => setPairingCode(null),
                 toggleEnabled,
                 toggleDemoMode,
+                updatePollingInterval,
                 refreshConfig,
                 saveConfig,
                 deleteCard,
