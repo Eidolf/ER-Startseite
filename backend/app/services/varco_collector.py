@@ -119,65 +119,78 @@ async def _fetch_varco_data(
                     {"endpoint": api_endpoint, "status": resp.status_code},
                 )
                 if resp.status_code == 200:
-                    try:
-                        data = resp.json()
+                    text_body = resp.text.strip()
+                    if text_body.startswith("{") or text_body.startswith("["):
+                        try:
+                            data = resp.json()
+                            add_system_log(
+                                "DEBUG",
+                                "Varco Bridge raw JSON data payload",
+                                {
+                                    "keys": (
+                                        list(data.keys())
+                                        if isinstance(data, dict)
+                                        else []
+                                    ),
+                                    "sample": str(data)[:300],
+                                },
+                            )
+                            states_dict: dict[str, Any] = {}
+                            if isinstance(data, dict):
+                                raw_states = data.get("states")
+                                if isinstance(raw_states, dict):
+                                    states_dict = raw_states
+                                elif not raw_states:
+                                    states_dict = data
+                            for eid, ent_data in states_dict.items():
+                                if ent_data:
+                                    val_state = (
+                                        ent_data.get("state")
+                                        if isinstance(ent_data, dict)
+                                        else ent_data
+                                    )
+                                    unit = (
+                                        ent_data.get("attributes", {}).get(
+                                            "unit_of_measurement"
+                                        )
+                                        if isinstance(ent_data, dict)
+                                        else None
+                                    )
+                                    name = (
+                                        ent_data.get("attributes", {}).get(
+                                            "friendly_name"
+                                        )
+                                        if isinstance(ent_data, dict)
+                                        else None
+                                    ) or eid.split(".")[-1].replace("_", " ").title()
+                                    extracted_entities.append(
+                                        {
+                                            "id": str(eid),
+                                            "name": str(name),
+                                            "state": (
+                                                val_state
+                                                if val_state is not None
+                                                else "N/A"
+                                            ),
+                                            "unit": str(unit) if unit else None,
+                                            "domain": (
+                                                "binary_sensor"
+                                                if str(eid).startswith("binary_sensor.")
+                                                else "sensor"
+                                            ),
+                                        }
+                                    )
+                        except Exception as json_err:
+                            logger.debug(
+                                "Varco Bridge HTTP response JSON parse info",
+                                error=str(json_err),
+                            )
+                    else:
                         add_system_log(
                             "DEBUG",
-                            "Varco Bridge raw JSON data payload",
-                            {
-                                "keys": (
-                                    list(data.keys()) if isinstance(data, dict) else []
-                                ),
-                                "sample": str(data)[:300],
-                            },
+                            "Varco Opaque Bridge response (WebSocket authentication required)",
+                            {"body": text_body[:100]},
                         )
-                    except Exception as json_err:
-                        add_system_log(
-                            "WARNING",
-                            "Varco Bridge response HTTP 200 but not valid JSON",
-                            {"error": str(json_err), "body_sample": resp.text[:300]},
-                        )
-                    states_dict: dict[str, Any] = {}
-                    if isinstance(data, dict):
-                        raw_states = data.get("states")
-                        if isinstance(raw_states, dict):
-                            states_dict = raw_states
-                        elif not raw_states:
-                            states_dict = data
-                    for eid, ent_data in states_dict.items():
-                        if ent_data:
-                            val_state = (
-                                ent_data.get("state")
-                                if isinstance(ent_data, dict)
-                                else ent_data
-                            )
-                            unit = (
-                                ent_data.get("attributes", {}).get(
-                                    "unit_of_measurement"
-                                )
-                                if isinstance(ent_data, dict)
-                                else None
-                            )
-                            name = (
-                                ent_data.get("attributes", {}).get("friendly_name")
-                                if isinstance(ent_data, dict)
-                                else None
-                            ) or eid.split(".")[-1].replace("_", " ").title()
-                            extracted_entities.append(
-                                {
-                                    "id": str(eid),
-                                    "name": str(name),
-                                    "state": (
-                                        val_state if val_state is not None else "N/A"
-                                    ),
-                                    "unit": str(unit) if unit else None,
-                                    "domain": (
-                                        "binary_sensor"
-                                        if str(eid).startswith("binary_sensor.")
-                                        else "sensor"
-                                    ),
-                                }
-                            )
         except Exception as e:
             logger.debug("Varco Bridge API endpoint query info", error=str(e))
 
