@@ -254,6 +254,18 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         [config, saveConfig]
     )
 
+    const updateCardType = useCallback(
+        (cardId: string, cardType: string) => {
+            if (!config) return
+            const updated: MonitoringConfig = {
+                ...config,
+                cards: config.cards.map((c) => (c.id === cardId ? { ...c, card_type: cardType, cardType: cardType } : c)),
+            }
+            saveConfig(updated)
+        },
+        [config, saveConfig]
+    )
+
     const moveCardOrder = useCallback(
         (cardId: string, direction: 'up' | 'down') => {
             if (!config) return
@@ -733,6 +745,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 deleteCard,
                 addCard,
                 updateCardZone,
+                updateCardType,
                 moveCardOrder,
                 addZone,
                 deleteZone,
