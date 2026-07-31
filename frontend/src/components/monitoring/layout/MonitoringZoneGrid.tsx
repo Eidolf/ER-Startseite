@@ -108,7 +108,7 @@ export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenIm
                                             >
                                                 <option value="simple_value" className="bg-gray-900 text-white">Wert (Schlicht)</option>
                                                 <option value="linear_bar" className="bg-gray-900 text-white font-bold">Fortschritts-Balken</option>
-                                                <option value="sparkline" className="bg-gray-900 text-white font-bold">Trend-Verlauf (Sparkline)</option>
+                                                <option value="sparkline_card" className="bg-gray-900 text-white font-bold">Trend-Verlauf (Sparkline)</option>
                                                 <option value="gauge" className="bg-gray-900 text-white font-bold">Tacho / Gauge</option>
                                                 <option value="metric_card" className="bg-gray-900 text-white font-bold">Standard Metrik-Karte</option>
                                                 <option value="live_traffic" className="bg-gray-900 text-white font-bold">Live Traffic Graph</option>

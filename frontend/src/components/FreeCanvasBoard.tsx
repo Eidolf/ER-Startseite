@@ -122,12 +122,20 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
     const hoverTimerRef = useRef<NodeJS.Timeout | null>(null)
     const leaveTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-    const [isMobile, setIsMobile] = useState<bool>(() => typeof window !== 'undefined' && window.innerWidth < 768)
+    const [isMobile, setIsMobile] = useState<boolean>(() => typeof window !== 'undefined' && window.innerWidth < 768)
+    const [, setWindowSize] = useState({ width: 0, height: 0 })
 
     useEffect(() => {
-        const checkMobile = () => setIsMobile(window.innerWidth < 768)
-        window.addEventListener('resize', checkMobile)
-        return () => window.removeEventListener('resize', checkMobile)
+        const handleResize = () => {
+            setIsMobile(window.innerWidth < 768)
+            setWindowSize({ width: window.innerWidth, height: window.innerHeight })
+        }
+        window.addEventListener('resize', handleResize)
+        window.addEventListener('orientationchange', handleResize)
+        return () => {
+            window.removeEventListener('resize', handleResize)
+            window.removeEventListener('orientationchange', handleResize)
+        }
     }, [])
 
     const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -176,19 +184,6 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
             })
         }
     }, [apps, availableApps, hiddenAppIds, showHiddenApps])
-    const [, setWindowSize] = useState({ width: 0, height: 0 })
-
-    useEffect(() => {
-        const handleResize = () => {
-            setWindowSize({ width: window.innerWidth, height: window.innerHeight })
-        }
-        window.addEventListener('resize', handleResize)
-        window.addEventListener('orientationchange', handleResize)
-        return () => {
-            window.removeEventListener('resize', handleResize)
-            window.removeEventListener('orientationchange', handleResize)
-        }
-    }, [])
 
     useEffect(() => {
         const leanWidgets = widgets.map((w) => ({
@@ -710,9 +705,9 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
                         >
                         {/* Widget Control Header Overlay */}
                         <div
-                            onMouseDown={(e) => handleStartDrag(e, widget.id)}
-                            onTouchStart={(e) => handleStartDrag(e, widget.id)}
-                            className="absolute top-0 left-0 right-0 h-8 bg-black/60 backdrop-blur-md rounded-t-2xl border-b border-white/10 px-3 flex items-center justify-between cursor-move opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-20 touch-none select-none"
+                            onMouseDown={(e) => !isMobile && handleStartDrag(e, widget.id)}
+                            onTouchStart={(e) => !isMobile && handleStartDrag(e, widget.id)}
+                            className={`absolute top-0 left-0 right-0 h-8 bg-black/60 backdrop-blur-md rounded-t-2xl border-b border-white/10 px-3 flex items-center justify-between opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-20 touch-none select-none ${isMobile ? 'cursor-default' : 'cursor-move'}`}
                         >
                             <div className="flex items-center gap-2 text-xs font-semibold text-gray-300 truncate">
                                 <Move className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
@@ -895,8 +890,8 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
                             )}
                         </div>
 
-                        {/* Resize handle (Hidden when folder is collapsed) */}
-                        {widget.isExpanded !== false && (
+                        {/* Resize handle (Hidden when folder is collapsed or on mobile) */}
+                        {widget.isExpanded !== false && !isMobile && (
                             <div
                                 onMouseDown={(e) => handleStartResize(e, widget.id)}
                                 onTouchStart={(e) => handleStartResize(e, widget.id)}

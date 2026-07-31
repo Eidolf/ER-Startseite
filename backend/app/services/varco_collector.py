@@ -145,14 +145,16 @@ async def _fetch_varco_data(
     )
 
     # 1. Direct Varco Bridge HTTP/JSON endpoint query
+    api_endpoint = ""
+    log_endpoint = ""
     if not (bridge_url and authority_id and share_code):
         add_system_log(
             "WARNING",
             "Varco Collector skipped direct fetch: missing bridge_url, authority_id, or share_code",
             {
-                "bridge_url": bridge_url,
-                "authority_id": authority_id,
-                "share_code": share_code,
+                "has_bridge_url": bool(bridge_url),
+                "has_authority_id": bool(authority_id),
+                "has_share_code": bool(share_code),
             },
         )
 
@@ -167,7 +169,15 @@ async def _fetch_varco_data(
                 f"{base_b_url}/api/v1/share/{authority_id}/{share_code}/states"
             )
             if claim_secret:
-                api_endpoint = f"{api_endpoint}?claim={claim_secret}"
+                api_endpoint = (
+                    f"{api_endpoint}?claim={urllib.parse.quote(claim_secret)}"
+                )
+
+            log_endpoint = (
+                f"{base_b_url}/api/v1/share/{authority_id}/{share_code}/states?claim=REDACTED"
+                if claim_secret
+                else api_endpoint
+            )
 
             if _is_safe_url(api_endpoint):
                 async with httpx.AsyncClient(
@@ -177,45 +187,20 @@ async def _fetch_varco_data(
                     add_system_log(
                         "INFO" if resp.status_code == 200 else "WARNING",
                         f"Varco Bridge API response HTTP {resp.status_code}",
-                        {"endpoint": api_endpoint, "status": resp.status_code},
+                        {"endpoint": log_endpoint, "status": resp.status_code},
                     )
                     if resp.status_code == 200:
                         text_body = resp.text.strip()
                         if text_body.startswith("{") or text_body.startswith("["):
                             try:
-                                data = resp.json()
-                                add_system_log(
-                                    "DEBUG",
-                                    "Varco Bridge raw JSON data payload",
-                                    {
-                                        "keys": (
-                                            list(data.keys())
-                                            if isinstance(data, dict)
-                                            else []
-                                        ),
-                                        "sample": str(data)[:300],
-                                    },
+                                raw_data = json.loads(text_body)
+                                states = (
+                                    raw_data.get("states", raw_data)
+                                    if isinstance(raw_data, dict)
+                                    else raw_data
                                 )
-                                states_dict: dict[str, Any] = {}
-                                if isinstance(data, dict):
-                                    raw_states = data.get("states")
-                                    if isinstance(raw_states, dict):
-                                        states_dict = raw_states
-                                    elif isinstance(raw_states, list):
-                                        for ent in raw_states:
-                                            if (
-                                                isinstance(ent, dict)
-                                                and "entity_id" in ent
-                                            ):
-                                                states_dict[ent["entity_id"]] = ent
-                                    elif not raw_states:
-                                        states_dict = data
-                                elif isinstance(data, list):
-                                    for ent in data:
-                                        if isinstance(ent, dict) and "entity_id" in ent:
-                                            states_dict[ent["entity_id"]] = ent
-                                for eid, ent_data in states_dict.items():
-                                    if ent_data:
+                                if isinstance(states, dict):
+                                    for eid, ent_data in states.items():
                                         val_state = (
                                             ent_data.get("state")
                                             if isinstance(ent_data, dict)
@@ -271,7 +256,7 @@ async def _fetch_varco_data(
             add_system_log(
                 "WARNING",
                 f"Varco Bridge API request failed: {e}",
-                {"endpoint": api_endpoint, "error": str(e)},
+                {"endpoint": log_endpoint or api_endpoint, "error": str(e)},
             )
             logger.debug("Varco Bridge API endpoint query info", error=str(e))
 
