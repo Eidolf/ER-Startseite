@@ -13,6 +13,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     onImportSuccess,
 }) => {
     const [shareUrl, setShareUrl] = useState('')
+    const [consumerName, setConsumerName] = useState('ER-Startseite Backend Server')
     const [files, setFiles] = useState<File[]>([])
     const [jsonText, setJsonText] = useState('')
     const [briefText, setBriefText] = useState('')
@@ -48,7 +49,10 @@ export const ImportModal: React.FC<ImportModalProps> = ({
             const res = await fetch('/api/v1/monitoring/import/url', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ share_url: shareUrl.trim() }),
+                body: JSON.stringify({
+                    share_url: shareUrl.trim(),
+                    consumer_name: consumerName.trim() || 'ER-Startseite Backend Server',
+                }),
             })
 
             if (!res.ok) {
@@ -56,7 +60,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                 throw new Error(errData.detail || 'Failed to fetch Varco Share URL')
             }
 
-            setSuccessMessage('Successfully imported Varco Share Link & generated telemetry cards!')
+            setSuccessMessage('Successfully configured Varco Server Consumer!')
             setTimeout(() => {
                 onImportSuccess()
                 handleClose()
@@ -273,6 +277,17 @@ export const ImportModal: React.FC<ImportModalProps> = ({
                                 value={shareUrl}
                                 onChange={(e) => setShareUrl(e.target.value)}
                                 placeholder="https://varco-bridge.andreabaccega.com/share/..."
+                                className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-neon-cyan"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-[11px] text-neon-cyan font-mono mb-1">Consumer Instanz-Name (Home Assistant)</label>
+                            <input
+                                type="text"
+                                value={consumerName}
+                                onChange={(e) => setConsumerName(e.target.value)}
+                                placeholder="ER-Startseite Backend Server"
                                 className="w-full px-3 py-2 bg-black/60 border border-white/10 rounded-xl text-white text-xs font-mono focus:outline-none focus:border-neon-cyan"
                             />
                         </div>

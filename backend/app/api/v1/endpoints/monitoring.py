@@ -593,19 +593,51 @@ async def import_url(payload: VarcoManifestImportPayload) -> MonitoringConfig:
 
     # Store or create Varco provider config
     varco_provider = next((p for p in config.providers if p.type == "varco"), None)
-    if varco_provider:
-        varco_provider.url = url
-        varco_provider.enabled = True
-    else:
-        config.providers.append(
-            MonitoringProviderConfig(
-                id="varco-main-provider",
-                name="Varco Bridge",
-                type="varco",
-                enabled=True,
-                url=url,
-            )
+    if not varco_provider:
+        varco_provider = MonitoringProviderConfig(
+            id="varco-main-provider",
+            name="Varco Bridge",
+            type="varco",
+            enabled=True,
         )
+        config.providers.append(varco_provider)
+
+    varco_provider.url = url
+    varco_provider.enabled = True
+
+    # Parse and persist authority_id, share_code, claim_secret, bridge_url into provider settings
+    from app.services.varco_collector import _parse_url_params
+
+    sc, auth_id, cs, b_url = _parse_url_params(url, varco_provider.settings or {})
+    current_settings = dict(varco_provider.settings or {})
+    if sc:
+        current_settings["shareCode"] = sc
+        current_settings["share_code"] = sc
+    if auth_id:
+        current_settings["authorityId"] = auth_id
+        current_settings["authority_id"] = auth_id
+    if cs:
+        current_settings["claimSecret"] = cs
+    if b_url:
+        current_settings["bridgeUrl"] = b_url
+        current_settings["bridge_url"] = b_url
+
+    c_name = payload.consumer_name or "ER-Startseite Backend Server"
+    current_settings["consumerName"] = c_name
+    current_settings["consumer_name"] = c_name
+
+    varco_provider.settings = current_settings
+
+    add_system_log(
+        "INFO",
+        f"Varco Server Consumer configured: '{c_name}'",
+        {
+            "consumer_name": c_name,
+            "authority_id": auth_id,
+            "share_code": sc,
+            "bridge_url": b_url,
+        },
+    )
 
     updated = _parse_varco_manifest_and_brief(manifest_data, brief_text, config)
     await repo.save_config(updated)

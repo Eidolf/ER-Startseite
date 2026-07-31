@@ -3,7 +3,9 @@ import contextlib
 import datetime
 import ipaddress
 import json
+import os
 import re
+import shutil
 import urllib.parse
 from typing import Any
 
@@ -80,7 +82,12 @@ def _parse_url_params(
                     share_code = s_code
 
             search_params = urllib.parse.parse_qs(url_obj.query)
-            hash_params = urllib.parse.parse_qs(url_obj.fragment)
+            fragment_str = url_obj.fragment
+            hash_params = urllib.parse.parse_qs(fragment_str)
+            if not hash_params and "=" in fragment_str:
+                frag_k, _, frag_v = fragment_str.partition("=")
+                if frag_k and frag_v:
+                    hash_params[frag_k] = [frag_v]
 
             def get_p(key: str) -> str:
                 return (search_params.get(key) or hash_params.get(key) or [""])[0]
@@ -132,11 +139,23 @@ async def _fetch_varco_data(
             "bridge_url": bridge_url,
             "authority_id": authority_id,
             "has_share_code": bool(share_code),
+            "has_claim_secret": bool(claim_secret),
             "has_url": bool(clean_url),
         },
     )
 
     # 1. Direct Varco Bridge HTTP/JSON endpoint query
+    if not (bridge_url and authority_id and share_code):
+        add_system_log(
+            "WARNING",
+            "Varco Collector skipped direct fetch: missing bridge_url, authority_id, or share_code",
+            {
+                "bridge_url": bridge_url,
+                "authority_id": authority_id,
+                "share_code": share_code,
+            },
+        )
+
     if bridge_url and authority_id and share_code and _is_safe_url(bridge_url):
         try:
             base_b_url = (
@@ -147,6 +166,9 @@ async def _fetch_varco_data(
             api_endpoint = (
                 f"{base_b_url}/api/v1/share/{authority_id}/{share_code}/states"
             )
+            if claim_secret:
+                api_endpoint = f"{api_endpoint}?claim={claim_secret}"
+
             if _is_safe_url(api_endpoint):
                 async with httpx.AsyncClient(
                     timeout=10.0, follow_redirects=False
@@ -242,21 +264,58 @@ async def _fetch_varco_data(
                         else:
                             add_system_log(
                                 "DEBUG",
-                                "Varco Opaque Bridge response (WebSocket authentication required)",
+                                "Varco Opaque Bridge response (Browser Worker Sync Active)",
                                 {"body": text_body[:100]},
                             )
         except Exception as e:
+            add_system_log(
+                "WARNING",
+                f"Varco Bridge API request failed: {e}",
+                {"endpoint": api_endpoint, "error": str(e)},
+            )
             logger.debug("Varco Bridge API endpoint query info", error=str(e))
 
-    # 2. Try HTML section parsing from share URL as fallback
-    if not extracted_entities and clean_url and _is_safe_url(clean_url):
+    # 2. Try HTML section parsing or share page grant parsing from share URL as fallback
+    target_share_url = clean_url
+    if (
+        (not target_share_url or "/api/v1" in target_share_url)
+        and bridge_url
+        and authority_id
+        and share_code
+    ):
+        base_b_url = (
+            bridge_url.replace("wss://", "https://")
+            .replace("ws://", "http://")
+            .rstrip("/")
+        )
+        target_share_url = f"{base_b_url}/share/{share_code}?authority={authority_id}"
+
+    add_system_log(
+        "DEBUG",
+        "Varco Collector share page fallback target check",
+        {
+            "target_share_url": target_share_url,
+            "has_entities_already": bool(extracted_entities),
+        },
+    )
+
+    if not extracted_entities and target_share_url and _is_safe_url(target_share_url):
         try:
-            async with httpx.AsyncClient(
-                timeout=10.0, follow_redirects=False
-            ) as client:
-                resp = await client.get(clean_url)
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                resp = await client.get(target_share_url)
+                add_system_log(
+                    "DEBUG",
+                    f"Varco Collector share page HTTP {resp.status_code}",
+                    {"target_url": target_share_url, "status": resp.status_code},
+                )
                 if resp.status_code == 200:
                     body_str = resp.text
+                    add_system_log(
+                        "DEBUG",
+                        "Varco Collector share page HTML received",
+                        {"length": len(body_str), "snippet": body_str[:400]},
+                    )
+                    # 1. Standard Varco HTML section tags
                     section_pattern = (
                         r'<section[^>]*data-entity="([^"]+)"[^>]*>(.*?)</section>'
                     )
@@ -298,55 +357,158 @@ async def _fetch_varco_data(
                                         ),
                                     }
                                 )
-                    # Fallback JSON blob match inside script tags or data attributes
+
+                    # 2. Extract JSON payload blobs or state objects in script tags/data attributes
                     if not extracted_entities:
-                        json_match = re.search(
-                            r'id="__VARCO_DATA__"[^>]*>(.*?)</script>',
+                        all_json_blobs = re.findall(
+                            r"({[^{}]*\"entity_id\"[^{}]*}|{[^{}]*\"id\":\s*\"(?:sensor|binary_sensor)\.[^\"]+\"[^{}]*})",
                             body_str,
                             re.DOTALL,
                         )
-                        if json_match:
+                        for blob in all_json_blobs:
                             try:
-                                json_data = json.loads(json_match.group(1))
-                                if isinstance(json_data, list):
-                                    for item in json_data:
-                                        if isinstance(item, dict) and "id" in item:
-                                            st = item.get("state")
-                                            u = item.get(
-                                                "unit_of_measurement"
-                                            ) or item.get("unit")
-                                            extracted_entities.append(
-                                                {
-                                                    "id": str(item["id"]),
-                                                    "name": str(
-                                                        item.get("name")
-                                                        or item["id"]
-                                                        .split(".")[-1]
-                                                        .replace("_", " ")
-                                                        .title()
-                                                    ),
-                                                    "state": (
-                                                        st if st is not None else "N/A"
-                                                    ),
-                                                    "unit": str(u) if u else None,
-                                                    "domain": (
-                                                        "binary_sensor"
-                                                        if str(item["id"]).startswith(
-                                                            "binary_sensor."
-                                                        )
-                                                        else "sensor"
-                                                    ),
-                                                }
-                                            )
-                            except Exception as json_parse_err:
-                                logger.debug(
-                                    "JSON blob parse error in share page fallback",
-                                    exc_info=json_parse_err,
-                                )
+                                b_data = json.loads(blob)
+                                eid = b_data.get("entity_id") or b_data.get("id")
+                                if eid:
+                                    st = b_data.get("state")
+                                    snap = b_data.get("state_snapshot")
+                                    if (
+                                        isinstance(snap, dict)
+                                        and snap.get("state") is not None
+                                    ):
+                                        st = snap.get("state")
+                                    u = b_data.get("unit_of_measurement") or b_data.get(
+                                        "unit"
+                                    )
+                                    extracted_entities.append(
+                                        {
+                                            "id": str(eid),
+                                            "name": str(
+                                                b_data.get("name")
+                                                or b_data.get("friendly_name")
+                                                or str(eid)
+                                                .split(".")[-1]
+                                                .replace("_", " ")
+                                                .title()
+                                            ),
+                                            "state": st if st is not None else "N/A",
+                                            "unit": str(u) if u else None,
+                                            "domain": (
+                                                "binary_sensor"
+                                                if str(eid).startswith("binary_sensor.")
+                                                else "sensor"
+                                            ),
+                                        }
+                                    )
+                            except Exception:
+                                pass
         except Exception as e:
             logger.debug("Varco share URL fallback query info", error=str(e))
 
+    if extracted_entities:
+        add_system_log(
+            "INFO",
+            f"Varco Collector extracted {len(extracted_entities)} entities from share fallback",
+            {"count": len(extracted_entities)},
+        )
+
     return extracted_entities
+
+
+_sidecar_process: asyncio.subprocess.Process | None = None
+
+
+async def _ensure_sidecar_running(enabled: bool, has_share_link: bool) -> None:
+    """Starts or stops backend/varco_worker.js Node.js process conditionally."""
+    global _sidecar_process
+
+    should_run = enabled and has_share_link
+
+    if should_run:
+        if _sidecar_process is None or _sidecar_process.returncode is not None:
+            script_path = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "../../varco_worker.js")
+            )
+            node_binary = shutil.which("node") or "/usr/bin/node"
+            if os.path.exists(script_path):
+                try:
+                    _sidecar_process = await asyncio.create_subprocess_exec(
+                        node_binary,
+                        script_path,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                    )
+                    add_system_log(
+                        "INFO",
+                        "Varco Node.js Sidecar Worker started",
+                        {"pid": _sidecar_process.pid, "path": script_path},
+                    )
+
+                    async def _read_sidecar_logs(
+                        proc: asyncio.subprocess.Process,
+                    ) -> None:
+                        if proc.stdout:
+                            while not proc.stdout.at_eof():
+                                line = await proc.stdout.readline()
+                                if line:
+                                    txt = line.decode().strip()
+                                    if txt:
+                                        add_system_log(
+                                            (
+                                                "INFO"
+                                                if "PAIRING" in txt
+                                                or "connected" in txt
+                                                else "DEBUG"
+                                            ),
+                                            f"Varco Worker Log: {txt}",
+                                            {"output": txt},
+                                        )
+                        if proc.stderr:
+                            while not proc.stderr.at_eof():
+                                line = await proc.stderr.readline()
+                                if line:
+                                    txt = line.decode().strip()
+                                    if txt:
+                                        add_system_log(
+                                            "WARNING",
+                                            f"Varco Worker Err: {txt}",
+                                            {"error": txt},
+                                        )
+
+                    asyncio.create_task(_read_sidecar_logs(_sidecar_process))
+                except Exception as err:
+                    add_system_log(
+                        "WARNING",
+                        f"Failed to start Varco Node.js Sidecar Worker: {err}",
+                        {"error": str(err)},
+                    )
+    elif _sidecar_process is not None and _sidecar_process.returncode is None:
+        try:
+            _sidecar_process.terminate()
+            await asyncio.wait_for(_sidecar_process.wait(), timeout=3.0)
+        except Exception:
+            with contextlib.suppress(Exception):
+                _sidecar_process.kill()
+        _sidecar_process = None
+        add_system_log(
+            "INFO",
+            "Varco Node.js Sidecar Worker stopped (Monitoring or Share Link disabled)",
+            {},
+        )
+
+
+async def _query_sidecar_telemetry() -> list[dict[str, Any]]:
+    """Queries internal Node.js Varco Sidecar worker endpoint on 127.0.0.1:8089."""
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            resp = await client.get("http://127.0.0.1:8089/telemetry")
+            if resp.status_code == 200:
+                data = resp.json()
+                if data.get("entities") and isinstance(data["entities"], list):
+                    return data["entities"]
+    except Exception:
+        pass
+    return []
 
 
 async def _run_collector_loop() -> None:
@@ -358,50 +520,56 @@ async def _run_collector_loop() -> None:
             async with repo.lock:
                 config = await repo.get_config()
 
-            if config.enabled:
-                varco_provider = next(
-                    (p for p in config.providers if p.type == "varco" and p.enabled),
-                    None,
+            varco_provider = next(
+                (p for p in config.providers if p.type == "varco" and p.enabled),
+                None,
+            )
+            has_link = bool(
+                varco_provider
+                and (
+                    varco_provider.url
+                    or (varco_provider.settings or {}).get("shareCode")
                 )
+            )
 
-                if varco_provider and (varco_provider.url or varco_provider.settings):
-                    collected = await _fetch_varco_data(
-                        varco_provider.url or "", varco_provider.settings or {}
-                    )
-                    if collected:
-                        async with repo.lock:
-                            fresh_config = await repo.get_config()
-                            ent_map = {e.id: e for e in fresh_config.entities}
-                            iso_now = datetime.datetime.now(
-                                datetime.timezone.utc
-                            ).isoformat()
+            # Ensure Sidecar worker is running ONLY if enabled and share link is present
+            await _ensure_sidecar_running(config.enabled, has_link)
 
-                            for c in collected:
-                                eid = c["id"]
-                                existing = ent_map.get(eid)
-                                ent_map[eid] = MonitoringEntity(
-                                    id=eid,
-                                    provider_id="varco-server",
-                                    name=c.get("name")
-                                    or (existing.name if existing else eid),
-                                    domain=c.get("domain") or "sensor",
-                                    value_type=(
-                                        "numeric"
-                                        if isinstance(c.get("state"), (int, float))
-                                        else "string"
-                                    ),
-                                    state=c.get("state", "N/A"),
-                                    unit_of_measurement=c.get("unit")
-                                    or (
-                                        existing.unit_of_measurement
-                                        if existing
-                                        else None
-                                    ),
-                                    last_updated=iso_now,
-                                )
+            if config.enabled and varco_provider and has_link:
+                sidecar_collected = await _query_sidecar_telemetry()
+                collected = sidecar_collected or await _fetch_varco_data(
+                    varco_provider.url or "", varco_provider.settings or {}
+                )
+                if collected:
+                    async with repo.lock:
+                        fresh_config = await repo.get_config()
+                        ent_map = {e.id: e for e in fresh_config.entities}
+                        iso_now = datetime.datetime.now(
+                            datetime.timezone.utc
+                        ).isoformat()
 
-                            fresh_config.entities = list(ent_map.values())
-                            await repo.save_config(fresh_config)
+                        for c in collected:
+                            eid = c["id"]
+                            existing = ent_map.get(eid)
+                            ent_map[eid] = MonitoringEntity(
+                                id=eid,
+                                provider_id="varco-server",
+                                name=c.get("name")
+                                or (existing.name if existing else eid),
+                                domain=c.get("domain") or "sensor",
+                                value_type=(
+                                    "numeric"
+                                    if isinstance(c.get("state"), (int, float))
+                                    else "string"
+                                ),
+                                state=c.get("state", "N/A"),
+                                unit_of_measurement=c.get("unit")
+                                or (existing.unit_of_measurement if existing else None),
+                                last_updated=iso_now,
+                            )
+
+                        fresh_config.entities = list(ent_map.values())
+                        await repo.save_config(fresh_config)
 
                         add_system_log(
                             "INFO",

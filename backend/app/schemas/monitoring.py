@@ -71,3 +71,4 @@ class VarcoManifestImportPayload(BaseMonitoringModel):
     manifest: dict[str, Any] | list[Any] | None = None
     brief_content: str | None = None
     share_url: str | None = None
+    consumer_name: str | None = Field(default="ER-Startseite Backend Server")

@@ -48,9 +48,10 @@ COPY . .
 RUN addgroup --gid 1001 appuser && \
     adduser --uid 1001 --gid 1001 --disabled-password --gecos "" appuser
 
-# Install gosu (for easy step-down from root)
+# Install gosu and nodejs (for Varco Server Sidecar)
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends gosu && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends gosu nodejs npm && rm -rf /var/lib/apt/lists/*
+RUN npm install @varco/client ws --no-save
 
 # Create uploads directory and set permissions
 WORKDIR /app

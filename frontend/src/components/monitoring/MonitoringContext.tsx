@@ -394,14 +394,16 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 if (!createVarcoClient || !isMounted) return
 
                 const prefix = `varco.shareIdentity.v1.${params.authorityId}.${params.shareCode}.`
+                const globalKeyName = `varco_global_consumer_identity_${params.authorityId}`
 
-                // Restore backend shared consumer key into browser storage if present
-                const backendKey = varcoProvider.settings?.privateKey || (varcoProvider as unknown as { privateKey?: string }).privateKey
+                // 1. Check if backend config or shared localStorage holds an approved privateKey
+                const backendKey = varcoProvider.settings?.privateKey || (varcoProvider as unknown as { privateKey?: string }).privateKey || localStorage.getItem(globalKeyName)
+
                 if (backendKey && typeof backendKey === 'string') {
-                    const existingIdentity = localStorage.getItem(prefix + 'varco.consumerIdentity.v1')
-                    if (!existingIdentity) {
-                        localStorage.setItem(prefix + 'varco.consumerIdentity.v1', JSON.stringify({ privateKey: backendKey }))
-                    }
+                    // Inject approved privateKey into session storage for Varco client
+                    const identityObj = JSON.stringify({ privateKey: backendKey })
+                    localStorage.setItem(prefix + 'varco.consumerIdentity.v1', identityObj)
+                    localStorage.setItem(globalKeyName, backendKey)
                 }
 
                 const storage = {
@@ -411,15 +413,25 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         if (key === 'varco.consumerIdentity.v1') {
                             try {
                                 const parsed = JSON.parse(value)
-                                if (parsed?.privateKey && config) {
-                                    const providerId = varcoProvider.id
-                                    const updatedProviders = config.providers.map((p) => {
-                                        if (p.id === providerId) {
-                                            return { ...p, settings: { ...p.settings, privateKey: parsed.privateKey } }
-                                        }
-                                        return p
-                                    })
-                                    saveConfig({ ...config, providers: updatedProviders })
+                                if (parsed?.privateKey) {
+                                    localStorage.setItem(globalKeyName, parsed.privateKey)
+                                    if (config) {
+                                        const providerId = varcoProvider.id
+                                        const updatedProviders = config.providers.map((p) => {
+                                            if (p.id === providerId) {
+                                                return { ...p, settings: { ...p.settings, privateKey: parsed.privateKey } }
+                                            }
+                                            return p
+                                        })
+                                        const updatedConfig = { ...config, providers: updatedProviders }
+                                        saveConfig(updatedConfig)
+                                        // Also sync directly to server endpoint
+                                        fetch('/api/v1/monitoring/config', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify(updatedConfig),
+                                        }).catch(() => {})
+                                    }
                                 }
                             } catch {}
                         }
@@ -552,11 +564,19 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         if (Object.keys(streamEntities).length > 0) {
                             setEntities((prev) => ({ ...prev, ...streamEntities }))
                             setPairingCode(null)
+                            const entList = Object.values(streamEntities)
                             fetch('/api/v1/monitoring/telemetry', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ entities: Object.values(streamEntities) }),
+                                body: JSON.stringify({ entities: entList }),
                             }).catch(() => {})
+
+                            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                                navigator.serviceWorker.controller.postMessage({
+                                    type: 'VARCO_TELEMETRY_SYNC',
+                                    payload: { entities: entList },
+                                })
+                            }
                         }
                     })
                 }
@@ -596,7 +616,14 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [config?.enabled, config?.providers, config?.polling_interval_seconds])
 
-    // Periodic Telemetry & System Health Check (Runs immediately upon mount & polls every 3s when overlay is open)
+    // Register Service Worker for Background Telemetry Sync
+    useEffect(() => {
+        if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/varco-sw.js').catch(() => {})
+        }
+    }, [])
+
+    // Periodic Telemetry & System Health Check (Runs immediately upon mount & polls every 3s across all sessions)
     useEffect(() => {
         let failCount = 0
         const fetchTelemetry = async () => {
@@ -631,11 +658,10 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
 
         fetchTelemetry()
-        if (!isOpen) return
 
         const interval = setInterval(fetchTelemetry, 3000)
         return () => clearInterval(interval)
-    }, [config?.enabled, isOpen])
+    }, [config?.enabled])
 
     // Live Telemetry Interpolation / Jitter Simulator (Only when Demo Mode is ON)
     useEffect(() => {
