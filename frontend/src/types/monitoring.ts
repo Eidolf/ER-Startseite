@@ -15,7 +15,7 @@ export interface MonitoringEntity {
     attributes?: Record<string, unknown>
 }
 
-export type CardType = 'gauge' | 'live_traffic' | 'status_beacon' | 'metric_card'
+export type CardType = 'gauge' | 'live_traffic' | 'status_beacon' | 'metric_card' | 'simple_value' | 'linear_bar' | 'sparkline_card'
 
 export interface MonitoringCard {
     id: string

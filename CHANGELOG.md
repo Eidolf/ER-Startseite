@@ -5,6 +5,26 @@ All notable changes to the **ER-Startseite** dashboard project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.M.PATCH`).
 
+## [Unreleased]
+
+### Added
+- **Native Node.js Varco Server Consumer Sidecar**: Integrated an autonomous, background Node.js sidecar service (`varco_worker.js`) running natively in the backend Docker container using `@varco/client` to maintain persistent E2E encrypted WebSocket connections to the Varco Bridge 24/7 without open browser tabs.
+- **Customizable Consumer Instance Name**: Added an input field in the Varco Import dialog allowing users to specify a custom Consumer Instance Name (e.g. `ER-Startseite Backend Server`), sent directly during Home Assistant pairing.
+- **New Monitoring Tile Types**: Added 3 new widget visualization types:
+  - **Simple Value**: Minimalist numeric/text tile for sensors requiring no complex statistics.
+  - **Progress Bar**: Horizontal progress indicator bar for percentage and range metrics.
+  - **Sparkline Chart**: SVG trendline chart rendering live historical sensor value curves.
+- **Card Type Dropdown Selector**: Integrated a layout selection dropdown in Admin Edit Mode on each card toolbar to seamlessly switch between any visualization style (Simple Value, Progress Bar, Sparkline, Gauge, Metric Card, Live Traffic, Status Beacon).
+
+### Changed
+- **Guest UI Security Controls**: Hidden admin control buttons (`Import`, `Demo Mode`, `Edit Layout`) in the Monitoring Overlay header for unauthenticated guest visitors.
+- **Strict Conditional Worker Lifecycle**: Ensured the Node.js Sidecar process runs strictly when the Varco provider is enabled and a valid Share Link is present, stopping completely when disabled to consume 0 system resources.
+
+### Fixed
+- **Mobile Free Canvas Responsiveness**: Updated `FreeCanvasBoard` with screen width detection (`< 768px`) to automatically switch fixed absolute widget positioning to responsive full-width cards on mobile devices.
+
+---
+
 ## [2026.7.8] - 2026-07-30
 
 ### Added

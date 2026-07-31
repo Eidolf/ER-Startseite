@@ -1,5 +1,5 @@
 import { createContext } from 'react'
-import { MonitoringConfig, MonitoringEntity, OverlayWidthPercent, MonitoringCard } from '../../types/monitoring'
+import { MonitoringConfig, MonitoringEntity, OverlayWidthPercent, MonitoringCard, CardType } from '../../types/monitoring'
 
 export interface MonitoringContextType {
     isOpen: boolean
@@ -24,6 +24,7 @@ export interface MonitoringContextType {
     deleteCard: (cardId: string) => void
     addCard: (card: MonitoringCard) => void
     updateCardZone: (cardId: string, zoneId: string) => void
+    updateCardType: (cardId: string, cardType: CardType | string) => void
     moveCardOrder: (cardId: string, direction: 'up' | 'down') => void
     addZone: (name: string, icon?: string) => void
     deleteZone: (zoneId: string) => void

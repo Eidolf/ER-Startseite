@@ -4,14 +4,17 @@ import { RadialGaugeWidget } from '../widgets/RadialGaugeWidget'
 import { LiveTrafficGraphWidget } from '../widgets/LiveTrafficGraphWidget'
 import { StatusBeaconWidget } from '../widgets/StatusBeaconWidget'
 import { MetricCardWidget } from '../widgets/MetricCardWidget'
-import { Trash, Plus, ChevronUp, ChevronDown, FolderInput, Eye, EyeOff } from 'lucide-react'
+import { SimpleValueWidget } from '../widgets/SimpleValueWidget'
+import { LinearBarWidget } from '../widgets/LinearBarWidget'
+import { SparklineWidget } from '../widgets/SparklineWidget'
+import { Trash, Plus, ChevronUp, ChevronDown, FolderInput, Eye, EyeOff, Layout } from 'lucide-react'
 
 interface MonitoringZoneGridProps {
     onOpenImport: () => void
 }
 
 export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenImport }) => {
-    const { config, activeZoneId, entities, isEditMode, deleteCard, updateCardZone, moveCardOrder, toggleCardVisibility } = useMonitoring()
+    const { config, activeZoneId, entities, isEditMode, deleteCard, updateCardZone, updateCardType, moveCardOrder, toggleCardVisibility } = useMonitoring()
 
     if (!config) return null
 
@@ -66,6 +69,15 @@ export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenIm
                                 {cType === 'metric_card' && (
                                     <MetricCardWidget title={card.title} entity={entity} />
                                 )}
+                                {cType === 'simple_value' && (
+                                    <SimpleValueWidget title={card.title} entity={entity} />
+                                )}
+                                {cType === 'linear_bar' && (
+                                    <LinearBarWidget title={card.title} entity={entity} />
+                                )}
+                                {cType === 'sparkline_card' && (
+                                    <SparklineWidget title={card.title} entity={entity} />
+                                )}
 
                                 {/* Admin Card Edit Toolbar */}
                                 {isEditMode && (
@@ -76,12 +88,31 @@ export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenIm
                                                 value={card.zone_id || card.zoneId || 'network'}
                                                 onChange={(e) => updateCardZone(card.id, e.target.value)}
                                                 className="bg-transparent text-[10px] font-mono text-neon-cyan focus:outline-none cursor-pointer"
+                                                title="Kategorie wechseln"
                                             >
                                                 {config.zones.map((z) => (
                                                     <option key={z.id} value={z.id} className="bg-gray-900 text-white">
                                                         {z.name}
                                                     </option>
                                                 ))}
+                                            </select>
+                                        </div>
+
+                                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-neon-cyan/10 border border-neon-cyan/40 rounded-lg">
+                                            <Layout className="w-3 h-3 text-neon-cyan" />
+                                            <select
+                                                value={card.card_type || card.cardType || 'metric_card'}
+                                                onChange={(e) => updateCardType(card.id, e.target.value)}
+                                                className="bg-transparent text-[10px] font-mono text-neon-cyan focus:outline-none cursor-pointer font-bold"
+                                                title="Anzeigeart wechseln"
+                                            >
+                                                <option value="simple_value" className="bg-gray-900 text-white">Wert (Schlicht)</option>
+                                                <option value="linear_bar" className="bg-gray-900 text-white font-bold">Fortschritts-Balken</option>
+                                                <option value="sparkline_card" className="bg-gray-900 text-white font-bold">Trend-Verlauf (Sparkline)</option>
+                                                <option value="gauge" className="bg-gray-900 text-white font-bold">Tacho / Gauge</option>
+                                                <option value="metric_card" className="bg-gray-900 text-white font-bold">Standard Metrik-Karte</option>
+                                                <option value="live_traffic" className="bg-gray-900 text-white font-bold">Live Traffic Graph</option>
+                                                <option value="status_beacon" className="bg-gray-900 text-white font-bold">Status Beacon</option>
                                             </select>
                                         </div>
 

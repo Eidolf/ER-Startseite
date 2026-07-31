@@ -184,51 +184,53 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                 </div>
 
                                 {isAuthenticated && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleAdminAction(toggleDemoMode)
-                                        }}
-                                        className={`h-8 px-3 rounded-xl border text-xs font-mono font-bold flex items-center gap-2 transition ${
-                                            config?.demoMode !== false
-                                                ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan shadow-[0_0_10px_rgba(0,243,255,0.3)]'
-                                                : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
-                                        }`}
-                                        title="Toggle Live Demo Jitter Simulation"
-                                    >
-                                        <Sparkles className="w-4 h-4" />
-                                        <span>{config?.demoMode !== false ? 'Demo ON' : 'Demo OFF'}</span>
-                                    </button>
-                                )}
+                                    <>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleAdminAction(toggleDemoMode)
+                                            }}
+                                            className={`h-8 px-3 rounded-xl border text-xs font-mono font-bold flex items-center gap-2 transition ${
+                                                config?.demoMode !== false
+                                                    ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan shadow-[0_0_10px_rgba(0,243,255,0.3)]'
+                                                    : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                                            }`}
+                                            title="Toggle Live Demo Jitter Simulation"
+                                        >
+                                            <Sparkles className="w-4 h-4" />
+                                            <span>{config?.demoMode !== false ? 'Demo ON' : 'Demo OFF'}</span>
+                                        </button>
 
-                                {config?.providers?.find((p) => p.type === 'varco')?.enabled === true && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            handleAdminAction(() => setIsImportModalOpen(true))
-                                        }}
-                                        className="h-8 px-3 rounded-xl bg-neon-cyan/10 border border-neon-cyan/40 text-neon-cyan hover:bg-neon-cyan hover:text-black transition text-xs font-mono font-bold flex items-center gap-2 shadow-[0_0_10px_rgba(0,243,255,0.15)]"
-                                        title={isAuthenticated ? 'Import Varco Manifest or Brief' : 'Admin Lock (Login Required)'}
-                                    >
-                                        <FileUp className="w-4 h-4" />
-                                        <span>Import</span>
-                                    </button>
-                                )}
+                                        {config?.providers?.find((p) => p.type === 'varco')?.enabled === true && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    handleAdminAction(() => setIsImportModalOpen(true))
+                                                }}
+                                                className="h-8 px-3 rounded-xl bg-neon-cyan/10 border border-neon-cyan/40 text-neon-cyan hover:bg-neon-cyan hover:text-black transition text-xs font-mono font-bold flex items-center gap-2 shadow-[0_0_10px_rgba(0,243,255,0.15)]"
+                                                title="Import Varco Manifest or Brief"
+                                            >
+                                                <FileUp className="w-4 h-4" />
+                                                <span>Import</span>
+                                            </button>
+                                        )}
 
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleAdminAction(() => setIsEditMode(!isEditMode))
-                                    }}
-                                    className={`h-8 px-3 rounded-xl border text-xs font-mono font-bold flex items-center gap-2 transition ${
-                                        effectiveEditMode
-                                            ? 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
-                                            : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-white'
-                                    }`}
-                                >
-                                    {effectiveEditMode ? <Check className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
-                                    <span>{effectiveEditMode ? 'Done' : 'Edit Layout'}</span>
-                                </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleAdminAction(() => setIsEditMode(!isEditMode))
+                                            }}
+                                            className={`h-8 px-3 rounded-xl border text-xs font-mono font-bold flex items-center gap-2 transition ${
+                                                effectiveEditMode
+                                                    ? 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
+                                                    : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10 hover:text-white'
+                                            }`}
+                                        >
+                                            {effectiveEditMode ? <Check className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
+                                            <span>{effectiveEditMode ? 'Done' : 'Edit Layout'}</span>
+                                        </button>
+                                    </>
+                                )}
 
                                 {effectiveEditMode && (
                                     <button

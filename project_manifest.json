@@ -725,6 +725,10 @@
         "file": "frontend/src/components/monitoring/layout/MonitoringZoneGrid.tsx",
         "description": "UI Component MonitoringZoneGrid for dashboard view or modal dialog"
       },
+      "LinearBarWidget": {
+        "file": "frontend/src/components/monitoring/widgets/LinearBarWidget.tsx",
+        "description": "UI Component LinearBarWidget for dashboard view or modal dialog"
+      },
       "LiveTrafficGraphWidget": {
         "file": "frontend/src/components/monitoring/widgets/LiveTrafficGraphWidget.tsx",
         "description": "UI Component LiveTrafficGraphWidget for dashboard view or modal dialog"
@@ -736,6 +740,14 @@
       "RadialGaugeWidget": {
         "file": "frontend/src/components/monitoring/widgets/RadialGaugeWidget.tsx",
         "description": "UI Component RadialGaugeWidget for dashboard view or modal dialog"
+      },
+      "SimpleValueWidget": {
+        "file": "frontend/src/components/monitoring/widgets/SimpleValueWidget.tsx",
+        "description": "UI Component SimpleValueWidget for dashboard view or modal dialog"
+      },
+      "SparklineWidget": {
+        "file": "frontend/src/components/monitoring/widgets/SparklineWidget.tsx",
+        "description": "UI Component SparklineWidget for dashboard view or modal dialog"
       },
       "StatusBeaconWidget": {
         "file": "frontend/src/components/monitoring/widgets/StatusBeaconWidget.tsx",
