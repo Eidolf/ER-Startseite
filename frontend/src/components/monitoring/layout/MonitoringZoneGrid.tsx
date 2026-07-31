@@ -4,6 +4,9 @@ import { RadialGaugeWidget } from '../widgets/RadialGaugeWidget'
 import { LiveTrafficGraphWidget } from '../widgets/LiveTrafficGraphWidget'
 import { StatusBeaconWidget } from '../widgets/StatusBeaconWidget'
 import { MetricCardWidget } from '../widgets/MetricCardWidget'
+import { SimpleValueWidget } from '../widgets/SimpleValueWidget'
+import { LinearBarWidget } from '../widgets/LinearBarWidget'
+import { SparklineWidget } from '../widgets/SparklineWidget'
 import { Trash, Plus, ChevronUp, ChevronDown, FolderInput, Eye, EyeOff } from 'lucide-react'
 
 interface MonitoringZoneGridProps {
@@ -65,6 +68,15 @@ export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenIm
                                 )}
                                 {cType === 'metric_card' && (
                                     <MetricCardWidget title={card.title} entity={entity} />
+                                )}
+                                {cType === 'simple_value' && (
+                                    <SimpleValueWidget title={card.title} entity={entity} />
+                                )}
+                                {cType === 'linear_bar' && (
+                                    <LinearBarWidget title={card.title} entity={entity} />
+                                )}
+                                {cType === 'sparkline_card' && (
+                                    <SparklineWidget title={card.title} entity={entity} />
                                 )}
 
                                 {/* Admin Card Edit Toolbar */}

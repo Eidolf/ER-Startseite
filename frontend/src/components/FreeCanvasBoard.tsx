@@ -122,6 +122,14 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
     const hoverTimerRef = useRef<NodeJS.Timeout | null>(null)
     const leaveTimerRef = useRef<NodeJS.Timeout | null>(null)
 
+    const [isMobile, setIsMobile] = useState<bool>(() => typeof window !== 'undefined' && window.innerWidth < 768)
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 768)
+        window.addEventListener('resize', checkMobile)
+        return () => window.removeEventListener('resize', checkMobile)
+    }, [])
+
     const [draggingId, setDraggingId] = useState<string | null>(null)
     const [resizingId, setResizingId] = useState<string | null>(null)
     const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -674,25 +682,32 @@ export function FreeCanvasBoard({ apps = [], hiddenAppIds = EMPTY_ARRAY, showHid
             </div>
 
             {/* Canvas Container */}
-            <div className="relative w-full min-h-[750px] rounded-3xl bg-black/20 border border-white/5 backdrop-blur-sm overflow-hidden p-4">
+            <div className={`relative w-full ${isMobile ? 'flex flex-col gap-4' : 'min-h-[750px] overflow-hidden'} rounded-3xl bg-black/20 border border-white/5 backdrop-blur-sm p-4`}>
                 {widgets.map((widget) => {
                     if (widget.type === 'app' && widget.appId && hiddenAppIds.includes(widget.appId) && !showHiddenApps) {
                         return null
                     }
+                    const widgetStyle: React.CSSProperties = isMobile
+                        ? {
+                              position: 'relative',
+                              width: '100%',
+                              minHeight: `${widget.isExpanded === false ? 52 : widget.height}px`,
+                          }
+                        : {
+                              position: 'absolute',
+                              left: `${widget.x}px`,
+                              top: `${widget.y}px`,
+                              width: `${widget.width}px`,
+                              height: `${widget.isExpanded === false ? 52 : widget.height}px`,
+                          }
                     return (
                         <div
-                        key={widget.id}
-                        style={{
-                            position: 'absolute',
-                            left: `${widget.x}px`,
-                            top: `${widget.y}px`,
-                            width: `${widget.width}px`,
-                            height: `${widget.isExpanded === false ? 52 : widget.height}px`,
-                        }}
-                        className={`group rounded-2xl transition-all duration-200 ${
-                            draggingId === widget.id ? 'z-50 shadow-2xl ring-2 ring-indigo-500' : 'z-10'
-                        }`}
-                    >
+                            key={widget.id}
+                            style={widgetStyle}
+                            className={`group rounded-2xl transition-all duration-200 ${
+                                draggingId === widget.id ? 'z-50 shadow-2xl ring-2 ring-indigo-500' : 'z-10'
+                            }`}
+                        >
                         {/* Widget Control Header Overlay */}
                         <div
                             onMouseDown={(e) => handleStartDrag(e, widget.id)}
