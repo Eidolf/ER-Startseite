@@ -495,12 +495,21 @@ async def _query_sidecar_telemetry() -> list[dict[str, Any]]:
             if resp.status_code == 200:
                 data = resp.json()
                 entities = data.get("entities", [])
+                success = data.get("success", True)
+                msg = (
+                    f"Varco Sidecar Telemetry queried: online={data.get('online')}, "
+                    f"success={success}, count={len(entities)}"
+                )
                 add_system_log(
                     "DEBUG",
-                    f"Varco Sidecar Telemetry queried: online={data.get('online')}, count={len(entities)}",
-                    {"online": data.get("online"), "count": len(entities)},
+                    msg,
+                    {
+                        "online": data.get("online"),
+                        "success": success,
+                        "count": len(entities),
+                    },
                 )
-                if entities and isinstance(entities, list):
+                if success and entities and isinstance(entities, list):
                     return entities
     except Exception as sidecar_err:
         logger.debug(

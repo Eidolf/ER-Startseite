@@ -51,7 +51,7 @@ RUN addgroup --gid 1001 appuser && \
 # Install gosu and nodejs (for Varco Server Sidecar)
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends gosu nodejs npm && rm -rf /var/lib/apt/lists/*
-RUN npm install @varco/client ws --no-save
+RUN npm install @varco/client@0.6.4 ws --no-save
 
 # Create uploads directory and set permissions
 WORKDIR /app

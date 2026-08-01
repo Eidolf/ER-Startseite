@@ -56,6 +56,8 @@ let isSubscribed = false;
 let loggedFirstSync = false;
 let currentSettings = null;
 let currentEntities = {};
+let syncGeneration = 0;
+let syncPromise = null;
 
 console.log(`[Varco Worker] Starting Varco Consumer Sidecar on port ${PORT}...`);
 
@@ -207,6 +209,7 @@ async function syncVarcoClient() {
             try { client.disconnect(); } catch {}
             client = null;
         }
+        syncGeneration++;
         isSubscribed = false;
         currentSettings = null;
         currentEntities = {};
@@ -232,6 +235,7 @@ async function syncVarcoClient() {
         return;
     }
 
+    syncGeneration++;
     if (client) {
         try { client.disconnect(); } catch {}
         client = null;
@@ -398,48 +402,72 @@ async function syncVarcoClient() {
 }
 
 async function fetchLatestStates() {
-    if (client && isSubscribed && typeof client.getStates === 'function' && currentSettings?.requestedEntities) {
-        try {
-            const states = await client.getStates(currentSettings.requestedEntities);
-            if (states) {
-                Object.entries(states).forEach(([eid, entData]) => {
-                    if (entData) {
-                        const val = typeof entData === 'object' ? entData.state : entData;
-                        const unit = typeof entData === 'object' ? entData.attributes?.unit_of_measurement : undefined;
-                        const name = (typeof entData === 'object' && entData.attributes?.friendly_name) || eid.split('.').pop().replace(/_/g, ' ') || eid;
-                        const lastUpdated = (typeof entData === 'object' && (entData.last_changed || entData.last_updated)) || new Date().toISOString();
-                        currentEntities[eid] = {
-                            id: eid,
-                            provider_id: 'varco-server-sidecar',
-                            name: name,
-                            domain: eid.startsWith('binary_sensor.') ? 'binary_sensor' : 'sensor',
-                            value_type: typeof val === 'number' ? 'numeric' : 'string',
-                            state: val ?? 'N/A',
-                            unit_of_measurement: unit,
-                            last_updated: lastUpdated
-                        };
-                    }
-                });
-            }
-        } catch (err) {
-            console.warn('[Varco Worker] Active getStates query info:', err?.message || err);
+    if (!client || !isSubscribed || typeof client.getStates !== 'function' || !currentSettings?.requestedEntities) {
+        return false;
+    }
+
+    const activeClient = client;
+    const activeSettings = currentSettings;
+    const gen = syncGeneration;
+
+    try {
+        const states = await activeClient.getStates(activeSettings.requestedEntities);
+        if (syncGeneration !== gen || client !== activeClient || currentSettings !== activeSettings || !isSubscribed) {
+            console.warn('[Varco Worker] Discarding fetched states due to client/settings generation change.');
+            return false;
         }
+
+        if (states) {
+            Object.entries(states).forEach(([eid, entData]) => {
+                if (entData) {
+                    const val = typeof entData === 'object' ? entData.state : entData;
+                    const unit = typeof entData === 'object' ? entData.attributes?.unit_of_measurement : undefined;
+                    const name = (typeof entData === 'object' && entData.attributes?.friendly_name) || eid.split('.').pop().replace(/_/g, ' ') || eid;
+                    const lastUpdated = (typeof entData === 'object' && (entData.last_changed || entData.last_updated)) || new Date().toISOString();
+                    currentEntities[eid] = {
+                        id: eid,
+                        provider_id: 'varco-server-sidecar',
+                        name: name,
+                        domain: eid.startsWith('binary_sensor.') ? 'binary_sensor' : 'sensor',
+                        value_type: typeof val === 'number' ? 'numeric' : 'string',
+                        state: val ?? 'N/A',
+                        unit_of_measurement: unit,
+                        last_updated: lastUpdated
+                    };
+                }
+            });
+            return true;
+        }
+        return false;
+    } catch (err) {
+        console.warn('[Varco Worker] Active getStates query info:', err?.message || err);
+        return false;
     }
 }
 
+function runSyncVarcoClient() {
+    if (!syncPromise) {
+        syncPromise = syncVarcoClient().finally(() => {
+            syncPromise = null;
+        });
+    }
+    return syncPromise;
+}
+
 // Polling loop to check config updates & connection status every 10s
-setInterval(async () => {
-    await syncVarcoClient();
+setInterval(() => {
+    runSyncVarcoClient();
 }, 10000);
-syncVarcoClient();
+runSyncVarcoClient();
 
 // HTTP endpoint for Python backend to query current entities
 const server = http.createServer(async (req, res) => {
     if (req.url === '/telemetry' && req.method === 'GET') {
-        await fetchLatestStates();
+        const success = await fetchLatestStates();
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
             online: client !== null && isSubscribed,
+            success: success,
             entities: Object.values(currentEntities)
         }));
     } else {
