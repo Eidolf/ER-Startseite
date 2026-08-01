@@ -401,6 +401,7 @@ async def _fetch_varco_data(
 
 
 _sidecar_process: asyncio.subprocess.Process | None = None
+_first_sync_reported: bool = False
 
 
 async def _ensure_sidecar_running(enabled: bool, has_share_link: bool) -> None:
@@ -429,36 +430,40 @@ async def _ensure_sidecar_running(enabled: bool, has_share_link: bool) -> None:
                         {"pid": _sidecar_process.pid, "path": script_path},
                     )
 
+                    async def _read_stream(
+                        stream: asyncio.StreamReader | None, is_err: bool
+                    ) -> None:
+                        if not stream:
+                            return
+                        while not stream.at_eof():
+                            line = await stream.readline()
+                            if line:
+                                txt = line.decode().strip()
+                                if txt:
+                                    add_system_log(
+                                        (
+                                            "WARNING"
+                                            if is_err
+                                            else (
+                                                "INFO"
+                                                if (
+                                                    "PAIRING" in txt
+                                                    or "connected" in txt
+                                                )
+                                                else "DEBUG"
+                                            )
+                                        ),
+                                        f"Varco Worker {'Err' if is_err else 'Log'}: {txt}",
+                                        {"output" if not is_err else "error": txt},
+                                    )
+
                     async def _read_sidecar_logs(
                         proc: asyncio.subprocess.Process,
                     ) -> None:
-                        if proc.stdout:
-                            while not proc.stdout.at_eof():
-                                line = await proc.stdout.readline()
-                                if line:
-                                    txt = line.decode().strip()
-                                    if txt:
-                                        add_system_log(
-                                            (
-                                                "INFO"
-                                                if "PAIRING" in txt
-                                                or "connected" in txt
-                                                else "DEBUG"
-                                            ),
-                                            f"Varco Worker Log: {txt}",
-                                            {"output": txt},
-                                        )
-                        if proc.stderr:
-                            while not proc.stderr.at_eof():
-                                line = await proc.stderr.readline()
-                                if line:
-                                    txt = line.decode().strip()
-                                    if txt:
-                                        add_system_log(
-                                            "WARNING",
-                                            f"Varco Worker Err: {txt}",
-                                            {"error": txt},
-                                        )
+                        await asyncio.gather(
+                            _read_stream(proc.stdout, False),
+                            _read_stream(proc.stderr, True),
+                        )
 
                     asyncio.create_task(_read_sidecar_logs(_sidecar_process))
                 except Exception as err:
@@ -489,10 +494,25 @@ async def _query_sidecar_telemetry() -> list[dict[str, Any]]:
             resp = await client.get("http://127.0.0.1:8089/telemetry")
             if resp.status_code == 200:
                 data = resp.json()
-                if data.get("entities") and isinstance(data["entities"], list):
-                    return data["entities"]
-    except Exception:
-        pass
+                entities = data.get("entities", [])
+                add_system_log(
+                    "DEBUG",
+                    f"Varco Sidecar Telemetry queried: online={data.get('online')}, count={len(entities)}",
+                    {"online": data.get("online"), "count": len(entities)},
+                )
+                if entities and isinstance(entities, list):
+                    return entities
+    except Exception as sidecar_err:
+        logger.debug(
+            "Varco Sidecar Telemetry query failed",
+            exc_info=True,
+            error=str(sidecar_err),
+        )
+        add_system_log(
+            "DEBUG",
+            f"Varco Sidecar Telemetry query info: {sidecar_err}",
+            {"error": str(sidecar_err)},
+        )
     return []
 
 
@@ -555,6 +575,37 @@ async def _run_collector_loop() -> None:
 
                         fresh_config.entities = list(ent_map.values())
                         await repo.save_config(fresh_config)
+
+                        global _first_sync_reported
+                        if not _first_sync_reported:
+                            _first_sync_reported = True
+                            sett = varco_provider.settings or {}
+                            pk = sett.get("privateKey") or sett.get("private_key")
+                            auth_id = sett.get("authorityId") or sett.get(
+                                "authority_id"
+                            )
+                            sc = sett.get("shareCode") or sett.get("share_code")
+                            credentials_ready = bool(pk and auth_id and sc)
+
+                            status_str = "YES" if credentials_ready else "PENDING"
+                            pk_str = "OK" if pk else "Missing"
+                            auth_str = "OK" if auth_id else "Missing"
+                            msg = (
+                                f"Varco First Successful Sync Verified! Synced {len(collected)} entities. "
+                                f"Credentials persisted for future background sync: {status_str} "
+                                f"(privateKey: {pk_str}, authorityId: {auth_str})"
+                            )
+                            add_system_log(
+                                "INFO",
+                                msg,
+                                {
+                                    "count": len(collected),
+                                    "credentials_ready": credentials_ready,
+                                    "has_private_key": bool(pk),
+                                    "has_authority_id": bool(auth_id),
+                                    "has_share_code": bool(sc),
+                                },
+                            )
 
                         add_system_log(
                             "INFO",

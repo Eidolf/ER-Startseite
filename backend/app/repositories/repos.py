@@ -1,10 +1,16 @@
 import asyncio
+import contextlib
+import datetime
+import fcntl
 import os
+from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
+import structlog
 from anyio import Path
 
 from app.core.config import settings
+from app.core.exceptions import LockTimeoutException
 from app.repositories.base import JsonRepository
 from app.schemas.app import App
 from app.schemas.config import (
@@ -17,6 +23,8 @@ from app.schemas.config import (
 
 if TYPE_CHECKING:
     from app.schemas.monitoring import MonitoringConfig
+
+logger = structlog.get_logger()
 
 
 # App Repo manages a LIST of Apps
@@ -136,36 +144,109 @@ class ConfigRepository:
 class MonitoringRepository:
     _lock = asyncio.Lock()
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._file_path = Path(os.path.join(settings.DATA_DIR, "monitoring.json"))
 
     @property
     def lock(self) -> asyncio.Lock:
         return self._lock
 
-    async def _ensure_dir(self):
+    @contextlib.asynccontextmanager
+    async def _acquire_file_lock(self) -> AsyncIterator[None]:
+        lock_file = Path(os.path.join(settings.DATA_DIR, "monitoring.json.lock"))
+        await lock_file.parent.mkdir(parents=True, exist_ok=True)
+        acquired = False
+        fd: int | None = None
+        start_time = datetime.datetime.now(datetime.timezone.utc)
+
+        try:
+            fd = os.open(str(lock_file), os.O_RDWR | os.O_CREAT, 0o666)
+            while not acquired:
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    acquired = True
+                except OSError as lock_err:
+                    await asyncio.sleep(0.02)
+                    if (
+                        datetime.datetime.now(datetime.timezone.utc) - start_time
+                    ).total_seconds() > 5.0:
+                        logger.warning(
+                            "MonitoringRepository file lock acquisition timed out",
+                            exc_info=True,
+                            error=str(lock_err),
+                        )
+                        break
+
+            if acquired:
+                yield
+            else:
+                raise LockTimeoutException(
+                    "MonitoringRepository file lock acquisition timed out after 5.0s"
+                )
+        except Exception as err:
+            if not isinstance(err, LockTimeoutException):
+                logger.debug(
+                    "MonitoringRepository file lock operation failed",
+                    exc_info=True,
+                    error=str(err),
+                )
+            raise
+        finally:
+            if fd is not None:
+                if acquired:
+                    try:
+                        fcntl.flock(fd, fcntl.LOCK_UN)
+                    except Exception as unlock_err:
+                        logger.debug(
+                            "Failed to release file lock",
+                            exc_info=True,
+                            error=str(unlock_err),
+                        )
+                try:
+                    os.close(fd)
+                except Exception as close_err:
+                    logger.debug(
+                        "Failed to close lock file descriptor",
+                        exc_info=True,
+                        error=str(close_err),
+                    )
+
+    async def _ensure_dir(self) -> None:
         parent = self._file_path.parent
         if not await parent.exists():
             await parent.mkdir(parents=True, exist_ok=True)
 
-    async def get_config(self):
+    async def get_config(self) -> "MonitoringConfig":
         from app.schemas.monitoring import MonitoringConfig
 
         await self._ensure_dir()
 
-        if await self._file_path.exists():
-            try:
-                content = await self._file_path.read_text(encoding="utf-8")
-                return MonitoringConfig.model_validate_json(content)
-            except Exception:
-                pass
+        try:
+            async with self._acquire_file_lock():
+                if await self._file_path.exists():
+                    try:
+                        content = await self._file_path.read_text(encoding="utf-8")
+                        return MonitoringConfig.model_validate_json(content)
+                    except Exception as err:
+                        logger.debug(
+                            "Failed to read/validate monitoring.json",
+                            exc_info=True,
+                            error=str(err),
+                        )
+        except LockTimeoutException as lock_err:
+            logger.warning(
+                "get_config lock acquisition timed out; returning default config",
+                exc_info=True,
+                error=str(lock_err),
+            )
 
         return self._get_default()
 
-    async def save_config(self, config: "MonitoringConfig"):
+    async def save_config(self, config: "MonitoringConfig") -> None:
         await self._ensure_dir()
-        content = config.model_dump_json(indent=2)
-        await self._file_path.write_text(content, encoding="utf-8")
+        async with self._acquire_file_lock():
+            content = config.model_dump_json(indent=2)
+            await self._file_path.write_text(content, encoding="utf-8")
 
     def _get_default(self):
         from app.schemas.monitoring import (
