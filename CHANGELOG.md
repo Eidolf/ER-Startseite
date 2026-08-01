@@ -5,7 +5,7 @@ All notable changes to the **ER-Startseite** dashboard project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.M.PATCH`).
 
-## [Unreleased]
+## [2026.8.1] - 2026-08-01
 
 ### Fixed
 - **Varco Sidecar WebCrypto & Handshake Authentication**: Resolved Node.js WebSocket handshake timeouts (`Varco request timed out: authenticate`) by adding WebCrypto API polyfills (`node:crypto.webcrypto`), passing explicit entity manifests, and supplying browser-compatible `Origin` and `User-Agent` headers for reverse proxy compatibility.
