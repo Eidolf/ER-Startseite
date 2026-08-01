@@ -5,12 +5,18 @@ All notable changes to the **ER-Startseite** dashboard project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.M.PATCH`).
 
+## [2026.8.2] - 2026-08-02
+
+### Fixed
+- **On-Demand Varco Live Sensor Telemetry Polling**: Integrated active `client.getStates()` queries inside the sidecar `/telemetry` endpoint handler to fetch fresh Home Assistant sensor values synchronously on every collector iteration, strictly matching the server's configured monitoring refresh interval.
+
+---
+
 ## [2026.8.1] - 2026-08-01
 
 ### Fixed
 - **Varco Sidecar WebCrypto & Handshake Authentication**: Resolved Node.js WebSocket handshake timeouts (`Varco request timed out: authenticate`) by adding WebCrypto API polyfills (`node:crypto.webcrypto`), passing explicit entity manifests, and supplying browser-compatible `Origin` and `User-Agent` headers for reverse proxy compatibility.
 - **Varco Identity Credential Persistence**: Fixed an issue where transient connection failures wiped stored identity credentials (`savePrivateKey(null)`), and updated sidecar storage (`varco_worker.js`) to persist and reload full cryptographic identity payloads (`identityData`) seamlessly across Docker container restarts.
-- **On-Demand Varco Live Sensor Telemetry Polling**: Integrated active `client.getStates()` queries inside the sidecar `/telemetry` endpoint handler to fetch fresh Home Assistant sensor values synchronously on every collector iteration, strictly matching the server's configured monitoring refresh interval.
 
 ---
 
