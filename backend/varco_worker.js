@@ -1,4 +1,4 @@
-import { createVarcoClient } from '@varco/client';
+import { createVarcoClient, consumerIdentityFromPrivateKey } from '@varco/client';
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
@@ -118,14 +118,15 @@ async function acquireConfigFileLock() {
     const startTime = Date.now();
     while (true) {
         try {
-            fs.mkdirSync(LOCK_PATH);
+            const fd = fs.openSync(LOCK_PATH, 'wx');
+            fs.closeSync(fd);
             return true;
         } catch (err) {
             if (err.code === 'EEXIST') {
                 try {
                     const stat = fs.statSync(LOCK_PATH);
                     if (Date.now() - stat.mtimeMs > 10000) {
-                        try { fs.rmdirSync(LOCK_PATH); } catch {}
+                        try { fs.unlinkSync(LOCK_PATH); } catch {}
                     }
                 } catch {}
                 if (Date.now() - startTime > 5000) {
@@ -142,7 +143,7 @@ async function acquireConfigFileLock() {
 function releaseConfigFileLock() {
     try {
         if (fs.existsSync(LOCK_PATH)) {
-            fs.rmdirSync(LOCK_PATH);
+            fs.unlinkSync(LOCK_PATH);
         }
     } catch {}
 }
@@ -180,15 +181,11 @@ async function savePrivateKey(privateKey, identityData = null) {
             if (currentSettings) {
                 if (!privateKey) {
                     delete currentSettings.privateKey;
-                    delete currentSettings.private_key;
                     delete currentSettings.identityData;
-                    delete currentSettings.identity_data;
                 } else {
                     currentSettings.privateKey = privateKey;
-                    currentSettings.private_key = privateKey;
                     if (identityData) {
                         currentSettings.identityData = identityData;
-                        currentSettings.identity_data = identityData;
                     }
                 }
             }
@@ -225,10 +222,8 @@ async function syncVarcoClient() {
     if (shareCodeChanged) {
         console.log(`[Varco Worker] Share URL changed (${currentSettings?.shareCode} -> ${settings.shareCode}). Clearing stored key for fresh pairing.`);
         await savePrivateKey(null);
-        settings.privateKey = null;
-        settings.private_key = null;
-        settings.identityData = null;
-        settings.identity_data = null;
+        delete settings.privateKey;
+        delete settings.identityData;
     }
 
     // Check if settings changed or if client is not subscribed
@@ -250,31 +245,30 @@ async function syncVarcoClient() {
     let storedIdentityData = settings.identityData || null;
 
     if (!storedIdentityData && storedPrivateKey) {
+        let derived = null;
         if (typeof consumerIdentityFromPrivateKey === 'function') {
             try {
-                const derived = consumerIdentityFromPrivateKey(storedPrivateKey);
-                if (derived) {
-                    storedIdentityData = typeof derived === 'string' ? derived : JSON.stringify(derived);
-                }
+                derived = consumerIdentityFromPrivateKey(storedPrivateKey);
             } catch {}
         }
-        if (!storedIdentityData) {
+        if (derived) {
+            const pk = typeof derived === 'object' ? (derived.privateKey || storedPrivateKey) : storedPrivateKey;
+            const pubKey = typeof derived === 'object' ? (derived.publicKey || derived.consumer_pk || pk) : pk;
+            storedIdentityData = JSON.stringify({
+                privateKey: pk,
+                publicKey: pubKey,
+                consumer_pk: pubKey
+            });
+        } else {
             try {
                 const parsed = typeof storedPrivateKey === 'string' && storedPrivateKey.startsWith('{') ? JSON.parse(storedPrivateKey) : null;
-                if (parsed && parsed.privateKey) {
-                    storedIdentityData = JSON.stringify({
-                        privateKey: parsed.privateKey,
-                        publicKey: parsed.publicKey || parsed.privateKey,
-                        consumer_pk: parsed.consumer_pk || parsed.publicKey || parsed.privateKey,
-                        ...parsed
-                    });
-                } else {
-                    storedIdentityData = JSON.stringify({
-                        privateKey: storedPrivateKey,
-                        publicKey: settings.publicKey || storedPrivateKey,
-                        consumer_pk: settings.publicKey || storedPrivateKey
-                    });
-                }
+                const pk = parsed?.privateKey || storedPrivateKey;
+                const pubKey = parsed?.publicKey || parsed?.consumer_pk || pk;
+                storedIdentityData = JSON.stringify({
+                    privateKey: pk,
+                    publicKey: pubKey,
+                    consumer_pk: pubKey
+                });
             } catch {
                 storedIdentityData = JSON.stringify({
                     privateKey: storedPrivateKey,
