@@ -568,7 +568,8 @@ async def _run_collector_loop() -> None:
                                     else "string"
                                 ),
                                 state=c.get("state", "N/A"),
-                                unit_of_measurement=c.get("unit")
+                                unit_of_measurement=c.get("unit_of_measurement")
+                                or c.get("unit")
                                 or (existing.unit_of_measurement if existing else None),
                                 last_updated=iso_now,
                             )
