@@ -21,3 +21,8 @@ class ValidationException(BackendException):
 class AuthException(BackendException):
     def __init__(self, detail: str):
         super().__init__(detail, code="UNAUTHORIZED", status_code=401)
+
+
+class LockTimeoutException(BackendException):
+    def __init__(self, detail: str = "File lock acquisition timed out") -> None:
+        super().__init__(detail, code="LOCK_TIMEOUT", status_code=503)

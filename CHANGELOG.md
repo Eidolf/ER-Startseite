@@ -7,6 +7,14 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.M.
 
 ## [Unreleased]
 
+### Fixed
+- **Varco Sidecar WebCrypto & Handshake Authentication**: Resolved Node.js WebSocket handshake timeouts (`Varco request timed out: authenticate`) by adding WebCrypto API polyfills (`node:crypto.webcrypto`), passing explicit entity manifests, and supplying browser-compatible `Origin` and `User-Agent` headers for reverse proxy compatibility.
+- **Varco Identity Credential Persistence**: Fixed an issue where transient connection failures wiped stored identity credentials (`savePrivateKey(null)`), and updated sidecar storage (`varco_worker.js`) to persist and reload full cryptographic identity payloads (`identityData`) seamlessly across Docker container restarts.
+
+---
+
+## [2026.7.9] - 2026-07-31
+
 ### Added
 - **Native Node.js Varco Server Consumer Sidecar**: Integrated an autonomous, background Node.js sidecar service (`varco_worker.js`) running natively in the backend Docker container using `@varco/client` to maintain persistent E2E encrypted WebSocket connections to the Varco Bridge 24/7 without open browser tabs.
 - **Customizable Consumer Instance Name**: Added an input field in the Varco Import dialog allowing users to specify a custom Consumer Instance Name (e.g. `ER-Startseite Backend Server`), sent directly during Home Assistant pairing.
@@ -16,11 +24,10 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.M.
   - **Sparkline Chart**: SVG trendline chart rendering live historical sensor value curves.
 - **Card Type Dropdown Selector**: Integrated a layout selection dropdown in Admin Edit Mode on each card toolbar to seamlessly switch between any visualization style (Simple Value, Progress Bar, Sparkline, Gauge, Metric Card, Live Traffic, Status Beacon).
 
-### Changed
+### Fixed
+- **Varco Sidecar Reconnection & Subscription Retry**: Fixed an issue where initial authentication or connection timeouts (e.g. after host reboot) caused `varco_worker.js` to freeze in an unauthenticated state with zero entity updates, now automatically retrying connection and subscription loops until established.
 - **Guest UI Security Controls**: Hidden admin control buttons (`Import`, `Demo Mode`, `Edit Layout`) in the Monitoring Overlay header for unauthenticated guest visitors.
 - **Strict Conditional Worker Lifecycle**: Ensured the Node.js Sidecar process runs strictly when the Varco provider is enabled and a valid Share Link is present, stopping completely when disabled to consume 0 system resources.
-
-### Fixed
 - **Mobile Free Canvas Responsiveness**: Updated `FreeCanvasBoard` with screen width detection (`< 768px`) to automatically switch fixed absolute widget positioning to responsive full-width cards on mobile devices.
 
 ---

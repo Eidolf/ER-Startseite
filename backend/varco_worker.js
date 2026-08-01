@@ -4,9 +4,37 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import WebSocket from 'ws';
+import crypto from 'node:crypto';
 
-if (typeof globalThis.WebSocket === 'undefined') {
-    globalThis.WebSocket = WebSocket;
+class VarcoWebSocket extends WebSocket {
+    constructor(url, protocols, options = {}) {
+        let origin = null;
+        try {
+            const rawUrl = String(url);
+            const u = new URL(rawUrl.replace(/^wss:/, 'https:').replace(/^ws:/, 'http:'));
+            origin = u.origin;
+        } catch {}
+
+        const headers = {
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            ...(options?.headers || {})
+        };
+        if (origin) {
+            headers['Origin'] = origin;
+        }
+
+        const customOpts = {
+            ...options,
+            headers
+        };
+        super(url, protocols, customOpts);
+    }
+}
+
+globalThis.WebSocket = VarcoWebSocket;
+
+if (typeof globalThis.crypto === 'undefined' || !globalThis.crypto.subtle) {
+    globalThis.crypto = crypto.webcrypto || crypto;
 }
 
 process.on('unhandledRejection', (reason) => {
@@ -24,6 +52,8 @@ const PORT = process.env.VARCO_WORKER_PORT ? parseInt(process.env.VARCO_WORKER_P
 const CONFIG_PATH = process.env.VARCO_CONFIG_PATH || path.join(__dirname, 'data/monitoring.json');
 
 let client = null;
+let isSubscribed = false;
+let loggedFirstSync = false;
 let currentSettings = null;
 let currentEntities = {};
 
@@ -49,11 +79,22 @@ function readServerSettings() {
         const bridgeUrl = s.bridgeUrl || s.bridge_url || 'https://varco-bridge.andreabaccega.com';
         const claimSecret = s.claimSecret || s.claim_secret;
         const privateKey = s.privateKey || s.private_key;
+        const identityData = s.identityData || s.identity_data;
         const consumerName = s.consumerName || s.consumer_name || 'ER-Startseite Backend Server';
 
         if (!authorityId || !shareCode) {
             return null;
         }
+
+        const entityIdsFromConfig = (config.entities || []).map(e => e.id).filter(Boolean);
+        const cardEntityIds = (config.cards || []).flatMap(c => c.entity_ids || c.entityIds || []).filter(Boolean);
+        const requestedEntities = Array.from(new Set([
+            'sensor.speedtest_download',
+            'sensor.speedtest_upload',
+            'sensor.speedtest_ping',
+            ...entityIdsFromConfig,
+            ...cardEntityIds
+        ]));
 
         return {
             authorityId,
@@ -61,7 +102,9 @@ function readServerSettings() {
             bridgeUrl,
             claimSecret,
             privateKey,
-            consumerName
+            identityData,
+            consumerName,
+            requestedEntities
         };
     } catch (e) {
         console.error('[Varco Worker] Error reading config:', e.message);
@@ -69,7 +112,47 @@ function readServerSettings() {
     }
 }
 
-function savePrivateKey(privateKey) {
+const LOCK_PATH = CONFIG_PATH + '.lock';
+
+async function acquireConfigFileLock() {
+    const startTime = Date.now();
+    while (true) {
+        try {
+            fs.mkdirSync(LOCK_PATH);
+            return true;
+        } catch (err) {
+            if (err.code === 'EEXIST') {
+                try {
+                    const stat = fs.statSync(LOCK_PATH);
+                    if (Date.now() - stat.mtimeMs > 10000) {
+                        try { fs.rmdirSync(LOCK_PATH); } catch {}
+                    }
+                } catch {}
+                if (Date.now() - startTime > 5000) {
+                    return false;
+                }
+                await new Promise(resolve => setTimeout(resolve, 20));
+            } else {
+                return false;
+            }
+        }
+    }
+}
+
+function releaseConfigFileLock() {
+    try {
+        if (fs.existsSync(LOCK_PATH)) {
+            fs.rmdirSync(LOCK_PATH);
+        }
+    } catch {}
+}
+
+async function savePrivateKey(privateKey, identityData = null) {
+    const acquired = await acquireConfigFileLock();
+    if (!acquired) {
+        console.warn('[Varco Worker] Failed to acquire config file lock; skipping save.');
+        return;
+    }
     try {
         if (!fs.existsSync(CONFIG_PATH)) return;
         const content = fs.readFileSync(CONFIG_PATH, 'utf-8');
@@ -77,13 +160,45 @@ function savePrivateKey(privateKey) {
         const provider = (config.providers || []).find(p => p.type === 'varco');
         if (provider) {
             provider.settings = provider.settings || {};
-            provider.settings.privateKey = privateKey;
-            provider.settings.private_key = privateKey;
-            fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf-8');
-            console.log('[Varco Worker] Saved privateKey to config file.');
+            if (!privateKey) {
+                delete provider.settings.privateKey;
+                delete provider.settings.private_key;
+                delete provider.settings.identityData;
+                delete provider.settings.identity_data;
+            } else {
+                provider.settings.privateKey = privateKey;
+                provider.settings.private_key = privateKey;
+                if (identityData) {
+                    provider.settings.identityData = identityData;
+                    provider.settings.identity_data = identityData;
+                }
+            }
+            const tmpPath = CONFIG_PATH + '.tmp';
+            fs.writeFileSync(tmpPath, JSON.stringify(config, null, 2), 'utf-8');
+            fs.renameSync(tmpPath, CONFIG_PATH);
+            console.log('[Varco Worker] Saved identity to config file.');
+            if (currentSettings) {
+                if (!privateKey) {
+                    delete currentSettings.privateKey;
+                    delete currentSettings.private_key;
+                    delete currentSettings.identityData;
+                    delete currentSettings.identity_data;
+                } else {
+                    currentSettings.privateKey = privateKey;
+                    currentSettings.private_key = privateKey;
+                    if (identityData) {
+                        currentSettings.identityData = identityData;
+                        currentSettings.identity_data = identityData;
+                    }
+                }
+            }
         }
     } catch (e) {
-        console.error('[Varco Worker] Error saving privateKey:', e.message);
+        console.error('[Varco Worker] Error saving identity:', e.message);
+    } finally {
+        if (acquired) {
+            releaseConfigFileLock();
+        }
     }
 }
 
@@ -95,14 +210,30 @@ async function syncVarcoClient() {
             try { client.disconnect(); } catch {}
             client = null;
         }
+        isSubscribed = false;
         currentSettings = null;
         currentEntities = {};
         return;
     }
 
-    // Check if settings changed
+    // Check if shareCode or authorityId changed
+    const shareCodeChanged = currentSettings && (
+        currentSettings.shareCode !== settings.shareCode ||
+        currentSettings.authorityId !== settings.authorityId
+    );
+
+    if (shareCodeChanged) {
+        console.log(`[Varco Worker] Share URL changed (${currentSettings?.shareCode} -> ${settings.shareCode}). Clearing stored key for fresh pairing.`);
+        await savePrivateKey(null);
+        settings.privateKey = null;
+        settings.private_key = null;
+        settings.identityData = null;
+        settings.identity_data = null;
+    }
+
+    // Check if settings changed or if client is not subscribed
     const keyChanged = JSON.stringify(settings) !== JSON.stringify(currentSettings);
-    if (!keyChanged && client) {
+    if (!keyChanged && client && isSubscribed) {
         return;
     }
 
@@ -111,25 +242,68 @@ async function syncVarcoClient() {
         client = null;
     }
 
+    isSubscribed = false;
     currentSettings = settings;
     console.log(`[Varco Worker] Initializing Varco Client for Authority '${settings.authorityId}' as '${settings.consumerName}'...`);
 
     let storedPrivateKey = settings.privateKey || null;
+    let storedIdentityData = settings.identityData || null;
+
+    if (!storedIdentityData && storedPrivateKey) {
+        if (typeof consumerIdentityFromPrivateKey === 'function') {
+            try {
+                const derived = consumerIdentityFromPrivateKey(storedPrivateKey);
+                if (derived) {
+                    storedIdentityData = typeof derived === 'string' ? derived : JSON.stringify(derived);
+                }
+            } catch {}
+        }
+        if (!storedIdentityData) {
+            try {
+                const parsed = typeof storedPrivateKey === 'string' && storedPrivateKey.startsWith('{') ? JSON.parse(storedPrivateKey) : null;
+                if (parsed && parsed.privateKey) {
+                    storedIdentityData = JSON.stringify({
+                        privateKey: parsed.privateKey,
+                        publicKey: parsed.publicKey || parsed.privateKey,
+                        consumer_pk: parsed.consumer_pk || parsed.publicKey || parsed.privateKey,
+                        ...parsed
+                    });
+                } else {
+                    storedIdentityData = JSON.stringify({
+                        privateKey: storedPrivateKey,
+                        publicKey: settings.publicKey || storedPrivateKey,
+                        consumer_pk: settings.publicKey || storedPrivateKey
+                    });
+                }
+            } catch {
+                storedIdentityData = JSON.stringify({
+                    privateKey: storedPrivateKey,
+                    publicKey: storedPrivateKey,
+                    consumer_pk: storedPrivateKey
+                });
+            }
+        }
+    }
+
+    const isNewShare = shareCodeChanged || !storedPrivateKey;
 
     const customStorage = {
         getItem: (k) => {
-            if (k.includes('consumerIdentity') && storedPrivateKey) {
-                return JSON.stringify({ privateKey: storedPrivateKey });
+            if (k.includes('consumerIdentity') && storedIdentityData) {
+                return storedIdentityData;
             }
             return null;
         },
         setItem: (k, v) => {
             if (k.includes('consumerIdentity')) {
                 try {
+                    storedIdentityData = v;
                     const parsed = JSON.parse(v);
                     if (parsed && parsed.privateKey) {
                         storedPrivateKey = parsed.privateKey;
-                        savePrivateKey(parsed.privateKey);
+                        setTimeout(() => {
+                            savePrivateKey(parsed.privateKey, v);
+                        }, 0);
                     }
                 } catch {}
             }
@@ -137,51 +311,58 @@ async function syncVarcoClient() {
         removeItem: () => {}
     };
 
-    client = createVarcoClient({
-        authorityId: settings.authorityId,
-        bridgeUrl: settings.bridgeUrl,
-        storage: customStorage,
-        manifest: {
-            name: settings.consumerName,
-            version: '1.0.0',
-            read_entities: ['*'],
-            subscriptions: ['*']
-        }
-    });
-
-    if (settings.claimSecret && typeof client.claimShare === 'function') {
-        try {
-            await client.claimShare(settings.shareCode, settings.claimSecret);
-            console.log('[Varco Worker] Claim share executed.');
-        } catch (e) {
-            console.warn('[Varco Worker] Claim share info:', e.message);
-        }
-    }
-
     try {
-        await client.connect();
-        console.log('[Varco Worker] Varco Client connected successfully!');
-    } catch (err) {
-        console.warn('[Varco Worker] Connection attempt info:', err.message || err);
-        if (typeof client.requestAccess === 'function') {
+        client = createVarcoClient({
+            authorityId: settings.authorityId,
+            bridgeUrl: settings.bridgeUrl,
+            storage: customStorage,
+            manifest: {
+                name: settings.consumerName,
+                version: '1.0.0',
+                read_entities: settings.requestedEntities,
+                subscriptions: settings.requestedEntities
+            }
+        });
+
+        // Attempt claimShare if this is a new share link or if we don't have a privateKey yet
+        if (isNewShare && settings.claimSecret && typeof client?.claimShare === 'function') {
             try {
-                const access = await client.requestAccess({
-                    name: settings.consumerName,
-                    version: '1.0.0',
-                    read_entities: ['*'],
-                    subscriptions: ['*']
-                });
-                console.log(`[Varco Worker] ACCESS REQUEST PAIRING CODE: ${access?.pairing_code || access?.code || 'CHECK HOME ASSISTANT'}`);
-                await client.connect();
-            } catch (pErr) {
-                console.warn('[Varco Worker] Request access info:', pErr.message || pErr);
+                await client.claimShare(settings.shareCode, settings.claimSecret);
+                console.log('[Varco Worker] Claim share executed successfully.');
+            } catch (e) {
+                console.warn('[Varco Worker] Claim share info:', e.message || e);
             }
         }
-    }
 
-    if (typeof client.subscribeEntities === 'function') {
         try {
-            await client.subscribeEntities(['*'], (event) => {
+            if (client) {
+                await client.connect();
+                console.log('[Varco Worker] Varco Client connected successfully!');
+            }
+        } catch (err) {
+            console.warn('[Varco Worker] Connection attempt info:', err.message || err);
+            if (!storedPrivateKey && typeof client?.requestAccess === 'function') {
+                try {
+                    console.log(`[Varco Worker] Requesting access permissions from Varco / Home Assistant as '${settings.consumerName}'...`);
+                    const access = await client.requestAccess({
+                        name: settings.consumerName,
+                        version: '1.0.0',
+                        read_entities: settings.requestedEntities,
+                        subscriptions: settings.requestedEntities
+                    });
+                    console.log(`[Varco Worker] PAIRING REQUEST SENT TO VARCO / HOME ASSISTANT! Code: ${access?.pairing_code || access?.code || 'Check Home Assistant Notifications'}`);
+                    if (client) await client.connect();
+                } catch (pErr) {
+                    console.warn('[Varco Worker] Request access info:', pErr.message || pErr);
+                    throw pErr;
+                }
+            } else {
+                throw err;
+            }
+        }
+
+        if (typeof client?.subscribeEntities === 'function') {
+            await client.subscribeEntities(settings.requestedEntities, (event) => {
                 if (event && event.states) {
                     Object.entries(event.states).forEach(([eid, entData]) => {
                         if (entData) {
@@ -200,16 +381,29 @@ async function syncVarcoClient() {
                             };
                         }
                     });
+
+                    if (!loggedFirstSync && Object.keys(currentEntities).length > 0) {
+                        loggedFirstSync = true;
+                        const hasKey = Boolean(settings.privateKey || storedPrivateKey);
+                        console.log(`[Varco Worker] FIRST SUCCESSFUL SYNC COMPLETED! Received ${Object.keys(currentEntities).length} entities. Credentials status: privateKey=${hasKey ? 'SAVED' : 'SAVING'}, authorityId=${settings.authorityId}. Continuous background sync ready.`);
+                    }
                 }
             });
-            console.log('[Varco Worker] Subscribed to entity updates.');
-        } catch (subErr) {
-            console.warn('[Varco Worker] Subscribe entities info:', subErr.message);
+            isSubscribed = true;
+            console.log('[Varco Worker] Subscribed to entity updates successfully.');
         }
+    } catch (initErr) {
+        console.warn('[Varco Worker] Initialization/Subscription attempt failed:', initErr.message || initErr);
+        if (client) {
+            try { client.disconnect(); } catch {}
+            client = null;
+        }
+        isSubscribed = false;
+        currentSettings = null;
     }
 }
 
-// Polling loop to check config updates every 10s
+// Polling loop to check config updates & connection status every 10s
 setInterval(syncVarcoClient, 10000);
 syncVarcoClient();
 
@@ -218,7 +412,7 @@ const server = http.createServer((req, res) => {
     if (req.url === '/telemetry' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
-            online: client !== null,
+            online: client !== null && isSubscribed,
             entities: Object.values(currentEntities)
         }));
     } else {
