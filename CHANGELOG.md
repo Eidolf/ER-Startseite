@@ -10,6 +10,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.M.
 ### Fixed
 - **Varco Sidecar WebCrypto & Handshake Authentication**: Resolved Node.js WebSocket handshake timeouts (`Varco request timed out: authenticate`) by adding WebCrypto API polyfills (`node:crypto.webcrypto`), passing explicit entity manifests, and supplying browser-compatible `Origin` and `User-Agent` headers for reverse proxy compatibility.
 - **Varco Identity Credential Persistence**: Fixed an issue where transient connection failures wiped stored identity credentials (`savePrivateKey(null)`), and updated sidecar storage (`varco_worker.js`) to persist and reload full cryptographic identity payloads (`identityData`) seamlessly across Docker container restarts.
+- **On-Demand Varco Live Sensor Telemetry Polling**: Integrated active `client.getStates()` queries inside the sidecar `/telemetry` endpoint handler to fetch fresh Home Assistant sensor values synchronously on every collector iteration, strictly matching the server's configured monitoring refresh interval.
 
 ---
 
