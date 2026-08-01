@@ -495,12 +495,21 @@ async def _query_sidecar_telemetry() -> list[dict[str, Any]]:
             if resp.status_code == 200:
                 data = resp.json()
                 entities = data.get("entities", [])
+                success = data.get("success", True)
+                msg = (
+                    f"Varco Sidecar Telemetry queried: online={data.get('online')}, "
+                    f"success={success}, count={len(entities)}"
+                )
                 add_system_log(
                     "DEBUG",
-                    f"Varco Sidecar Telemetry queried: online={data.get('online')}, count={len(entities)}",
-                    {"online": data.get("online"), "count": len(entities)},
+                    msg,
+                    {
+                        "online": data.get("online"),
+                        "success": success,
+                        "count": len(entities),
+                    },
                 )
-                if entities and isinstance(entities, list):
+                if success and entities and isinstance(entities, list):
                     return entities
     except Exception as sidecar_err:
         logger.debug(
@@ -568,7 +577,8 @@ async def _run_collector_loop() -> None:
                                     else "string"
                                 ),
                                 state=c.get("state", "N/A"),
-                                unit_of_measurement=c.get("unit")
+                                unit_of_measurement=c.get("unit_of_measurement")
+                                or c.get("unit")
                                 or (existing.unit_of_measurement if existing else None),
                                 last_updated=iso_now,
                             )
