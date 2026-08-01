@@ -427,10 +427,9 @@ async function fetchLatestStates() {
     }
 }
 
-// Polling loop to check config updates, connection status, and fetch live entity states every 10s
+// Polling loop to check config updates & connection status every 10s
 setInterval(async () => {
     await syncVarcoClient();
-    await fetchLatestStates();
 }, 10000);
 syncVarcoClient();
 
