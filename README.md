@@ -185,4 +185,4 @@ Want to add a new integration (like Sonarr, generic services, etc.)?
 
 ## 📄 License
 
-AGPL
+MIT
