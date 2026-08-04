@@ -33,7 +33,6 @@ router = APIRouter()
 
 @router.get("/config", response_model=MonitoringConfig)
 async def get_monitoring_config() -> MonitoringConfig:
-    touch_monitoring_active()
     repo = MonitoringRepository()
     return await repo.get_config()
 
@@ -157,8 +156,6 @@ async def update_monitoring_telemetry(payload: dict[str, Any]) -> dict[str, Any]
 
 @router.post("/active")
 async def ping_monitoring_active() -> dict[str, str]:
-    from app.services.varco_collector import touch_monitoring_active
-
     touch_monitoring_active()
     return {"status": "active"}
 
@@ -423,6 +420,10 @@ def _parse_varco_manifest_and_brief(
                 "state": e.state,
                 "unit": e.unit_of_measurement,
                 "domain": e.domain,
+                "provider_id": e.provider_id,
+                "value_type": e.value_type,
+                "attributes": e.attributes,
+                "last_updated": e.last_updated,
             }
             for e in existing_entities_map.values()
         ]
@@ -466,17 +467,21 @@ def _parse_varco_manifest_and_brief(
     # Build MonitoringEntity objects and update config.entities
     for p_ent in parsed_entities:
         eid = p_ent["id"]
+        existing_ent = existing_entities_map.get(eid)
         entity_obj = MonitoringEntity(
             id=eid,
-            provider_id="imported",
+            provider_id=p_ent.get("provider_id")
+            or (existing_ent.provider_id if existing_ent else "imported"),
             name=p_ent["name"],
             domain=p_ent.get("domain", "sensor"),
-            value_type=(
-                "numeric" if isinstance(p_ent["state"], (int, float)) else "string"
-            ),
+            value_type=p_ent.get("value_type")
+            or ("numeric" if isinstance(p_ent["state"], (int, float)) else "string"),
             state=p_ent["state"],
             unit_of_measurement=p_ent.get("unit"),
-            attributes=p_ent.get("attributes", {}),
+            attributes=p_ent.get("attributes")
+            or (existing_ent.attributes if existing_ent else {}),
+            last_updated=p_ent.get("last_updated")
+            or (existing_ent.last_updated if existing_ent else None),
         )
         existing_entities_map[eid] = entity_obj
 

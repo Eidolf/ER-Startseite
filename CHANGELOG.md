@@ -12,7 +12,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.M.
 - **Automatic Monitoring Card Generation**: Enhanced collector and URL import logic to automatically construct appropriate monitoring cards (`status_beacon` for binary sensors/servers/ICMP tests, `live_traffic` for bandwidth, `gauge` for ping/latency) for all discovered entities.
 
 ### Fixed
-- **On-Demand Overlay Telemetry Gating**: Paused background telemetry loops and WebSocket connections when the Monitoring Overlay is closed (`isOpen = false`), completely eliminating idle network requests and CPU overhead on the main dashboard.
+- **On-Demand Overlay Telemetry Gating**: Paused background telemetry loops and WebSocket connections when the Monitoring Overlay is closed (`isOpen = false`), eliminating idle network requests and CPU overhead on the main dashboard.
 
 ---
 

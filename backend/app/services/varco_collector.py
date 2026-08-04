@@ -590,7 +590,10 @@ async def _run_collector_loop() -> None:
                             eid = c["id"]
                             existing = ent_map.get(eid)
                             new_st = c.get("state", "N/A")
-                            new_u = c.get("unit_of_measurement") or c.get("unit")
+                            raw_u = c.get("unit_of_measurement") or c.get("unit")
+                            new_u = raw_u or (
+                                existing.unit_of_measurement if existing else None
+                            )
 
                             if (
                                 not existing
@@ -611,8 +614,7 @@ async def _run_collector_loop() -> None:
                                     else "string"
                                 ),
                                 state=new_st,
-                                unit_of_measurement=new_u
-                                or (existing.unit_of_measurement if existing else None),
+                                unit_of_measurement=new_u,
                                 last_updated=(
                                     iso_now
                                     if (not existing or existing.state != new_st)

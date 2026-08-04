@@ -384,6 +384,8 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         let isMounted = true
 
+        const trackedClients: Array<{ client: { unsubscribe?: (id: string) => Promise<void>; close?: () => Promise<void>; disconnect?: () => void }; subId?: string }> = []
+
         const connectVarcoBridge = async () => {
             try {
                 const scriptUrl = `/api/v1/monitoring/varco-client.js?bridge_url=${encodeURIComponent(params.bridgeUrl)}`
@@ -474,6 +476,9 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     },
                 })
 
+                const clientRecord: { client: { unsubscribe?: (id: string) => Promise<void>; close?: () => Promise<void>; disconnect?: () => void }; subId?: string } = { client }
+                trackedClients.push(clientRecord)
+
                 if (params.claimSecret && typeof client.claimShare === 'function') {
                     await client.claimShare(params.shareCode, params.claimSecret).catch(() => {})
                 }
@@ -553,7 +558,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 }
 
                 if (typeof client.subscribeEntities === 'function') {
-                    await client.subscribeEntities(entityIds, (event: { states?: Record<string, unknown> }) => {
+                    const subRes = await client.subscribeEntities(entityIds, (event: { states?: Record<string, unknown> }) => {
                         if (!isMounted || !event?.states) return
                         const streamEntities: Record<string, MonitoringEntity> = {}
                         Object.entries(event.states).forEach(([eid, entData]: [string, unknown]) => {
@@ -582,6 +587,9 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                             }).catch(() => {})
                         }
                     })
+                    if (typeof subRes === 'string') {
+                        clientRecord.subId = subRes
+                    }
                 }
             } catch (e: unknown) {
                 const errObj = e as { message?: string }
@@ -615,9 +623,19 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         return () => {
             isMounted = false
             clearInterval(pollInterval)
+            trackedClients.forEach(({ client: c, subId }) => {
+                if (subId && typeof c.unsubscribe === 'function') {
+                    c.unsubscribe(subId).catch(() => {})
+                }
+                if (typeof c.close === 'function') {
+                    c.close().catch(() => {})
+                } else if (typeof c.disconnect === 'function') {
+                    c.disconnect()
+                }
+            })
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen, config?.enabled, config?.providers, config?.polling_interval_seconds])
+    }, [isOpen, config?.enabled, config?.providers, config?.polling_interval_seconds, config?.pollingIntervalSeconds])
 
     // Register Service Worker for Background Telemetry Sync
     useEffect(() => {

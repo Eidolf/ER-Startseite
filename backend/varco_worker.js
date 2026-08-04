@@ -56,6 +56,7 @@ let isSubscribed = false;
 let loggedFirstSync = false;
 let currentSettings = null;
 let currentEntities = {};
+let activeEntities = [];
 let syncGeneration = 0;
 let syncPromise = null;
 
@@ -227,6 +228,7 @@ async function syncVarcoClient() {
         await savePrivateKey(null);
         delete settings.privateKey;
         delete settings.identityData;
+        currentEntities = {};
     }
 
     // Check if settings changed or if client is not subscribed
@@ -236,6 +238,7 @@ async function syncVarcoClient() {
     }
 
     syncGeneration++;
+    currentEntities = {};
     if (client) {
         try { client.disconnect(); } catch {}
         client = null;
@@ -380,7 +383,6 @@ async function syncVarcoClient() {
         } catch (gErr) {
             console.warn('[Varco Worker] Dynamic grant discovery info:', gErr.message || gErr);
         }
-        currentSettings.activeEntities = activeEntities;
 
         if (typeof client?.subscribeEntities === 'function') {
             await client.subscribeEntities(activeEntities, (event) => {
@@ -426,7 +428,7 @@ async function syncVarcoClient() {
 
 async function fetchLatestStates() {
     const targetEntities = Array.from(new Set([
-        ...(currentSettings?.activeEntities || currentSettings?.requestedEntities || []),
+        ...(activeEntities.length > 0 ? activeEntities : (currentSettings?.requestedEntities || [])),
         ...Object.keys(currentEntities)
     ]));
 
