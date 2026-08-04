@@ -214,6 +214,7 @@ async function syncVarcoClient() {
         isSubscribed = false;
         currentSettings = null;
         currentEntities = {};
+        activeEntities = [];
         return;
     }
 
@@ -229,6 +230,7 @@ async function syncVarcoClient() {
         delete settings.privateKey;
         delete settings.identityData;
         currentEntities = {};
+        activeEntities = [];
     }
 
     // Check if settings changed or if client is not subscribed
@@ -239,6 +241,7 @@ async function syncVarcoClient() {
 
     syncGeneration++;
     currentEntities = {};
+    activeEntities = [];
     if (client) {
         try { client.disconnect(); } catch {}
         client = null;

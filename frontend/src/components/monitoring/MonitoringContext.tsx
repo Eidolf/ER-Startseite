@@ -388,6 +388,21 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         const connectVarcoBridge = async () => {
             try {
+                // Clean up previous client before starting new connection tick
+                while (trackedClients.length > 0) {
+                    const prev = trackedClients.pop()
+                    if (prev) {
+                        if (prev.subId && typeof prev.client.unsubscribe === 'function') {
+                            prev.client.unsubscribe(prev.subId).catch(() => {})
+                        }
+                        if (typeof prev.client.close === 'function') {
+                            prev.client.close().catch(() => {})
+                        } else if (typeof prev.client.disconnect === 'function') {
+                            prev.client.disconnect()
+                        }
+                    }
+                }
+
                 const scriptUrl = `/api/v1/monitoring/varco-client.js?bridge_url=${encodeURIComponent(params.bridgeUrl)}`
 
                 const win = window as unknown as Record<string, unknown>
@@ -580,6 +595,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         })
                         if (Object.keys(streamEntities).length > 0) {
                             setEntities((prev) => ({ ...prev, ...streamEntities }))
+                            setPairingCode(null)
                             fetch('/api/v1/monitoring/telemetry', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -587,7 +603,12 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                             }).catch(() => {})
                         }
                     })
-                    if (typeof subRes === 'string') {
+
+                    if (!isMounted) {
+                        if (typeof subRes === 'string' && typeof client.unsubscribe === 'function') {
+                            client.unsubscribe(subRes).catch(() => {})
+                        }
+                    } else if (typeof subRes === 'string') {
                         clientRecord.subId = subRes
                     }
                 }

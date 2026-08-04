@@ -594,25 +594,32 @@ async def _run_collector_loop() -> None:
                             new_u = raw_u or (
                                 existing.unit_of_measurement if existing else None
                             )
+                            new_name = c.get("name") or (
+                                existing.name if existing else eid
+                            )
+                            new_dom = c.get("domain") or "sensor"
+                            new_vt = (
+                                "numeric"
+                                if isinstance(c.get("state"), (int, float))
+                                else "string"
+                            )
 
                             if (
                                 not existing
                                 or existing.state != new_st
                                 or existing.unit_of_measurement != new_u
+                                or existing.name != new_name
+                                or existing.domain != new_dom
+                                or existing.value_type != new_vt
                             ):
                                 has_changed = True
 
                             ent_map[eid] = MonitoringEntity(
                                 id=eid,
                                 provider_id="varco-server",
-                                name=c.get("name")
-                                or (existing.name if existing else eid),
-                                domain=c.get("domain") or "sensor",
-                                value_type=(
-                                    "numeric"
-                                    if isinstance(c.get("state"), (int, float))
-                                    else "string"
-                                ),
+                                name=new_name,
+                                domain=new_dom,
+                                value_type=new_vt,
                                 state=new_st,
                                 unit_of_measurement=new_u,
                                 last_updated=(
@@ -712,6 +719,20 @@ async def _run_collector_loop() -> None:
                             fresh_config.cards = cards
                             await repo.save_config(fresh_config)
 
+                            add_system_log(
+                                "INFO",
+                                f"Varco Collector synced {len(collected)} entities to server config",
+                                {
+                                    "count": len(collected),
+                                    "first_entity": collected[0] if collected else None,
+                                },
+                            )
+                            logger.info(
+                                "Varco Background Collector synced entities",
+                                count=len(collected),
+                            )
+
+                        if collected:
                             global _first_sync_reported
                             if not _first_sync_reported:
                                 _first_sync_reported = True
@@ -742,19 +763,6 @@ async def _run_collector_loop() -> None:
                                         "has_share_code": bool(sc),
                                     },
                                 )
-
-                            add_system_log(
-                                "INFO",
-                                f"Varco Collector synced {len(collected)} entities to server config",
-                                {
-                                    "count": len(collected),
-                                    "first_entity": collected[0] if collected else None,
-                                },
-                            )
-                            logger.info(
-                                "Varco Background Collector synced entities",
-                                count=len(collected),
-                            )
 
             # Determine interval (minimum 5s, maximum 86400s / 24h, default 60s)
             interval = 60
