@@ -372,9 +372,9 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         refreshConfig()
     }, [refreshConfig])
 
-    // Live Varco Bridge Client Integration (Connects directly using Varco Client SDK)
+    // Live Varco Bridge Client Integration (Connects directly using Varco Client SDK when Monitoring Overlay is open)
     useEffect(() => {
-        if (config?.enabled === false) return
+        if (!isOpen || config?.enabled === false) return
 
         const varcoProvider = config?.providers.find((p) => p.type === 'varco' && p.enabled)
         if (!varcoProvider || !varcoProvider.url) return
@@ -575,20 +575,11 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         })
                         if (Object.keys(streamEntities).length > 0) {
                             setEntities((prev) => ({ ...prev, ...streamEntities }))
-                            setPairingCode(null)
-                            const entList = Object.values(streamEntities)
                             fetch('/api/v1/monitoring/telemetry', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ entities: entList }),
+                                body: JSON.stringify({ entities: Object.values(streamEntities) }),
                             }).catch(() => {})
-
-                            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-                                navigator.serviceWorker.controller.postMessage({
-                                    type: 'VARCO_TELEMETRY_SYNC',
-                                    payload: { entities: entList },
-                                })
-                            }
                         }
                     })
                 }
@@ -613,7 +604,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         connectVarcoBridge()
 
-        // Background Telemetry Sync Relay loop (Runs while browser tab is open)
+        // Background Telemetry Sync Relay loop (Runs while Monitoring Overlay is open)
         const pollingSec = config?.polling_interval_seconds || config?.pollingIntervalSeconds || 15
         const pollInterval = setInterval(() => {
             if (isMounted) {
@@ -626,7 +617,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             clearInterval(pollInterval)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [config?.enabled, config?.providers, config?.polling_interval_seconds])
+    }, [isOpen, config?.enabled, config?.providers, config?.polling_interval_seconds])
 
     // Register Service Worker for Background Telemetry Sync
     useEffect(() => {
@@ -635,11 +626,11 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
     }, [])
 
-    // Periodic Telemetry & System Health Check (Runs immediately upon mount & polls every 3s across all sessions)
+    // Periodic Telemetry & System Health Check (Runs ONLY when Monitoring Overlay is open)
     useEffect(() => {
+        if (!isOpen || config?.enabled === false) return
         let failCount = 0
         const fetchTelemetry = async () => {
-            if (config?.enabled === false) return
             try {
                 const res = await fetch('/api/v1/monitoring/telemetry')
                 if (res.ok) {
@@ -671,9 +662,10 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         fetchTelemetry()
 
-        const interval = setInterval(fetchTelemetry, 3000)
+        const sec = config?.polling_interval_seconds || config?.pollingIntervalSeconds || 15
+        const interval = setInterval(fetchTelemetry, Math.max(5000, sec * 1000))
         return () => clearInterval(interval)
-    }, [config?.enabled])
+    }, [isOpen, config?.enabled, config?.polling_interval_seconds, config?.pollingIntervalSeconds])
 
     // Live Telemetry Interpolation / Jitter Simulator (Only when Demo Mode is ON)
     useEffect(() => {

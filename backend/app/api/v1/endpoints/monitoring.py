@@ -20,6 +20,12 @@ from app.schemas.monitoring import (
     VarcoManifestImportPayload,
 )
 from app.services.log_service import add_system_log
+from app.services.varco_collector import (
+    _fetch_varco_data,
+    _parse_url_params,
+    _query_sidecar_telemetry,
+    touch_monitoring_active,
+)
 
 logger = structlog.get_logger()
 router = APIRouter()
@@ -27,6 +33,7 @@ router = APIRouter()
 
 @router.get("/config", response_model=MonitoringConfig)
 async def get_monitoring_config() -> MonitoringConfig:
+    touch_monitoring_active()
     repo = MonitoringRepository()
     return await repo.get_config()
 
@@ -146,6 +153,14 @@ async def update_monitoring_telemetry(payload: dict[str, Any]) -> dict[str, Any]
             config = await repo.get_config()
 
     return {"status": "ok", "count": len(config.entities)}
+
+
+@router.post("/active")
+async def ping_monitoring_active() -> dict[str, str]:
+    from app.services.varco_collector import touch_monitoring_active
+
+    touch_monitoring_active()
+    return {"status": "active"}
 
 
 def _parse_varco_manifest_and_brief(
@@ -400,6 +415,18 @@ def _parse_varco_manifest_and_brief(
                         }
                     )
 
+    if not parsed_entities and existing_entities_map:
+        parsed_entities = [
+            {
+                "id": e.id,
+                "name": e.name,
+                "state": e.state,
+                "unit": e.unit_of_measurement,
+                "domain": e.domain,
+            }
+            for e in existing_entities_map.values()
+        ]
+
     if not parsed_entities:
         parsed_entities = [
             {
@@ -453,7 +480,8 @@ def _parse_varco_manifest_and_brief(
         )
         existing_entities_map[eid] = entity_obj
 
-        # Create card if not present
+    # Create cards for all entities in existing_entities_map
+    for eid, entity_obj in existing_entities_map.items():
         card_id = f"card-{eid.replace('.', '-')}"
         if card_id not in existing_card_ids:
             card_type = "metric_card"
@@ -467,20 +495,37 @@ def _parse_varco_manifest_and_brief(
             ):
                 card_type = "gauge"
             elif eid.startswith("binary_sensor.") or any(
-                k in eid for k in ["status", "online", "state"]
+                k in eid
+                for k in [
+                    "status",
+                    "online",
+                    "state",
+                    "virtualmachine",
+                    "server",
+                    "icmp",
+                ]
             ):
                 card_type = "status_beacon"
 
             cards.append(
                 MonitoringCard(
                     id=card_id,
-                    title=p_ent["name"],
+                    title=entity_obj.name,
                     card_type=card_type,
                     entity_ids=[eid],
                     zone_id=(
                         "network"
                         if any(
-                            k in eid for k in ["speedtest", "ping", "net", "traffic"]
+                            k in eid
+                            for k in [
+                                "speedtest",
+                                "ping",
+                                "net",
+                                "traffic",
+                                "icmp",
+                                "virtualmachine",
+                                "server",
+                            ]
                         )
                         else "overview"
                     ),
@@ -606,8 +651,6 @@ async def import_url(payload: VarcoManifestImportPayload) -> MonitoringConfig:
     varco_provider.enabled = True
 
     # Parse and persist authority_id, share_code, claim_secret, bridge_url into provider settings
-    from app.services.varco_collector import _parse_url_params
-
     sc, auth_id, cs, b_url = _parse_url_params(url, varco_provider.settings or {})
     current_settings = dict(varco_provider.settings or {})
     if sc:
@@ -638,6 +681,16 @@ async def import_url(payload: VarcoManifestImportPayload) -> MonitoringConfig:
             "bridge_url": b_url,
         },
     )
+
+    # Immediately query live sidecar telemetry or fallback data to discover all entities
+    if not manifest_data or not manifest_data.get("entities"):
+        sidecar_discovered = await _query_sidecar_telemetry()
+        if sidecar_discovered:
+            manifest_data = {"entities": sidecar_discovered}
+        else:
+            fallback_discovered = await _fetch_varco_data(url, current_settings)
+            if fallback_discovered:
+                manifest_data = {"entities": fallback_discovered}
 
     updated = _parse_varco_manifest_and_brief(manifest_data, brief_text, config)
     await repo.save_config(updated)

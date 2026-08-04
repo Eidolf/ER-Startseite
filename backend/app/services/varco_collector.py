@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+import time
 import urllib.parse
 from typing import Any
 
@@ -20,6 +21,18 @@ logger = structlog.get_logger()
 
 _collector_task: asyncio.Task[None] | None = None
 _stop_event: asyncio.Event = asyncio.Event()
+_last_active_timestamp: float = 0.0
+
+
+def touch_monitoring_active() -> None:
+    global _last_active_timestamp
+    _last_active_timestamp = time.time()
+
+
+def is_monitoring_active() -> bool:
+    """Returns True if a frontend client sent an active heartbeat within the last 45 seconds."""
+    global _last_active_timestamp
+    return (time.time() - _last_active_timestamp) < 45.0
 
 
 def _is_safe_url(url_str: str) -> bool:
@@ -534,6 +547,14 @@ async def _run_collector_loop() -> None:
             async with repo.lock:
                 config = await repo.get_config()
 
+            # Pause telemetry polling if monitoring overlay is not active on any client
+            if not is_monitoring_active():
+                for _ in range(5):
+                    if _stop_event.is_set():
+                        break
+                    await asyncio.sleep(1)
+                continue
+
             varco_provider = next(
                 (p for p in config.providers if p.type == "varco" and p.enabled),
                 None,
@@ -558,13 +579,26 @@ async def _run_collector_loop() -> None:
                     async with repo.lock:
                         fresh_config = await repo.get_config()
                         ent_map = {e.id: e for e in fresh_config.entities}
+                        cards = list(fresh_config.cards)
+                        existing_card_ids = {c.id for c in cards}
                         iso_now = datetime.datetime.now(
                             datetime.timezone.utc
                         ).isoformat()
 
+                        has_changed = False
                         for c in collected:
                             eid = c["id"]
                             existing = ent_map.get(eid)
+                            new_st = c.get("state", "N/A")
+                            new_u = c.get("unit_of_measurement") or c.get("unit")
+
+                            if (
+                                not existing
+                                or existing.state != new_st
+                                or existing.unit_of_measurement != new_u
+                            ):
+                                has_changed = True
+
                             ent_map[eid] = MonitoringEntity(
                                 id=eid,
                                 provider_id="varco-server",
@@ -576,62 +610,152 @@ async def _run_collector_loop() -> None:
                                     if isinstance(c.get("state"), (int, float))
                                     else "string"
                                 ),
-                                state=c.get("state", "N/A"),
-                                unit_of_measurement=c.get("unit_of_measurement")
-                                or c.get("unit")
+                                state=new_st,
+                                unit_of_measurement=new_u
                                 or (existing.unit_of_measurement if existing else None),
-                                last_updated=iso_now,
+                                last_updated=(
+                                    iso_now
+                                    if (not existing or existing.state != new_st)
+                                    else (
+                                        existing.last_updated if existing else iso_now
+                                    )
+                                ),
                             )
 
-                        fresh_config.entities = list(ent_map.values())
-                        await repo.save_config(fresh_config)
+                            # Auto-create missing card for newly discovered entity
+                            card_id = f"card-{eid.replace('.', '-')}"
+                            if card_id not in existing_card_ids:
+                                is_bin = eid.startswith("binary_sensor.")
+                                card_type = (
+                                    "status_beacon"
+                                    if (
+                                        is_bin
+                                        or any(
+                                            k in eid
+                                            for k in [
+                                                "status",
+                                                "online",
+                                                "state",
+                                                "virtualmachine",
+                                                "server",
+                                                "icmp",
+                                            ]
+                                        )
+                                    )
+                                    else (
+                                        "live_traffic"
+                                        if any(
+                                            k in eid
+                                            for k in [
+                                                "download",
+                                                "upload",
+                                                "speed",
+                                                "bandwidth",
+                                                "traffic",
+                                            ]
+                                        )
+                                        else (
+                                            "gauge"
+                                            if any(
+                                                k in eid
+                                                for k in [
+                                                    "ping",
+                                                    "latency",
+                                                    "cpu",
+                                                    "temp",
+                                                    "memory",
+                                                    "usage",
+                                                ]
+                                            )
+                                            else "metric_card"
+                                        )
+                                    )
+                                )
+                                from app.schemas.monitoring import MonitoringCard
 
-                        global _first_sync_reported
-                        if not _first_sync_reported:
-                            _first_sync_reported = True
-                            sett = varco_provider.settings or {}
-                            pk = sett.get("privateKey") or sett.get("private_key")
-                            auth_id = sett.get("authorityId") or sett.get(
-                                "authority_id"
-                            )
-                            sc = sett.get("shareCode") or sett.get("share_code")
-                            credentials_ready = bool(pk and auth_id and sc)
+                                cards.append(
+                                    MonitoringCard(
+                                        id=card_id,
+                                        title=c.get("name")
+                                        or eid.split(".")[-1].replace("_", " ").title(),
+                                        card_type=card_type,
+                                        entity_ids=[eid],
+                                        zone_id=(
+                                            "network"
+                                            if any(
+                                                k in eid
+                                                for k in [
+                                                    "speedtest",
+                                                    "ping",
+                                                    "net",
+                                                    "traffic",
+                                                    "icmp",
+                                                    "virtualmachine",
+                                                    "server",
+                                                ]
+                                            )
+                                            else "overview"
+                                        ),
+                                        x=0,
+                                        y=0,
+                                        w=2,
+                                        h=2,
+                                    )
+                                )
+                                existing_card_ids.add(card_id)
+                                has_changed = True
 
-                            status_str = "YES" if credentials_ready else "PENDING"
-                            pk_str = "OK" if pk else "Missing"
-                            auth_str = "OK" if auth_id else "Missing"
-                            msg = (
-                                f"Varco First Successful Sync Verified! Synced {len(collected)} entities. "
-                                f"Credentials persisted for future background sync: {status_str} "
-                                f"(privateKey: {pk_str}, authorityId: {auth_str})"
-                            )
+                        if has_changed or len(ent_map) != len(fresh_config.entities):
+                            fresh_config.entities = list(ent_map.values())
+                            fresh_config.cards = cards
+                            await repo.save_config(fresh_config)
+
+                            global _first_sync_reported
+                            if not _first_sync_reported:
+                                _first_sync_reported = True
+                                sett = varco_provider.settings or {}
+                                pk = sett.get("privateKey") or sett.get("private_key")
+                                auth_id = sett.get("authorityId") or sett.get(
+                                    "authority_id"
+                                )
+                                sc = sett.get("shareCode") or sett.get("share_code")
+                                credentials_ready = bool(pk and auth_id and sc)
+
+                                status_str = "YES" if credentials_ready else "PENDING"
+                                pk_str = "OK" if pk else "Missing"
+                                auth_str = "OK" if auth_id else "Missing"
+                                msg = (
+                                    f"Varco First Successful Sync Verified! Synced {len(collected)} entities. "
+                                    f"Credentials persisted for future background sync: {status_str} "
+                                    f"(privateKey: {pk_str}, authorityId: {auth_str})"
+                                )
+                                add_system_log(
+                                    "INFO",
+                                    msg,
+                                    {
+                                        "count": len(collected),
+                                        "credentials_ready": credentials_ready,
+                                        "has_private_key": bool(pk),
+                                        "has_authority_id": bool(auth_id),
+                                        "has_share_code": bool(sc),
+                                    },
+                                )
+
                             add_system_log(
                                 "INFO",
-                                msg,
+                                f"Varco Collector synced {len(collected)} entities to server config",
                                 {
                                     "count": len(collected),
-                                    "credentials_ready": credentials_ready,
-                                    "has_private_key": bool(pk),
-                                    "has_authority_id": bool(auth_id),
-                                    "has_share_code": bool(sc),
+                                    "first_entity": collected[0] if collected else None,
                                 },
                             )
+                            logger.info(
+                                "Varco Background Collector synced entities",
+                                count=len(collected),
+                            )
 
-                        add_system_log(
-                            "INFO",
-                            f"Varco Collector synced {len(collected)} entities to server config",
-                            {
-                                "count": len(collected),
-                                "first_entity": collected[0] if collected else None,
-                            },
-                        )
-                        logger.info(
-                            "Varco Background Collector synced entities",
-                            count=len(collected),
-                        )
-
-            # Determine interval (minimum 5s, maximum 86400s / 24h, default 15s)
-            interval = 15
+            # Determine interval (minimum 5s, maximum 86400s / 24h, default 60s)
+            interval = 60
             if config.enabled:
                 if varco_provider and varco_provider.polling_interval_seconds:
                     interval = varco_provider.polling_interval_seconds

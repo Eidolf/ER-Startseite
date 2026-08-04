@@ -359,8 +359,31 @@ async function syncVarcoClient() {
             }
         }
 
+        let activeEntities = Array.from(new Set([...settings.requestedEntities]));
+        try {
+            if (typeof client?.getGrantInfo === 'function') {
+                const grant = await client.getGrantInfo(true);
+                const m = grant?.manifest;
+                if (m) {
+                    const granted = Array.from(new Set([
+                        ...(m.read_entities || []),
+                        ...(m.subscriptions || []),
+                        ...(m.entities || []),
+                        ...(m.readEntities || [])
+                    ].filter(Boolean)));
+                    if (granted.length > 0) {
+                        activeEntities = Array.from(new Set([...activeEntities, ...granted]));
+                        console.log(`[Varco Worker] Dynamically discovered ${granted.length} unique entities from Varco share grant manifest: ${granted.join(', ')}`);
+                    }
+                }
+            }
+        } catch (gErr) {
+            console.warn('[Varco Worker] Dynamic grant discovery info:', gErr.message || gErr);
+        }
+        currentSettings.activeEntities = activeEntities;
+
         if (typeof client?.subscribeEntities === 'function') {
-            await client.subscribeEntities(settings.requestedEntities, (event) => {
+            await client.subscribeEntities(activeEntities, (event) => {
                 if (event && event.states) {
                     Object.entries(event.states).forEach(([eid, entData]) => {
                         if (entData) {
@@ -388,7 +411,7 @@ async function syncVarcoClient() {
                 }
             });
             isSubscribed = true;
-            console.log('[Varco Worker] Subscribed to entity updates successfully.');
+            console.log(`[Varco Worker] Subscribed to ${activeEntities.length} entities successfully.`);
         }
     } catch (initErr) {
         console.warn('[Varco Worker] Initialization/Subscription attempt failed:', initErr.message || initErr);
@@ -402,7 +425,12 @@ async function syncVarcoClient() {
 }
 
 async function fetchLatestStates() {
-    if (!client || !isSubscribed || typeof client.getStates !== 'function' || !currentSettings?.requestedEntities) {
+    const targetEntities = Array.from(new Set([
+        ...(currentSettings?.activeEntities || currentSettings?.requestedEntities || []),
+        ...Object.keys(currentEntities)
+    ]));
+
+    if (!client || !isSubscribed || typeof client.getStates !== 'function' || targetEntities.length === 0) {
         return false;
     }
 
@@ -411,7 +439,7 @@ async function fetchLatestStates() {
     const gen = syncGeneration;
 
     try {
-        const states = await activeClient.getStates(activeSettings.requestedEntities);
+        const states = await activeClient.getStates(targetEntities);
         if (syncGeneration !== gen || client !== activeClient || currentSettings !== activeSettings || !isSubscribed) {
             console.warn('[Varco Worker] Discarding fetched states due to client/settings generation change.');
             return false;
@@ -436,6 +464,12 @@ async function fetchLatestStates() {
                     };
                 }
             });
+            if (currentSettings) {
+                currentSettings.activeEntities = Array.from(new Set([
+                    ...(currentSettings.activeEntities || []),
+                    ...Object.keys(currentEntities)
+                ]));
+            }
             return true;
         }
         return false;

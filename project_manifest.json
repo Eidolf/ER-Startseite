@@ -316,6 +316,15 @@
   },
   "endpoints": [
     {
+      "path": "/api/v1/active",
+      "method": "POST",
+      "summary": "POST /api/v1/active",
+      "description": "POST /api/v1/active",
+      "request_model": null,
+      "response_model": "dict",
+      "file": "backend/app/api/v1/endpoints/monitoring.py"
+    },
+    {
       "path": "/api/v1/apps",
       "method": "GET",
       "summary": "GET /api/v1/apps",

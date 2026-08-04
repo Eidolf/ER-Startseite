@@ -5,6 +5,17 @@ All notable changes to the **ER-Startseite** dashboard project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.M.PATCH`).
 
+## [2026.8.3] - 2026-08-04
+
+### Added
+- **Dynamic Varco Entity Grant Discovery**: Updated the sidecar service (`varco_worker.js`) to dynamically discover and subscribe to all entities granted in the Varco Share manifest via `getGrantInfo()`. Any newly added sensors or binary sensors (such as ICMP tests) on Home Assistant are automatically detected and synced.
+- **Automatic Monitoring Card Generation**: Enhanced collector and URL import logic to automatically construct appropriate monitoring cards (`status_beacon` for binary sensors/servers/ICMP tests, `live_traffic` for bandwidth, `gauge` for ping/latency) for all discovered entities.
+
+### Fixed
+- **On-Demand Overlay Telemetry Gating**: Paused background telemetry loops and WebSocket connections when the Monitoring Overlay is closed (`isOpen = false`), completely eliminating idle network requests and CPU overhead on the main dashboard.
+
+---
+
 ## [2026.8.2] - 2026-08-02
 
 ### Fixed
