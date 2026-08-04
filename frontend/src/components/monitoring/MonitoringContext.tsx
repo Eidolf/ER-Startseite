@@ -372,9 +372,9 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         refreshConfig()
     }, [refreshConfig])
 
-    // Live Varco Bridge Client Integration (Connects directly using Varco Client SDK)
+    // Live Varco Bridge Client Integration (Connects directly using Varco Client SDK when Monitoring Overlay is open)
     useEffect(() => {
-        if (config?.enabled === false) return
+        if (!isOpen || config?.enabled === false) return
 
         const varcoProvider = config?.providers.find((p) => p.type === 'varco' && p.enabled)
         if (!varcoProvider || !varcoProvider.url) return
@@ -384,8 +384,25 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         let isMounted = true
 
+        const trackedClients: Array<{ client: { unsubscribe?: (id: string) => Promise<void>; close?: () => Promise<void>; disconnect?: () => void }; subId?: string }> = []
+
         const connectVarcoBridge = async () => {
             try {
+                // Clean up previous client before starting new connection tick
+                while (trackedClients.length > 0) {
+                    const prev = trackedClients.pop()
+                    if (prev) {
+                        if (prev.subId && typeof prev.client.unsubscribe === 'function') {
+                            prev.client.unsubscribe(prev.subId).catch(() => {})
+                        }
+                        if (typeof prev.client.close === 'function') {
+                            prev.client.close().catch(() => {})
+                        } else if (typeof prev.client.disconnect === 'function') {
+                            prev.client.disconnect()
+                        }
+                    }
+                }
+
                 const scriptUrl = `/api/v1/monitoring/varco-client.js?bridge_url=${encodeURIComponent(params.bridgeUrl)}`
 
                 const win = window as unknown as Record<string, unknown>
@@ -474,6 +491,9 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     },
                 })
 
+                const clientRecord: { client: { unsubscribe?: (id: string) => Promise<void>; close?: () => Promise<void>; disconnect?: () => void }; subId?: string } = { client }
+                trackedClients.push(clientRecord)
+
                 if (params.claimSecret && typeof client.claimShare === 'function') {
                     await client.claimShare(params.shareCode, params.claimSecret).catch(() => {})
                 }
@@ -553,7 +573,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 }
 
                 if (typeof client.subscribeEntities === 'function') {
-                    await client.subscribeEntities(entityIds, (event: { states?: Record<string, unknown> }) => {
+                    const subRes = await client.subscribeEntities(entityIds, (event: { states?: Record<string, unknown> }) => {
                         if (!isMounted || !event?.states) return
                         const streamEntities: Record<string, MonitoringEntity> = {}
                         Object.entries(event.states).forEach(([eid, entData]: [string, unknown]) => {
@@ -576,21 +596,21 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         if (Object.keys(streamEntities).length > 0) {
                             setEntities((prev) => ({ ...prev, ...streamEntities }))
                             setPairingCode(null)
-                            const entList = Object.values(streamEntities)
                             fetch('/api/v1/monitoring/telemetry', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ entities: entList }),
+                                body: JSON.stringify({ entities: Object.values(streamEntities) }),
                             }).catch(() => {})
-
-                            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-                                navigator.serviceWorker.controller.postMessage({
-                                    type: 'VARCO_TELEMETRY_SYNC',
-                                    payload: { entities: entList },
-                                })
-                            }
                         }
                     })
+
+                    if (!isMounted) {
+                        if (typeof subRes === 'string' && typeof client.unsubscribe === 'function') {
+                            client.unsubscribe(subRes).catch(() => {})
+                        }
+                    } else if (typeof subRes === 'string') {
+                        clientRecord.subId = subRes
+                    }
                 }
             } catch (e: unknown) {
                 const errObj = e as { message?: string }
@@ -613,7 +633,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         connectVarcoBridge()
 
-        // Background Telemetry Sync Relay loop (Runs while browser tab is open)
+        // Background Telemetry Sync Relay loop (Runs while Monitoring Overlay is open)
         const pollingSec = config?.polling_interval_seconds || config?.pollingIntervalSeconds || 15
         const pollInterval = setInterval(() => {
             if (isMounted) {
@@ -624,9 +644,19 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         return () => {
             isMounted = false
             clearInterval(pollInterval)
+            trackedClients.forEach(({ client: c, subId }) => {
+                if (subId && typeof c.unsubscribe === 'function') {
+                    c.unsubscribe(subId).catch(() => {})
+                }
+                if (typeof c.close === 'function') {
+                    c.close().catch(() => {})
+                } else if (typeof c.disconnect === 'function') {
+                    c.disconnect()
+                }
+            })
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [config?.enabled, config?.providers, config?.polling_interval_seconds])
+    }, [isOpen, config?.enabled, config?.providers, config?.polling_interval_seconds, config?.pollingIntervalSeconds])
 
     // Register Service Worker for Background Telemetry Sync
     useEffect(() => {
@@ -635,11 +665,11 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }
     }, [])
 
-    // Periodic Telemetry & System Health Check (Runs immediately upon mount & polls every 3s across all sessions)
+    // Periodic Telemetry & System Health Check (Runs ONLY when Monitoring Overlay is open)
     useEffect(() => {
+        if (!isOpen || config?.enabled === false) return
         let failCount = 0
         const fetchTelemetry = async () => {
-            if (config?.enabled === false) return
             try {
                 const res = await fetch('/api/v1/monitoring/telemetry')
                 if (res.ok) {
@@ -671,9 +701,10 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         fetchTelemetry()
 
-        const interval = setInterval(fetchTelemetry, 3000)
+        const sec = config?.polling_interval_seconds || config?.pollingIntervalSeconds || 15
+        const interval = setInterval(fetchTelemetry, Math.max(5000, sec * 1000))
         return () => clearInterval(interval)
-    }, [config?.enabled])
+    }, [isOpen, config?.enabled, config?.polling_interval_seconds, config?.pollingIntervalSeconds])
 
     // Live Telemetry Interpolation / Jitter Simulator (Only when Demo Mode is ON)
     useEffect(() => {

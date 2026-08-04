@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMonitoring } from './useMonitoring'
 import { MonitoringZoneGrid } from './layout/MonitoringZoneGrid'
@@ -61,6 +61,16 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
     const [isAddingZone, setIsAddingZone] = useState(false)
     const [newZoneName, setNewZoneName] = useState('')
     const [dragWidth, setDragWidth] = useState<number | null>(null)
+
+    useEffect(() => {
+        if (!isOpen) return
+        const sendActivePing = () => {
+            fetch('/api/v1/monitoring/active', { method: 'POST' }).catch(() => {})
+        }
+        sendActivePing()
+        const interval = setInterval(sendActivePing, 15000)
+        return () => clearInterval(interval)
+    }, [isOpen])
 
     if (!isOpen) return null
 
