@@ -479,7 +479,22 @@ async function fetchLatestStates() {
         }
         return false;
     } catch (err) {
-        console.warn('[Varco Worker] Active getStates query info:', err?.message || err);
+        const rawErr = err?.message != null ? err.message : err;
+        const errMsg = String(rawErr);
+        console.warn('[Varco Worker] Active getStates query info:', errMsg);
+        if (errMsg.includes('transport closed') || errMsg.includes('not connected') || errMsg.includes('closed')) {
+            if (syncGeneration === gen && client === activeClient && currentSettings === activeSettings) {
+                console.warn('[Varco Worker] Transport closed detected. Resetting client state for automatic reconnect...');
+                isSubscribed = false;
+                currentSettings = null;
+                if (activeClient) {
+                    try { activeClient.disconnect(); } catch {}
+                }
+                if (client === activeClient) {
+                    client = null;
+                }
+            }
+        }
         return false;
     }
 }
