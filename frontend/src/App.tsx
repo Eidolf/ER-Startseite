@@ -398,10 +398,7 @@ function AppContent() {
     const [contextWidget, setContextWidget] = useState<WidgetData | null>(null)
 
     // Auth State
-    const [titleConfig, setTitleConfig] = useState<TitleConfig>(() => {
-        const saved = localStorage.getItem('titleConfig')
-        return saved ? JSON.parse(saved) : DEFAULT_TITLE_CONFIG
-    })
+    const [titleConfig, setTitleConfig] = useState<TitleConfig>(DEFAULT_TITLE_CONFIG)
 
     const [isSetup, setIsSetup] = useState(false)
     const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -490,6 +487,7 @@ function AppContent() {
                     setLogoConfig(data.logoConfig || DEFAULT_LOGO_CONFIG)
                     setIconConfig(data.iconConfig || DEFAULT_ICON_CONFIG)
                     setLayoutConfig(data.layoutConfig || DEFAULT_LAYOUT_CONFIG)
+                    setTitleConfig(data.titleConfig || DEFAULT_TITLE_CONFIG)
                     setRegistryUrls(data.registry_urls || [])
                 }
             })
