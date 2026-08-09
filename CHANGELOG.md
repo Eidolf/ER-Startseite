@@ -5,6 +5,14 @@ All notable changes to the **ER-Startseite** dashboard project will be documente
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.M.PATCH`).
 
+## [2026.8.4] - 2026-08-08
+
+### Fixed
+- **Varco Sidecar Transport Auto-Reconnection**: Added automatic transport error recovery in `varco_worker.js` when detecting `Varco transport closed` or lost WebSocket connection, resetting client subscription state with generation safety checks to automatically re-establish E2E encrypted bridge connections without requiring Docker restarts.
+- **Global Dashboard Title Config Sync**: Fixed an issue where title style and headline color changes set in General Settings were only stored in local browser storage, ensuring `titleConfig` is properly fetched from the backend server config so changes are visible across all user sessions.
+
+---
+
 ## [2026.8.3] - 2026-08-04
 
 ### Added
