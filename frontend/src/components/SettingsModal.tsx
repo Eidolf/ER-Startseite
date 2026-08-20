@@ -424,6 +424,7 @@ export function SettingsModal({
         toggleDemoMode: toggleMonitoringDemoMode,
         toggleVarcoIntegration,
         updatePollingInterval: updateMonitoringPollingInterval,
+        updateHistoryLimit,
     } = useMonitoring()
     const [activeTab, setActiveTab] = useState<'general' | 'widgets' | 'monitoring' | 'logs' | 'background' | 'logo' | 'effects' | 'security' | 'about'>('general')
     const [uploading, setUploading] = useState(false)
@@ -1036,6 +1037,60 @@ export function SettingsModal({
 
                                     <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200/90 leading-relaxed">
                                         💡 <strong>Recommendation Note:</strong> Setting an interval lower than 5s causes unnecessary CPU and network overhead on the Home Assistant / Varco Bridge server. Setting it above 60s will delay live metric updates in all browser sessions.
+                                    </div>
+                                </div>
+
+                                <div className="h-px bg-white/10" />
+
+                                {/* Telemetry History Retention */}
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div className="space-y-0.5">
+                                            <div className="text-sm font-semibold text-white">Telemetry History Retention (Historie)</div>
+                                            <div className="text-xs text-gray-400">Number of recent data points stored per sensor (Max: 100). Enables instant graphs upon opening.</div>
+                                        </div>
+                                        <span className="text-xs font-mono text-neon-cyan bg-neon-cyan/10 px-2 py-0.5 rounded border border-neon-cyan/30">
+                                            {monitoringConfig?.history_limit || monitoringConfig?.historyLimit || 20} values
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {[
+                                            { count: 10, label: '10 (Minimal)' },
+                                            { count: 20, label: '20 (Default)' },
+                                            { count: 50, label: '50 (Detailed)' },
+                                            { count: 100, label: '100 (Maximum)' },
+                                        ].map((opt) => {
+                                            const currentLimit = monitoringConfig?.history_limit || monitoringConfig?.historyLimit || 20
+                                            const isSelected = currentLimit === opt.count
+                                            return (
+                                                <button
+                                                    key={opt.count}
+                                                    type="button"
+                                                    onClick={() => updateHistoryLimit(opt.count)}
+                                                    className={`py-2 px-3 text-xs font-medium rounded-xl border transition ${
+                                                        isSelected
+                                                            ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan shadow-[0_0_10px_rgba(6,182,212,0.3)]'
+                                                            : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                                    }`}
+                                                >
+                                                    {opt.label}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                    <div className="pt-2 flex items-center gap-3">
+                                        <label className="text-xs font-medium text-gray-400">Custom Limit (5 - 100):</label>
+                                        <input
+                                            type="number"
+                                            min={5}
+                                            max={100}
+                                            value={monitoringConfig?.history_limit || monitoringConfig?.historyLimit || 20}
+                                            onChange={(e) => {
+                                                const val = Math.min(100, Math.max(5, parseInt(e.target.value, 10) || 5))
+                                                updateHistoryLimit(val)
+                                            }}
+                                            className="w-24 px-3 py-1.5 bg-black/40 border border-white/10 rounded-xl text-white text-sm font-mono focus:outline-none focus:border-neon-cyan"
+                                        />
                                     </div>
                                 </div>
                             </div>

@@ -19,11 +19,20 @@ export const LiveTrafficGraphWidget: React.FC<LiveTrafficGraphWidgetProps> = ({
     const isUpload = title.toLowerCase().includes('upload')
     const isPing = title.toLowerCase().includes('ping') || title.toLowerCase().includes('latency')
 
-    const [history, setHistory] = useState<number[]>(() => [0, 0, 0, 0, 0, 0, 0, 0, 0, rawValue])
+    const [history, setHistory] = useState<number[]>(() => {
+        if (entity?.history && Array.isArray(entity.history) && entity.history.length > 0) {
+            return [...entity.history]
+        }
+        return [0, 0, 0, 0, 0, 0, 0, 0, 0, rawValue]
+    })
 
     useEffect(() => {
-        setHistory((prev) => [...prev.slice(1), rawValue])
-    }, [rawValue])
+        if (entity?.history && Array.isArray(entity.history) && entity.history.length > 0) {
+            setHistory([...entity.history])
+        } else {
+            setHistory((prev) => [...prev.slice(1), rawValue])
+        }
+    }, [rawValue, entity?.history])
 
     const validPingHistory = history.filter((v) => v > 0)
     const bestVal = isPing

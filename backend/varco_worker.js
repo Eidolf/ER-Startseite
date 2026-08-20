@@ -451,12 +451,24 @@ async function fetchLatestStates() {
         }
 
         if (states) {
+            const histLimit = (readServerSettings() && readServerSettings().history_limit) || 20;
             Object.entries(states).forEach(([eid, entData]) => {
                 if (entData) {
                     const val = typeof entData === 'object' ? entData.state : entData;
                     const unit = typeof entData === 'object' ? entData.attributes?.unit_of_measurement : undefined;
                     const name = (typeof entData === 'object' && entData.attributes?.friendly_name) || eid.split('.').pop().replace(/_/g, ' ') || eid;
                     const lastUpdated = (typeof entData === 'object' && (entData.last_changed || entData.last_updated)) || new Date().toISOString();
+                    const existingHist = (currentEntities[eid] && Array.isArray(currentEntities[eid].history)) ? [...currentEntities[eid].history] : [];
+                    if (typeof val === 'number') {
+                        if (existingHist.length === 0 || existingHist[existingHist.length - 1] !== val) {
+                            existingHist.push(val);
+                        }
+                    } else if (typeof val === 'string' && val !== 'N/A' && val !== 'NaN' && !isNaN(parseFloat(val))) {
+                        const parsedFloat = parseFloat(val);
+                        if (existingHist.length === 0 || existingHist[existingHist.length - 1] !== parsedFloat) {
+                            existingHist.push(parsedFloat);
+                        }
+                    }
                     currentEntities[eid] = {
                         id: eid,
                         provider_id: 'varco-server-sidecar',
@@ -465,6 +477,7 @@ async function fetchLatestStates() {
                         value_type: typeof val === 'number' ? 'numeric' : 'string',
                         state: val ?? 'N/A',
                         unit_of_measurement: unit,
+                        history: existingHist.slice(-histLimit),
                         last_updated: lastUpdated
                     };
                 }

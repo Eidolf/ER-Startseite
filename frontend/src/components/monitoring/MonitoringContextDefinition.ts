@@ -19,6 +19,7 @@ export interface MonitoringContextType {
     toggleDemoMode: () => void
     toggleVarcoIntegration: () => void
     updatePollingInterval: (seconds: number) => void
+    updateHistoryLimit: (limit: number) => void
     refreshConfig: () => Promise<void>
     saveConfig: (cfg: MonitoringConfig) => Promise<void>
     deleteCard: (cardId: string) => void

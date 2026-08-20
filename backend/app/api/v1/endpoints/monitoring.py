@@ -135,10 +135,25 @@ async def update_monitoring_telemetry(payload: dict[str, Any]) -> dict[str, Any]
         async with repo.lock:
             config = await repo.get_config()
             ent_map = {e.id: e for e in config.entities}
+            hist_limit = getattr(config, "history_limit", 20) or 20
             for ie in incoming_entities:
                 if isinstance(ie, dict) and "id" in ie:
+                    eid = ie["id"]
+                    existing = ent_map.get(eid)
+                    hist = list(ie.get("history") or (existing.history if existing else []))
+                    st = ie.get("state")
+                    if isinstance(st, (int, float)):
+                        val_float = float(st)
+                        if not hist or hist[-1] != val_float:
+                            hist.append(val_float)
+                    elif isinstance(st, str) and st not in ("N/A", "NaN", ""):
+                        with contextlib.suppress(ValueError):
+                            val_float = float(st)
+                            if not hist or hist[-1] != val_float:
+                                hist.append(val_float)
+                    ie["history"] = hist[-hist_limit:]
                     with contextlib.suppress(Exception):
-                        ent_map[ie["id"]] = MonitoringEntity(**ie)
+                        ent_map[eid] = MonitoringEntity(**ie)
             config.entities = list(ent_map.values())
             await repo.save_config(config)
 

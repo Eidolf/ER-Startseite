@@ -604,6 +604,22 @@ async def _run_collector_loop() -> None:
                                 else "string"
                             )
 
+                            hist_limit = getattr(fresh_config, "history_limit", 20) or 20
+                            existing_hist = list(existing.history) if existing and existing.history else []
+                            if isinstance(new_st, (int, float)):
+                                val_float = float(new_st)
+                                if not existing_hist or existing_hist[-1] != val_float:
+                                    existing_hist.append(val_float)
+                                    existing_hist = existing_hist[-hist_limit:]
+                            elif isinstance(new_st, str) and new_st not in ("N/A", "NaN", ""):
+                                try:
+                                    val_float = float(new_st)
+                                    if not existing_hist or existing_hist[-1] != val_float:
+                                        existing_hist.append(val_float)
+                                        existing_hist = existing_hist[-hist_limit:]
+                                except ValueError:
+                                    pass
+
                             if (
                                 not existing
                                 or existing.state != new_st
@@ -611,6 +627,7 @@ async def _run_collector_loop() -> None:
                                 or existing.name != new_name
                                 or existing.domain != new_dom
                                 or existing.value_type != new_vt
+                                or existing.history != existing_hist
                             ):
                                 has_changed = True
 
@@ -622,6 +639,7 @@ async def _run_collector_loop() -> None:
                                 value_type=new_vt,
                                 state=new_st,
                                 unit_of_measurement=new_u,
+                                history=existing_hist,
                                 last_updated=(
                                     iso_now
                                     if (not existing or existing.state != new_st)

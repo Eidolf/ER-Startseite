@@ -21,6 +21,7 @@ class MonitoringEntity(BaseMonitoringModel):
     unit_of_measurement: str | None = None
     icon: str | None = None
     last_updated: str | None = None
+    history: list[float] = Field(default_factory=list)
     attributes: dict[str, Any] = Field(default_factory=dict)
 
 
@@ -61,6 +62,7 @@ class MonitoringConfig(BaseMonitoringModel):
     enabled: bool = True
     demo_mode: bool = True
     polling_interval_seconds: int = Field(default=15, ge=1)
+    history_limit: int = Field(default=20, ge=5, le=100)
     zones: list[MonitoringZone] = Field(default_factory=list)
     cards: list[MonitoringCard] = Field(default_factory=list)
     entities: list[MonitoringEntity] = Field(default_factory=list)

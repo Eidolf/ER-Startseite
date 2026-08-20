@@ -12,6 +12,7 @@ export interface MonitoringEntity {
     icon?: string
     last_updated?: string
     lastUpdated?: string
+    history?: number[]
     attributes?: Record<string, unknown>
 }
 
@@ -20,8 +21,8 @@ export type CardType = 'gauge' | 'live_traffic' | 'status_beacon' | 'metric_card
 export interface MonitoringCard {
     id: string
     title: string
-    card_type?: CardType
-    cardType?: CardType
+    card_type?: CardType | string
+    cardType?: CardType | string
     entity_ids?: string[]
     entityIds?: string[]
     zone_id?: string
@@ -63,6 +64,8 @@ export interface MonitoringConfig {
     demo_mode?: boolean
     polling_interval_seconds?: number
     pollingIntervalSeconds?: number
+    history_limit?: number
+    historyLimit?: number
     zones: MonitoringZone[]
     cards: MonitoringCard[]
     entities?: MonitoringEntity[]

@@ -11,18 +11,25 @@ export const SparklineWidget: React.FC<SparklineWidgetProps> = ({
     title,
     entity,
 }) => {
-    const [history, setHistory] = useState<number[]>([40, 42, 38, 45, 48, 52, 50, 55, 53, 58])
-
     const numericVal = typeof entity?.state === 'number' ? entity.state : parseFloat(String(entity?.state || 0))
     const validVal = isNaN(numericVal) ? 0 : numericVal
     const rawVal = entity?.state !== undefined && entity?.state !== null ? String(entity.state) : 'N/A'
     const unit = entity?.unit_of_measurement || ''
 
+    const [history, setHistory] = useState<number[]>(() => {
+        if (entity?.history && Array.isArray(entity.history) && entity.history.length > 0) {
+            return [...entity.history]
+        }
+        return [40, 42, 38, 45, 48, 52, 50, 55, 53, validVal]
+    })
+
     useEffect(() => {
-        if (!isNaN(numericVal)) {
+        if (entity?.history && Array.isArray(entity.history) && entity.history.length > 0) {
+            setHistory([...entity.history])
+        } else if (!isNaN(numericVal)) {
             setHistory((prev) => [...prev.slice(-14), validVal])
         }
-    }, [numericVal, validVal])
+    }, [numericVal, validVal, entity?.history])
 
     const minHist = Math.min(...history)
     const maxHist = Math.max(...history)

@@ -480,19 +480,32 @@ function AppContent() {
         fetch('/api/v1/config')
             .then(res => res.json())
             .then(data => {
-                if (data) {
-                    setPageTitle(data.pageTitle || 'ER-Startseite')
-                    setOpenInNewTab(data.openInNewTab || false)
-                    setBgConfig(data.bgConfig || DEFAULT_BG)
-                    setLogoConfig(data.logoConfig || DEFAULT_LOGO_CONFIG)
-                    setIconConfig(data.iconConfig || DEFAULT_ICON_CONFIG)
-                    setLayoutConfig(data.layoutConfig || DEFAULT_LAYOUT_CONFIG)
-                    setTitleConfig(data.titleConfig || DEFAULT_TITLE_CONFIG)
-                    setRegistryUrls(data.registry_urls || [])
+                if (data && typeof data === 'object') {
+                    if (data.pageTitle !== undefined) setPageTitle(data.pageTitle)
+                    if (data.openInNewTab !== undefined) setOpenInNewTab(data.openInNewTab)
+                    if (data.bgConfig) setBgConfig(data.bgConfig)
+                    if (data.logoConfig) setLogoConfig(data.logoConfig)
+                    if (data.iconConfig) setIconConfig(data.iconConfig)
+                    if (data.layoutConfig) {
+                        setLayoutConfig({
+                            ...DEFAULT_LAYOUT_CONFIG,
+                            ...data.layoutConfig,
+                            categories: data.layoutConfig.categories || [],
+                            hiddenAppIds: data.layoutConfig.hiddenAppIds || [],
+                            widgets: data.layoutConfig.widgets || [],
+                            customOrder: data.layoutConfig.customOrder || []
+                        })
+                    }
+                    if (data.titleConfig) setTitleConfig(data.titleConfig)
+                    if (data.registry_urls) setRegistryUrls(data.registry_urls)
+                    setConfigLoaded(true)
                 }
             })
-            .catch(e => console.error("Failed to load config", e))
-            .finally(() => setConfigLoaded(true))
+            .catch(e => {
+                console.error("Failed to load config", e)
+                // In case of error, still enable saving after delay so dashboard isn't permanently locked
+                setTimeout(() => setConfigLoaded(true), 2000)
+            })
     }, [])
 
     // Auto-save Config
