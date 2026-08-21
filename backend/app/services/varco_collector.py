@@ -604,17 +604,30 @@ async def _run_collector_loop() -> None:
                                 else "string"
                             )
 
-                            hist_limit = getattr(fresh_config, "history_limit", 20) or 20
-                            existing_hist = list(existing.history) if existing and existing.history else []
+                            hist_limit = (
+                                getattr(fresh_config, "history_limit", 20) or 20
+                            )
+                            existing_hist = (
+                                list(existing.history)
+                                if existing and existing.history
+                                else []
+                            )
                             if isinstance(new_st, (int, float)):
                                 val_float = float(new_st)
                                 if not existing_hist or existing_hist[-1] != val_float:
                                     existing_hist.append(val_float)
                                     existing_hist = existing_hist[-hist_limit:]
-                            elif isinstance(new_st, str) and new_st not in ("N/A", "NaN", ""):
+                            elif isinstance(new_st, str) and new_st not in (
+                                "N/A",
+                                "NaN",
+                                "",
+                            ):
                                 try:
                                     val_float = float(new_st)
-                                    if not existing_hist or existing_hist[-1] != val_float:
+                                    if (
+                                        not existing_hist
+                                        or existing_hist[-1] != val_float
+                                    ):
                                         existing_hist.append(val_float)
                                         existing_hist = existing_hist[-hist_limit:]
                                 except ValueError:

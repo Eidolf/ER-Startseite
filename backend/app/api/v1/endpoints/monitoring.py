@@ -140,7 +140,9 @@ async def update_monitoring_telemetry(payload: dict[str, Any]) -> dict[str, Any]
                 if isinstance(ie, dict) and "id" in ie:
                     eid = ie["id"]
                     existing = ent_map.get(eid)
-                    hist = list(ie.get("history") or (existing.history if existing else []))
+                    hist = list(
+                        ie.get("history") or (existing.history if existing else [])
+                    )
                     st = ie.get("state")
                     if isinstance(st, (int, float)):
                         val_float = float(st)
