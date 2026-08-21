@@ -7,7 +7,6 @@ import math
 import os
 import re
 import shutil
-import time
 import urllib.parse
 from typing import Any
 
@@ -22,18 +21,6 @@ logger = structlog.get_logger()
 
 _collector_task: asyncio.Task[None] | None = None
 _stop_event: asyncio.Event = asyncio.Event()
-_last_active_timestamp: float = 0.0
-
-
-def touch_monitoring_active() -> None:
-    global _last_active_timestamp
-    _last_active_timestamp = time.time()
-
-
-def is_monitoring_active() -> bool:
-    """Returns True if a frontend client sent an active heartbeat within the last 45 seconds."""
-    global _last_active_timestamp
-    return (time.time() - _last_active_timestamp) < 45.0
 
 
 def _is_safe_url(url_str: str) -> bool:
@@ -548,14 +535,6 @@ async def _run_collector_loop() -> None:
             async with repo.lock:
                 config = await repo.get_config()
 
-            # Pause telemetry polling if monitoring overlay is not active on any client
-            if not is_monitoring_active():
-                for _ in range(5):
-                    if _stop_event.is_set():
-                        break
-                    await asyncio.sleep(1)
-                continue
-
             varco_provider = next(
                 (p for p in config.providers if p.type == "varco" and p.enabled),
                 None,
@@ -580,8 +559,6 @@ async def _run_collector_loop() -> None:
                     async with repo.lock:
                         fresh_config = await repo.get_config()
                         ent_map = {e.id: e for e in fresh_config.entities}
-                        cards = list(fresh_config.cards)
-                        existing_card_ids = {c.id for c in cards}
                         iso_now = datetime.datetime.now(
                             datetime.timezone.utc
                         ).isoformat()
@@ -671,92 +648,8 @@ async def _run_collector_loop() -> None:
                                 ),
                             )
 
-                            # Auto-create missing card for newly discovered entity
-                            card_id = f"card-{eid.replace('.', '-')}"
-                            if card_id not in existing_card_ids:
-                                is_bin = eid.startswith("binary_sensor.")
-                                card_type = (
-                                    "status_beacon"
-                                    if (
-                                        is_bin
-                                        or any(
-                                            k in eid
-                                            for k in [
-                                                "status",
-                                                "online",
-                                                "state",
-                                                "virtualmachine",
-                                                "server",
-                                                "icmp",
-                                            ]
-                                        )
-                                    )
-                                    else (
-                                        "live_traffic"
-                                        if any(
-                                            k in eid
-                                            for k in [
-                                                "download",
-                                                "upload",
-                                                "speed",
-                                                "bandwidth",
-                                                "traffic",
-                                            ]
-                                        )
-                                        else (
-                                            "gauge"
-                                            if any(
-                                                k in eid
-                                                for k in [
-                                                    "ping",
-                                                    "latency",
-                                                    "cpu",
-                                                    "temp",
-                                                    "memory",
-                                                    "usage",
-                                                ]
-                                            )
-                                            else "metric_card"
-                                        )
-                                    )
-                                )
-                                from app.schemas.monitoring import MonitoringCard
-
-                                cards.append(
-                                    MonitoringCard(
-                                        id=card_id,
-                                        title=c.get("name")
-                                        or eid.split(".")[-1].replace("_", " ").title(),
-                                        card_type=card_type,
-                                        entity_ids=[eid],
-                                        zone_id=(
-                                            "network"
-                                            if any(
-                                                k in eid
-                                                for k in [
-                                                    "speedtest",
-                                                    "ping",
-                                                    "net",
-                                                    "traffic",
-                                                    "icmp",
-                                                    "virtualmachine",
-                                                    "server",
-                                                ]
-                                            )
-                                            else "overview"
-                                        ),
-                                        x=0,
-                                        y=0,
-                                        w=2,
-                                        h=2,
-                                    )
-                                )
-                                existing_card_ids.add(card_id)
-                                has_changed = True
-
                         if has_changed or len(ent_map) != len(fresh_config.entities):
                             fresh_config.entities = list(ent_map.values())
-                            fresh_config.cards = cards
                             await repo.save_config(fresh_config)
 
                             add_system_log(

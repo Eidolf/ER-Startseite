@@ -25,7 +25,6 @@ from app.services.varco_collector import (
     _fetch_varco_data,
     _parse_url_params,
     _query_sidecar_telemetry,
-    touch_monitoring_active,
 )
 
 logger = structlog.get_logger()
@@ -192,7 +191,6 @@ async def update_monitoring_telemetry(payload: dict[str, Any]) -> dict[str, Any]
 
 @router.post("/active")
 async def ping_monitoring_active() -> dict[str, str]:
-    touch_monitoring_active()
     return {"status": "active"}
 
 
