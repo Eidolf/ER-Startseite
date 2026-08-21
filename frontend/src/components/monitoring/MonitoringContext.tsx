@@ -271,7 +271,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     )
 
     const updateCardType = useCallback(
-        (cardId: string, cardType: CardType | string) => {
+        (cardId: string, cardType: CardType) => {
             if (!config) return
             const updated: MonitoringConfig = {
                 ...config,
@@ -569,6 +569,38 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
                 const histLimit = config?.history_limit || config?.historyLimit || 20
 
+                let pendingTelemetryBatch: Record<string, MonitoringEntity> = {}
+                let telemetryDebounceTimer: ReturnType<typeof setTimeout> | null = null
+                let activeAbortController: AbortController | null = null
+
+                const queueTelemetrySync = (batch: Record<string, MonitoringEntity>) => {
+                    Object.assign(pendingTelemetryBatch, batch)
+                    if (telemetryDebounceTimer) return
+
+                    telemetryDebounceTimer = setTimeout(() => {
+                        telemetryDebounceTimer = null
+                        const payload = Object.values(pendingTelemetryBatch)
+                        pendingTelemetryBatch = {}
+                        if (payload.length === 0) return
+
+                        if (activeAbortController) {
+                            activeAbortController.abort()
+                        }
+                        activeAbortController = new AbortController()
+                        const signal = activeAbortController.signal
+                        const timeoutId = setTimeout(() => activeAbortController?.abort(), 5000)
+
+                        fetch('/api/v1/monitoring/telemetry', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ entities: payload }),
+                            signal,
+                        })
+                            .catch(() => {})
+                            .finally(() => clearTimeout(timeoutId))
+                    }, 250)
+                }
+
                 const liveStates = await client.getStates(entityIds).catch(() => null)
                 if (isMounted && liveStates && typeof liveStates === 'object') {
                     const currentEntities = entitiesRef.current
@@ -614,11 +646,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     if (Object.keys(updatedEntities).length > 0) {
                         setEntities((prev) => ({ ...prev, ...updatedEntities }))
                         setPairingCode(null)
-                        fetch('/api/v1/monitoring/telemetry', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ entities: Object.values(updatedEntities) }),
-                        }).catch(() => {})
+                        queueTelemetrySync(updatedEntities)
                     }
                 }
 
@@ -668,11 +696,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                         if (Object.keys(updatedEntities).length > 0) {
                             setEntities((prev) => ({ ...prev, ...updatedEntities }))
                             setPairingCode(null)
-                            fetch('/api/v1/monitoring/telemetry', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ entities: Object.values(updatedEntities) }),
-                            }).catch(() => {})
+                            queueTelemetrySync(updatedEntities)
                         }
                     })
 
@@ -755,24 +779,23 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                             data.entities.forEach((ent: MonitoringEntity) => {
                                 // Sync entity states from backend telemetry relay across all browser sessions
                                 const current = next[ent.id]
-                                const incomingHist = ent.history || []
-                                const curHist = current?.history || []
-
-                                let mergedHist = incomingHist
                                 if (current && current.last_updated && ent.last_updated) {
                                     const curTime = new Date(current.last_updated).getTime()
                                     const inTime = new Date(ent.last_updated).getTime()
-                                    if (curTime > inTime && curHist.length > 0) {
+                                    if (curTime > inTime) {
                                         // Current local state is newer than fetched backend state
-                                        mergedHist = curHist
+                                        next[ent.id] = {
+                                            ...current,
+                                            history: (current.history || []).slice(-hLimit),
+                                        }
+                                        return
                                     }
-                                } else if (curHist.length > incomingHist.length) {
-                                    mergedHist = curHist
                                 }
 
+                                const incomingHist = ent.history || []
                                 next[ent.id] = {
                                     ...ent,
-                                    history: mergedHist.slice(-hLimit)
+                                    history: incomingHist.slice(-hLimit),
                                 }
                             })
                             return next
@@ -805,10 +828,13 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 const histLimit = config?.history_limit || config?.historyLimit || 20
 
                 if (next['sensor.speedtest_download']) {
+                    const curVal = Number(next['sensor.speedtest_download'].state)
+                    const base = Number.isFinite(curVal) ? curVal : 500
                     const jitter = (Math.random() - 0.5) * 8
-                    const newSpeed = Math.max(100, Math.min(1000, Number(next['sensor.speedtest_download'].state) + jitter))
+                    const newSpeed = Math.max(100, Math.min(1000, base + jitter))
                     const st = parseFloat(newSpeed.toFixed(1))
-                    const hist = [...(next['sensor.speedtest_download'].history || []), st].slice(-histLimit)
+                    const prevHist = (next['sensor.speedtest_download'].history || []).filter((v) => typeof v === 'number' && Number.isFinite(v))
+                    const hist = [...prevHist, st].slice(-histLimit)
                     next['sensor.speedtest_download'] = {
                         ...next['sensor.speedtest_download'],
                         state: st,
@@ -818,10 +844,13 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 }
 
                 if (next['sensor.speedtest_upload']) {
+                    const curVal = Number(next['sensor.speedtest_upload'].state)
+                    const base = Number.isFinite(curVal) ? curVal : 50
                     const jitter = (Math.random() - 0.5) * 2
-                    const newUp = Math.max(10, Math.min(200, Number(next['sensor.speedtest_upload'].state) + jitter))
+                    const newUp = Math.max(10, Math.min(200, base + jitter))
                     const st = parseFloat(newUp.toFixed(1))
-                    const hist = [...(next['sensor.speedtest_upload'].history || []), st].slice(-histLimit)
+                    const prevHist = (next['sensor.speedtest_upload'].history || []).filter((v) => typeof v === 'number' && Number.isFinite(v))
+                    const hist = [...prevHist, st].slice(-histLimit)
                     next['sensor.speedtest_upload'] = {
                         ...next['sensor.speedtest_upload'],
                         state: st,
@@ -831,10 +860,13 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                 }
 
                 if (next['sensor.speedtest_ping']) {
+                    const curVal = Number(next['sensor.speedtest_ping'].state)
+                    const base = Number.isFinite(curVal) ? curVal : 15
                     const jitter = (Math.random() - 0.5) * 1.5
-                    const newPing = Math.max(4, Math.min(120, Number(next['sensor.speedtest_ping'].state) + jitter))
+                    const newPing = Math.max(4, Math.min(120, base + jitter))
                     const st = parseFloat(newPing.toFixed(1))
-                    const hist = [...(next['sensor.speedtest_ping'].history || []), st].slice(-histLimit)
+                    const prevHist = (next['sensor.speedtest_ping'].history || []).filter((v) => typeof v === 'number' && Number.isFinite(v))
+                    const hist = [...prevHist, st].slice(-histLimit)
                     next['sensor.speedtest_ping'] = {
                         ...next['sensor.speedtest_ping'],
                         state: st,

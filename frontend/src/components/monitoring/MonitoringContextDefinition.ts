@@ -25,7 +25,7 @@ export interface MonitoringContextType {
     deleteCard: (cardId: string) => void
     addCard: (card: MonitoringCard) => void
     updateCardZone: (cardId: string, zoneId: string) => void
-    updateCardType: (cardId: string, cardType: CardType | string) => void
+    updateCardType: (cardId: string, cardType: CardType) => void
     moveCardOrder: (cardId: string, direction: 'up' | 'down') => void
     addZone: (name: string, icon?: string) => void
     deleteZone: (zoneId: string) => void

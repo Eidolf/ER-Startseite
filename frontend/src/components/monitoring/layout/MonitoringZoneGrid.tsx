@@ -1,4 +1,5 @@
 import React from 'react'
+import { CardType } from '../../../types/monitoring'
 import { useMonitoring } from '../useMonitoring'
 import { RadialGaugeWidget } from '../widgets/RadialGaugeWidget'
 import { LiveTrafficGraphWidget } from '../widgets/LiveTrafficGraphWidget'
@@ -116,7 +117,12 @@ export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenIm
                                             <Layout className="w-3 h-3 text-neon-cyan" />
                                             <select
                                                 value={card.card_type || card.cardType || 'metric_card'}
-                                                onChange={(e) => updateCardType(card.id, e.target.value)}
+                                                onChange={(e) => {
+                                                    const validTypes: CardType[] = ['simple_value', 'linear_bar', 'sparkline_card', 'gauge', 'metric_card', 'live_traffic', 'status_beacon']
+                                                    if (validTypes.includes(e.target.value as CardType)) {
+                                                        updateCardType(card.id, e.target.value as CardType)
+                                                    }
+                                                }}
                                                 className="bg-transparent text-[10px] font-mono text-neon-cyan focus:outline-none cursor-pointer font-bold"
                                                 title={t('switch_card_type')}
                                             >
