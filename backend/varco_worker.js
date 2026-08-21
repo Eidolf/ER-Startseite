@@ -99,6 +99,12 @@ function readServerSettings() {
             ...cardEntityIds
         ]));
 
+        const histLimit = (typeof config.history_limit === 'number' && Number.isFinite(config.history_limit) && config.history_limit >= 5 && config.history_limit <= 100)
+            ? config.history_limit
+            : ((typeof config.historyLimit === 'number' && Number.isFinite(config.historyLimit) && config.historyLimit >= 5 && config.historyLimit <= 100)
+                ? config.historyLimit
+                : 20);
+
         return {
             authorityId,
             shareCode,
@@ -107,7 +113,8 @@ function readServerSettings() {
             privateKey,
             identityData,
             consumerName,
-            requestedEntities
+            requestedEntities,
+            history_limit: histLimit
         };
     } catch (e) {
         console.error('[Varco Worker] Error reading config:', e.message);
@@ -451,12 +458,26 @@ async function fetchLatestStates() {
         }
 
         if (states) {
+            const histLimit = (activeSettings && typeof activeSettings.history_limit === 'number') ? activeSettings.history_limit : 20;
             Object.entries(states).forEach(([eid, entData]) => {
                 if (entData) {
                     const val = typeof entData === 'object' ? entData.state : entData;
                     const unit = typeof entData === 'object' ? entData.attributes?.unit_of_measurement : undefined;
                     const name = (typeof entData === 'object' && entData.attributes?.friendly_name) || eid.split('.').pop().replace(/_/g, ' ') || eid;
                     const lastUpdated = (typeof entData === 'object' && (entData.last_changed || entData.last_updated)) || new Date().toISOString();
+                    const existingHist = (currentEntities[eid] && Array.isArray(currentEntities[eid].history)) ? [...currentEntities[eid].history] : [];
+                    if (typeof val === 'number' && Number.isFinite(val)) {
+                        if (existingHist.length === 0 || existingHist[existingHist.length - 1] !== val) {
+                            existingHist.push(val);
+                        }
+                    } else if (typeof val === 'string' && val.trim() !== '' && val !== 'N/A' && val !== 'NaN') {
+                        const num = Number(val);
+                        if (typeof num === 'number' && Number.isFinite(num)) {
+                            if (existingHist.length === 0 || existingHist[existingHist.length - 1] !== num) {
+                                existingHist.push(num);
+                            }
+                        }
+                    }
                     currentEntities[eid] = {
                         id: eid,
                         provider_id: 'varco-server-sidecar',
@@ -465,6 +486,7 @@ async function fetchLatestStates() {
                         value_type: typeof val === 'number' ? 'numeric' : 'string',
                         state: val ?? 'N/A',
                         unit_of_measurement: unit,
+                        history: existingHist.slice(-histLimit),
                         last_updated: lastUpdated
                     };
                 }

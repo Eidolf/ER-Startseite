@@ -1,6 +1,7 @@
 import contextlib
 import io
 import json
+import math
 import re
 import time
 import zipfile
@@ -24,7 +25,6 @@ from app.services.varco_collector import (
     _fetch_varco_data,
     _parse_url_params,
     _query_sidecar_telemetry,
-    touch_monitoring_active,
 )
 
 logger = structlog.get_logger()
@@ -135,10 +135,46 @@ async def update_monitoring_telemetry(payload: dict[str, Any]) -> dict[str, Any]
         async with repo.lock:
             config = await repo.get_config()
             ent_map = {e.id: e for e in config.entities}
+            hist_limit = getattr(config, "history_limit", 20) or 20
             for ie in incoming_entities:
                 if isinstance(ie, dict) and "id" in ie:
-                    with contextlib.suppress(Exception):
-                        ent_map[ie["id"]] = MonitoringEntity(**ie)
+                    eid = ie["id"]
+                    existing = ent_map.get(eid)
+                    hist = list(
+                        ie.get("history") or (existing.history if existing else [])
+                    )
+                    st = ie.get("state")
+                    if (
+                        isinstance(st, (int, float))
+                        and not isinstance(st, bool)
+                        and math.isfinite(st)
+                    ):
+                        val_float = float(st)
+                        if not hist or hist[-1] != val_float:
+                            hist.append(val_float)
+                    elif isinstance(st, str) and st not in ("N/A", "NaN", ""):
+                        try:
+                            val_float = float(st)
+                            if math.isfinite(val_float) and (
+                                not hist or hist[-1] != val_float
+                            ):
+                                hist.append(val_float)
+                        except (ValueError, TypeError):
+                            logger.debug(
+                                "Skipping non-numeric string telemetry history update",
+                                entity_id=eid,
+                                state=st,
+                            )
+                    ie["history"] = hist[-hist_limit:]
+                    try:
+                        ent_map[eid] = MonitoringEntity(**ie)
+                    except Exception as exc:
+                        logger.warning(
+                            "Failed to construct MonitoringEntity from incoming telemetry",
+                            entity_id=eid,
+                            error=str(exc),
+                            exc_info=True,
+                        )
             config.entities = list(ent_map.values())
             await repo.save_config(config)
 
@@ -156,7 +192,6 @@ async def update_monitoring_telemetry(payload: dict[str, Any]) -> dict[str, Any]
 
 @router.post("/active")
 async def ping_monitoring_active() -> dict[str, str]:
-    touch_monitoring_active()
     return {"status": "active"}
 
 

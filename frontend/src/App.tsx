@@ -21,6 +21,7 @@ import { VacationWidget } from './components/widgets/VacationWidget'
 import { WidgetContextModal } from './components/WidgetContextModal'
 import { FreeCanvasBoard } from './components/FreeCanvasBoard'
 import { MonitoringProvider } from './components/monitoring/MonitoringContext'
+import { I18nProvider } from './i18n'
 import { useMonitoring } from './components/monitoring/useMonitoring'
 import { MonitoringOverlay } from './components/monitoring/MonitoringOverlay'
 
@@ -478,21 +479,37 @@ function AppContent() {
     // Fetch Config on Mount
     useEffect(() => {
         fetch('/api/v1/config')
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`Failed to load config: HTTP ${res.status}`)
+                }
+                return res.json()
+            })
             .then(data => {
-                if (data) {
-                    setPageTitle(data.pageTitle || 'ER-Startseite')
-                    setOpenInNewTab(data.openInNewTab || false)
-                    setBgConfig(data.bgConfig || DEFAULT_BG)
-                    setLogoConfig(data.logoConfig || DEFAULT_LOGO_CONFIG)
-                    setIconConfig(data.iconConfig || DEFAULT_ICON_CONFIG)
-                    setLayoutConfig(data.layoutConfig || DEFAULT_LAYOUT_CONFIG)
-                    setTitleConfig(data.titleConfig || DEFAULT_TITLE_CONFIG)
-                    setRegistryUrls(data.registry_urls || [])
+                if (data && typeof data === 'object' && !Array.isArray(data)) {
+                    if (typeof data.pageTitle === 'string') setPageTitle(data.pageTitle)
+                    if (typeof data.openInNewTab === 'boolean') setOpenInNewTab(data.openInNewTab)
+                    if (data.bgConfig && typeof data.bgConfig === 'object') setBgConfig(data.bgConfig)
+                    if (data.logoConfig && typeof data.logoConfig === 'object') setLogoConfig(data.logoConfig)
+                    if (data.iconConfig && typeof data.iconConfig === 'object') setIconConfig(data.iconConfig)
+                    if (data.layoutConfig && typeof data.layoutConfig === 'object') {
+                        setLayoutConfig({
+                            ...DEFAULT_LAYOUT_CONFIG,
+                            ...data.layoutConfig,
+                            categories: Array.isArray(data.layoutConfig.categories) ? data.layoutConfig.categories : [],
+                            hiddenAppIds: Array.isArray(data.layoutConfig.hiddenAppIds) ? data.layoutConfig.hiddenAppIds : [],
+                            widgets: Array.isArray(data.layoutConfig.widgets) ? data.layoutConfig.widgets : [],
+                            customOrder: Array.isArray(data.layoutConfig.customOrder) ? data.layoutConfig.customOrder : []
+                        })
+                    }
+                    if (data.titleConfig && typeof data.titleConfig === 'object') setTitleConfig(data.titleConfig)
+                    if (Array.isArray(data.registry_urls)) setRegistryUrls(data.registry_urls)
+                    setConfigLoaded(true)
                 }
             })
-            .catch(e => console.error("Failed to load config", e))
-            .finally(() => setConfigLoaded(true))
+            .catch(e => {
+                console.error("Failed to load config", e)
+            })
     }, [])
 
     // Auto-save Config
@@ -2154,8 +2171,10 @@ function FolderModal({ folder, isOpen, onClose, onRequestAdd, isEditMode, onDele
 
 export default function App() {
     return (
-        <MonitoringProvider>
-            <AppContent />
-        </MonitoringProvider>
+        <I18nProvider>
+            <MonitoringProvider>
+                <AppContent />
+            </MonitoringProvider>
+        </I18nProvider>
     )
 }

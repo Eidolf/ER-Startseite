@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react'
 import { X, Upload, Trash2, Sparkles, Film, Palette, Monitor, ExternalLink, Github, LayoutGrid, Clock, CloudSun, Save, LogOut, Terminal, RefreshCw } from 'lucide-react'
 import { BackgroundConfig, LogoConfig, IconConfig, TitleConfig, WidgetData, LayoutMode, WidgetDefaults } from '../types'
 import { useMonitoring } from './monitoring/useMonitoring'
+import { useTranslation } from '../i18n'
 
 interface LogEntry {
     timestamp: string
@@ -418,12 +419,14 @@ export function SettingsModal({
     serverMode,
     onLogout
 }: SettingsModalProps) {
+    const { t, language, setLanguage } = useTranslation()
     const {
         config: monitoringConfig,
         toggleEnabled: toggleMonitoringEnabled,
         toggleDemoMode: toggleMonitoringDemoMode,
         toggleVarcoIntegration,
         updatePollingInterval: updateMonitoringPollingInterval,
+        updateHistoryLimit,
     } = useMonitoring()
     const [activeTab, setActiveTab] = useState<'general' | 'widgets' | 'monitoring' | 'logs' | 'background' | 'logo' | 'effects' | 'security' | 'about'>('general')
     const [uploading, setUploading] = useState(false)
@@ -438,6 +441,13 @@ export function SettingsModal({
     const [weatherUnitInput, setWeatherUnitInput] = useState<'c' | 'f'>(widgetDefaults?.weatherUnit || 'c')
     const [clockFormatInput, setClockFormatInput] = useState<'24h' | '12h'>(widgetDefaults?.clockFormat || '24h')
     const [dateFormatInput, setDateFormatInput] = useState(widgetDefaults?.dateFormat || 'DD.MM.YYYY')
+
+    const currentHistLimit = monitoringConfig?.history_limit || monitoringConfig?.historyLimit || 20
+    const [customHistoryLimitInput, setCustomHistoryLimitInput] = useState<string>(String(currentHistLimit))
+
+    useEffect(() => {
+        setCustomHistoryLimitInput(String(currentHistLimit))
+    }, [currentHistLimit])
 
     useEffect(() => {
         if (widgetDefaults) {
@@ -533,61 +543,61 @@ export function SettingsModal({
                 </button>
 
                 <div className="p-6 pb-2 border-b border-white/10">
-                    <h2 className="text-xl font-bold text-neon-cyan">Settings</h2>
+                    <h2 className="text-xl font-bold text-neon-cyan">{t('settings')}</h2>
                     <div className="flex gap-4 mt-6 overflow-x-auto no-scrollbar">
                         <button
                             onClick={() => setActiveTab('general')}
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'general' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
-                            General
+                            {t('general')}
                         </button>
                         <button
                             onClick={() => setActiveTab('background')}
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'background' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
-                            Background
+                            {t('background')}
                         </button>
                         <button
                             onClick={() => setActiveTab('logo')}
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'logo' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
-                            Logo
+                            {t('logo')}
                         </button>
                         <button
                             onClick={() => setActiveTab('effects')}
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'effects' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
-                            Effects
+                            {t('effects')}
                         </button>
                         <button
                             onClick={() => setActiveTab('widgets')}
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'widgets' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
-                            Widgets
+                            {t('widgets')}
                         </button>
                         <button
                             onClick={() => setActiveTab('monitoring')}
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'monitoring' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
-                            Monitoring
+                            {t('monitoring')}
                         </button>
                         <button
                             onClick={() => setActiveTab('logs')}
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'logs' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
-                            Logs & Diagnose
+                            {t('logs')}
                         </button>
                         <button
                             onClick={() => setActiveTab('security')}
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'security' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
-                            Security
+                            {t('security')}
                         </button>
                         <button
                             onClick={() => setActiveTab('about')}
                             className={`pb-2 text-sm font-medium transition-colors whitespace-nowrap ${activeTab === 'about' ? 'text-white border-b-2 border-neon-cyan' : 'text-gray-400 hover:text-gray-200'}`}
                         >
-                            About
+                            {t('about')}
                         </button>
                     </div>
                 </div>
@@ -595,8 +605,37 @@ export function SettingsModal({
                 <div className="p-6 overflow-y-auto custom-scrollbar">
                     {activeTab === 'general' && (
                         <div className="space-y-4">
+                            {/* Language Switcher */}
+                            <div className="space-y-2 p-4 rounded-xl border border-white/10 bg-white/5">
+                                <label className="text-sm font-medium text-gray-300">{t('language')}</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setLanguage('en')}
+                                        className={`py-2 px-3 text-xs font-mono font-bold rounded-xl border transition ${
+                                            language === 'en'
+                                                ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan shadow-[0_0_10px_rgba(0,243,255,0.3)]'
+                                                : 'bg-black/30 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                                        }`}
+                                    >
+                                        🇬🇧 {t('language_en')}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setLanguage('de')}
+                                        className={`py-2 px-3 text-xs font-mono font-bold rounded-xl border transition ${
+                                            language === 'de'
+                                                ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan shadow-[0_0_10px_rgba(0,243,255,0.3)]'
+                                                : 'bg-black/30 border-white/10 text-gray-400 hover:bg-white/10 hover:text-white'
+                                        }`}
+                                    >
+                                        🇩🇪 {t('language_de')}
+                                    </button>
+                                </div>
+                            </div>
+
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-300">Page Title</label>
+                                <label className="text-sm font-medium text-gray-300">{t('page_title')}</label>
                                 <input
                                     type="text"
                                     value={currentTitle}
@@ -609,38 +648,44 @@ export function SettingsModal({
                             <div className="space-y-3 p-4 rounded-xl border border-white/10 bg-white/5">
                                 <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2">
                                     <LayoutGrid className="w-4 h-4 text-neon-purple" />
-                                    Default Layout
+                                    {t('default_layout')}
                                 </h3>
                                 <div className="grid grid-cols-3 gap-2">
                                     <button
                                         onClick={() => onLayoutModeChange('grid')}
                                         className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all ${layoutMode === 'grid' ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/10'}`}
                                     >
-                                        Standard Grid
+                                        {t('standard_grid')}
                                     </button>
                                     <button
                                         onClick={() => onLayoutModeChange('rich-grid')}
                                         className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all ${layoutMode === 'rich-grid' ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/10'}`}
                                     >
-                                        Rich Grid
+                                        {t('rich_grid')}
                                     </button>
                                     <button
                                         onClick={() => onLayoutModeChange('compact')}
                                         className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all ${layoutMode === 'compact' ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/10'}`}
                                     >
-                                        Compact
+                                        {t('compact')}
                                     </button>
                                     <button
                                         onClick={() => onLayoutModeChange('list')}
                                         className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all ${layoutMode === 'list' ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/10'}`}
                                     >
-                                        List View
+                                        {t('list_view')}
                                     </button>
                                     <button
                                         onClick={() => onLayoutModeChange('categories')}
                                         className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all ${layoutMode === 'categories' ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/10'}`}
                                     >
-                                        Categories
+                                        {t('categories_layout')}
+                                    </button>
+                                    <button
+                                        onClick={() => onLayoutModeChange('canvas')}
+                                        className={`px-3 py-2 rounded-lg text-xs font-medium border transition-all ${layoutMode === 'canvas' ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/10'}`}
+                                    >
+                                        {t('canvas_layout')}
                                     </button>
                                 </div>
 
@@ -1024,9 +1069,9 @@ export function SettingsModal({
                                                             }}
                                                             className="px-3 py-2 bg-black/40 border border-white/10 rounded-xl text-gray-300 text-sm font-mono focus:outline-none focus:border-neon-cyan"
                                                         >
-                                                            <option value="seconds">Seconds (Sekunden)</option>
-                                                            <option value="minutes">Minutes (Minuten)</option>
-                                                            <option value="hours">Hours (Stunden)</option>
+                                                            <option value="seconds">{t('seconds')}</option>
+                                                            <option value="minutes">{t('minutes')}</option>
+                                                            <option value="hours">{t('hours')}</option>
                                                         </select>
                                                     </>
                                                 )
@@ -1036,6 +1081,71 @@ export function SettingsModal({
 
                                     <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200/90 leading-relaxed">
                                         💡 <strong>Recommendation Note:</strong> Setting an interval lower than 5s causes unnecessary CPU and network overhead on the Home Assistant / Varco Bridge server. Setting it above 60s will delay live metric updates in all browser sessions.
+                                    </div>
+                                </div>
+
+                                <div className="h-px bg-white/10" />
+
+                                {/* Telemetry History Retention */}
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div className="space-y-0.5">
+                                            <div className="text-sm font-semibold text-white">{t('history_retention')}</div>
+                                            <div className="text-xs text-gray-400">{t('history_retention_desc')}</div>
+                                        </div>
+                                        <span className="text-xs font-mono text-neon-cyan bg-neon-cyan/10 px-2 py-0.5 rounded border border-neon-cyan/30">
+                                            {monitoringConfig?.history_limit || monitoringConfig?.historyLimit || 20} {t('history_values_unit')}
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-4 gap-2">
+                                        {[
+                                            { count: 10, label: `10 (${t('history_preset_minimal')})` },
+                                            { count: 20, label: `20 (${t('history_preset_default')})` },
+                                            { count: 50, label: `50 (${t('history_preset_detailed')})` },
+                                            { count: 100, label: `100 (${t('history_preset_maximum')})` },
+                                        ].map((opt) => {
+                                            const currentLimit = monitoringConfig?.history_limit || monitoringConfig?.historyLimit || 20
+                                            const isSelected = currentLimit === opt.count
+                                            return (
+                                                <button
+                                                    key={opt.count}
+                                                    type="button"
+                                                    onClick={() => updateHistoryLimit(opt.count)}
+                                                    className={`py-2 px-3 text-xs font-medium rounded-xl border transition ${
+                                                        isSelected
+                                                            ? 'bg-neon-cyan/20 border-neon-cyan text-neon-cyan shadow-[0_0_10px_rgba(6,182,212,0.3)]'
+                                                            : 'bg-white/5 border-white/10 text-gray-400 hover:bg-white/10'
+                                                    }`}
+                                                >
+                                                    {opt.label}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                    <div className="pt-2 flex items-center gap-3">
+                                        <label className="text-xs font-medium text-gray-400">{t('custom_limit')}</label>
+                                        <input
+                                            type="number"
+                                            min={5}
+                                            max={100}
+                                            value={customHistoryLimitInput}
+                                            onChange={(e) => setCustomHistoryLimitInput(e.target.value)}
+                                            onBlur={() => {
+                                                const parsed = parseInt(customHistoryLimitInput, 10)
+                                                const val = isNaN(parsed) ? currentHistLimit : Math.min(100, Math.max(5, parsed))
+                                                setCustomHistoryLimitInput(String(val))
+                                                updateHistoryLimit(val)
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    const parsed = parseInt(customHistoryLimitInput, 10)
+                                                    const val = isNaN(parsed) ? currentHistLimit : Math.min(100, Math.max(5, parsed))
+                                                    setCustomHistoryLimitInput(String(val))
+                                                    updateHistoryLimit(val)
+                                                }
+                                            }}
+                                            className="w-24 px-3 py-1.5 bg-black/40 border border-white/10 rounded-xl text-white text-sm font-mono focus:outline-none focus:border-neon-cyan"
+                                        />
                                     </div>
                                 </div>
                             </div>

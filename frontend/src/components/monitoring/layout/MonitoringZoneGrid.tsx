@@ -1,4 +1,5 @@
 import React from 'react'
+import { CardType } from '../../../types/monitoring'
 import { useMonitoring } from '../useMonitoring'
 import { RadialGaugeWidget } from '../widgets/RadialGaugeWidget'
 import { LiveTrafficGraphWidget } from '../widgets/LiveTrafficGraphWidget'
@@ -7,13 +8,16 @@ import { MetricCardWidget } from '../widgets/MetricCardWidget'
 import { SimpleValueWidget } from '../widgets/SimpleValueWidget'
 import { LinearBarWidget } from '../widgets/LinearBarWidget'
 import { SparklineWidget } from '../widgets/SparklineWidget'
-import { Trash, Plus, ChevronUp, ChevronDown, FolderInput, Eye, EyeOff, Layout } from 'lucide-react'
+import { Trash, Plus, ChevronUp, ChevronDown, FolderInput, Eye, EyeOff, Layout, Box } from 'lucide-react'
+import { useTranslation } from '../../../i18n'
 
 interface MonitoringZoneGridProps {
     onOpenImport: () => void
+    onOpenPool?: () => void
 }
 
-export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenImport }) => {
+export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenImport, onOpenPool }) => {
+    const { t } = useTranslation()
     const { config, activeZoneId, entities, isEditMode, deleteCard, updateCardZone, updateCardType, moveCardOrder, toggleCardVisibility } = useMonitoring()
 
     if (!config) return null
@@ -38,14 +42,25 @@ export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenIm
             {/* Cards Grid */}
             {zoneCards.length === 0 ? (
                 <div className="w-full py-16 glass-panel rounded-2xl border border-dashed border-neon-cyan/30 flex flex-col items-center justify-center text-center gap-3">
-                    <p className="text-sm font-mono text-gray-300">No monitoring cards configured in this zone.</p>
-                    <button
-                        onClick={onOpenImport}
-                        className="px-4 py-2 rounded-xl bg-neon-cyan/20 border border-neon-cyan text-neon-cyan text-xs font-bold uppercase tracking-wider hover:bg-neon-cyan hover:text-black transition flex items-center gap-2"
-                    >
-                        <Plus className="w-4 h-4" />
-                        Import Varco / Add Sensors
-                    </button>
+                    <p className="text-sm font-mono text-gray-300">{t('no_cards_in_zone')}</p>
+                    <div className="flex items-center gap-3">
+                        {onOpenPool && (
+                            <button
+                                onClick={onOpenPool}
+                                className="px-4 py-2 rounded-xl bg-neon-cyan/20 border border-neon-cyan text-neon-cyan text-xs font-bold uppercase tracking-wider hover:bg-neon-cyan hover:text-black transition flex items-center gap-2 shadow-[0_0_15px_rgba(0,243,255,0.2)]"
+                            >
+                                <Box className="w-4 h-4" />
+                                {t('add_from_inventory')}
+                            </button>
+                        )}
+                        <button
+                            onClick={onOpenImport}
+                            className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-gray-300 text-xs font-bold uppercase tracking-wider hover:bg-white/10 hover:text-white transition flex items-center gap-2"
+                        >
+                            <Plus className="w-4 h-4" />
+                            {t('varco_import')}
+                        </button>
+                    </div>
                 </div>
             ) : (
                 <div className={`grid ${gridColsClass} gap-4 auto-rows-[220px]`}>
@@ -56,7 +71,7 @@ export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenIm
                         const cType = card.card_type || card.cardType
 
                         return (
-                            <div key={card.id} className="relative group w-full h-full">
+                            <div key={card.id} className={`relative group w-full h-full ${card.hidden ? 'opacity-40 border border-dashed border-red-500/40 rounded-2xl p-0.5' : ''}`}>
                                 {(cType === 'live_traffic' || !cType) && (
                                     <LiveTrafficGraphWidget title={card.title} entity={entity} />
                                 )}
@@ -88,7 +103,7 @@ export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenIm
                                                 value={card.zone_id || card.zoneId || 'network'}
                                                 onChange={(e) => updateCardZone(card.id, e.target.value)}
                                                 className="bg-transparent text-[10px] font-mono text-neon-cyan focus:outline-none cursor-pointer"
-                                                title="Kategorie wechseln"
+                                                title={t('switch_category')}
                                             >
                                                 {config.zones.map((z) => (
                                                     <option key={z.id} value={z.id} className="bg-gray-900 text-white">
@@ -102,17 +117,22 @@ export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenIm
                                             <Layout className="w-3 h-3 text-neon-cyan" />
                                             <select
                                                 value={card.card_type || card.cardType || 'metric_card'}
-                                                onChange={(e) => updateCardType(card.id, e.target.value)}
+                                                onChange={(e) => {
+                                                    const validTypes: CardType[] = ['simple_value', 'linear_bar', 'sparkline_card', 'gauge', 'metric_card', 'live_traffic', 'status_beacon']
+                                                    if (validTypes.includes(e.target.value as CardType)) {
+                                                        updateCardType(card.id, e.target.value as CardType)
+                                                    }
+                                                }}
                                                 className="bg-transparent text-[10px] font-mono text-neon-cyan focus:outline-none cursor-pointer font-bold"
-                                                title="Anzeigeart wechseln"
+                                                title={t('switch_card_type')}
                                             >
-                                                <option value="simple_value" className="bg-gray-900 text-white">Wert (Schlicht)</option>
-                                                <option value="linear_bar" className="bg-gray-900 text-white font-bold">Fortschritts-Balken</option>
-                                                <option value="sparkline_card" className="bg-gray-900 text-white font-bold">Trend-Verlauf (Sparkline)</option>
-                                                <option value="gauge" className="bg-gray-900 text-white font-bold">Tacho / Gauge</option>
-                                                <option value="metric_card" className="bg-gray-900 text-white font-bold">Standard Metrik-Karte</option>
-                                                <option value="live_traffic" className="bg-gray-900 text-white font-bold">Live Traffic Graph</option>
-                                                <option value="status_beacon" className="bg-gray-900 text-white font-bold">Status Beacon</option>
+                                                <option value="simple_value" className="bg-gray-900 text-white">{t('type_simple_value')}</option>
+                                                <option value="linear_bar" className="bg-gray-900 text-white font-bold">{t('type_linear_bar')}</option>
+                                                <option value="sparkline_card" className="bg-gray-900 text-white font-bold">{t('type_sparkline_card')}</option>
+                                                <option value="gauge" className="bg-gray-900 text-white font-bold">{t('type_gauge')}</option>
+                                                <option value="metric_card" className="bg-gray-900 text-white font-bold">{t('type_metric_card')}</option>
+                                                <option value="live_traffic" className="bg-gray-900 text-white font-bold">{t('type_live_traffic')}</option>
+                                                <option value="status_beacon" className="bg-gray-900 text-white font-bold">{t('type_status_beacon')}</option>
                                             </select>
                                         </div>
 
