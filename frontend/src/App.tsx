@@ -479,9 +479,14 @@ function AppContent() {
     // Fetch Config on Mount
     useEffect(() => {
         fetch('/api/v1/config')
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error(`Failed to load config: HTTP ${res.status}`)
+                }
+                return res.json()
+            })
             .then(data => {
-                if (data && typeof data === 'object') {
+                if (data && typeof data === 'object' && !Array.isArray(data)) {
                     if (data.pageTitle !== undefined) setPageTitle(data.pageTitle)
                     if (data.openInNewTab !== undefined) setOpenInNewTab(data.openInNewTab)
                     if (data.bgConfig) setBgConfig(data.bgConfig)
@@ -504,8 +509,6 @@ function AppContent() {
             })
             .catch(e => {
                 console.error("Failed to load config", e)
-                // In case of error, still enable saving after delay so dashboard isn't permanently locked
-                setTimeout(() => setConfigLoaded(true), 2000)
             })
     }, [])
 

@@ -3,6 +3,7 @@ import contextlib
 import datetime
 import ipaddress
 import json
+import math
 import os
 import re
 import shutil
@@ -612,7 +613,11 @@ async def _run_collector_loop() -> None:
                                 if existing and existing.history
                                 else []
                             )
-                            if isinstance(new_st, (int, float)):
+                            if (
+                                isinstance(new_st, (int, float))
+                                and not isinstance(new_st, bool)
+                                and math.isfinite(new_st)
+                            ):
                                 val_float = float(new_st)
                                 if not existing_hist or existing_hist[-1] != val_float:
                                     existing_hist.append(val_float)
@@ -624,14 +629,18 @@ async def _run_collector_loop() -> None:
                             ):
                                 try:
                                     val_float = float(new_st)
-                                    if (
+                                    if math.isfinite(val_float) and (
                                         not existing_hist
                                         or existing_hist[-1] != val_float
                                     ):
                                         existing_hist.append(val_float)
                                         existing_hist = existing_hist[-hist_limit:]
-                                except ValueError:
-                                    pass
+                                except (ValueError, TypeError):
+                                    logger.debug(
+                                        "Skipping non-numeric string collector telemetry update",
+                                        entity_id=eid,
+                                        state=new_st,
+                                    )
 
                             if (
                                 not existing

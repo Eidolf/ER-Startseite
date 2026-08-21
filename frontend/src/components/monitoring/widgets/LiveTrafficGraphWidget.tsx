@@ -21,14 +21,14 @@ export const LiveTrafficGraphWidget: React.FC<LiveTrafficGraphWidgetProps> = ({
 
     const [history, setHistory] = useState<number[]>(() => {
         if (entity?.history && Array.isArray(entity.history) && entity.history.length > 0) {
-            return [...entity.history]
+            return entity.history.length === 1 ? [entity.history[0], entity.history[0]] : [...entity.history]
         }
         return [0, 0, 0, 0, 0, 0, 0, 0, 0, rawValue]
     })
 
     useEffect(() => {
         if (entity?.history && Array.isArray(entity.history) && entity.history.length > 0) {
-            setHistory([...entity.history])
+            setHistory(entity.history.length === 1 ? [entity.history[0], entity.history[0]] : [...entity.history])
         } else {
             setHistory((prev) => [...prev.slice(1), rawValue])
         }
@@ -43,9 +43,10 @@ export const LiveTrafficGraphWidget: React.FC<LiveTrafficGraphWidgetProps> = ({
         ? Math.max(...history, rawValue, rawValue > 0 ? Math.ceil(rawValue * 1.4) : 40)
         : Math.max(...history, rawValue, 1)
 
+    const divisor = Math.max(1, history.length - 1)
     const points = history
         .map((val, idx) => {
-            const x = (idx / (history.length - 1)) * 260
+            const x = (idx / divisor) * 260
             const y = 80 - (val / (maxVal || 1)) * 70
             return `${x},${y}`
         })

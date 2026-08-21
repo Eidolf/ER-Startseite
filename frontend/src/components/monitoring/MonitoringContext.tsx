@@ -578,14 +578,16 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                             
                             const prevEntity = entities[eid]
                             const existingHist = prevEntity?.history ? [...prevEntity.history] : []
-                            if (typeof val === 'number') {
+                            if (typeof val === 'number' && Number.isFinite(val)) {
                                 if (existingHist.length === 0 || existingHist[existingHist.length - 1] !== val) {
                                     existingHist.push(val)
                                 }
-                            } else if (typeof val === 'string' && val !== 'N/A' && val !== 'NaN' && !isNaN(parseFloat(val))) {
-                                const pFloat = parseFloat(val)
-                                if (existingHist.length === 0 || existingHist[existingHist.length - 1] !== pFloat) {
-                                    existingHist.push(pFloat)
+                            } else if (typeof val === 'string' && val.trim() !== '' && val !== 'N/A' && val !== 'NaN') {
+                                const num = Number(val)
+                                if (typeof num === 'number' && Number.isFinite(num)) {
+                                    if (existingHist.length === 0 || existingHist[existingHist.length - 1] !== num) {
+                                        existingHist.push(num)
+                                    }
                                 }
                             }
 
@@ -627,14 +629,16 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                                 
                                 const prevEntity = entities[eid]
                                 const existingHist = prevEntity?.history ? [...prevEntity.history] : []
-                                if (typeof val === 'number') {
+                                if (typeof val === 'number' && Number.isFinite(val)) {
                                     if (existingHist.length === 0 || existingHist[existingHist.length - 1] !== val) {
                                         existingHist.push(val)
                                     }
-                                } else if (typeof val === 'string' && val !== 'N/A' && val !== 'NaN' && !isNaN(parseFloat(val))) {
-                                    const pFloat = parseFloat(val)
-                                    if (existingHist.length === 0 || existingHist[existingHist.length - 1] !== pFloat) {
-                                        existingHist.push(pFloat)
+                                } else if (typeof val === 'string' && val.trim() !== '' && val !== 'N/A' && val !== 'NaN') {
+                                    const num = Number(val)
+                                    if (typeof num === 'number' && Number.isFinite(num)) {
+                                        if (existingHist.length === 0 || existingHist[existingHist.length - 1] !== num) {
+                                            existingHist.push(num)
+                                        }
                                     }
                                 }
 
@@ -714,7 +718,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             })
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen, config?.enabled, config?.providers, config?.polling_interval_seconds, config?.pollingIntervalSeconds])
+    }, [isOpen, config?.enabled, config?.providers, config?.polling_interval_seconds, config?.pollingIntervalSeconds, config?.history_limit, config?.historyLimit])
 
     // Register Service Worker for Background Telemetry Sync
     useEffect(() => {

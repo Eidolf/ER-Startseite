@@ -442,6 +442,13 @@ export function SettingsModal({
     const [clockFormatInput, setClockFormatInput] = useState<'24h' | '12h'>(widgetDefaults?.clockFormat || '24h')
     const [dateFormatInput, setDateFormatInput] = useState(widgetDefaults?.dateFormat || 'DD.MM.YYYY')
 
+    const currentHistLimit = monitoringConfig?.history_limit || monitoringConfig?.historyLimit || 20
+    const [customHistoryLimitInput, setCustomHistoryLimitInput] = useState<string>(String(currentHistLimit))
+
+    useEffect(() => {
+        setCustomHistoryLimitInput(String(currentHistLimit))
+    }, [currentHistLimit])
+
     useEffect(() => {
         if (widgetDefaults) {
             setWeatherLocationInput(widgetDefaults.weatherLocation || 'Berlin')
@@ -1121,10 +1128,21 @@ export function SettingsModal({
                                             type="number"
                                             min={5}
                                             max={100}
-                                            value={monitoringConfig?.history_limit || monitoringConfig?.historyLimit || 20}
-                                            onChange={(e) => {
-                                                const val = Math.min(100, Math.max(5, parseInt(e.target.value, 10) || 5))
+                                            value={customHistoryLimitInput}
+                                            onChange={(e) => setCustomHistoryLimitInput(e.target.value)}
+                                            onBlur={() => {
+                                                const parsed = parseInt(customHistoryLimitInput, 10)
+                                                const val = isNaN(parsed) ? currentHistLimit : Math.min(100, Math.max(5, parsed))
+                                                setCustomHistoryLimitInput(String(val))
                                                 updateHistoryLimit(val)
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    const parsed = parseInt(customHistoryLimitInput, 10)
+                                                    const val = isNaN(parsed) ? currentHistLimit : Math.min(100, Math.max(5, parsed))
+                                                    setCustomHistoryLimitInput(String(val))
+                                                    updateHistoryLimit(val)
+                                                }
                                             }}
                                             className="w-24 px-3 py-1.5 bg-black/40 border border-white/10 rounded-xl text-white text-sm font-mono focus:outline-none focus:border-neon-cyan"
                                         />

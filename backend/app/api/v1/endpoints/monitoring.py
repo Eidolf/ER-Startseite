@@ -1,6 +1,7 @@
 import contextlib
 import io
 import json
+import math
 import re
 import time
 import zipfile
@@ -144,18 +145,36 @@ async def update_monitoring_telemetry(payload: dict[str, Any]) -> dict[str, Any]
                         ie.get("history") or (existing.history if existing else [])
                     )
                     st = ie.get("state")
-                    if isinstance(st, (int, float)):
+                    if (
+                        isinstance(st, (int, float))
+                        and not isinstance(st, bool)
+                        and math.isfinite(st)
+                    ):
                         val_float = float(st)
                         if not hist or hist[-1] != val_float:
                             hist.append(val_float)
                     elif isinstance(st, str) and st not in ("N/A", "NaN", ""):
-                        with contextlib.suppress(ValueError):
+                        try:
                             val_float = float(st)
-                            if not hist or hist[-1] != val_float:
+                            if math.isfinite(val_float) and (
+                                not hist or hist[-1] != val_float
+                            ):
                                 hist.append(val_float)
+                        except (ValueError, TypeError):
+                            logger.debug(
+                                "Skipping non-numeric string telemetry history update",
+                                entity_id=eid,
+                                state=st,
+                            )
                     ie["history"] = hist[-hist_limit:]
-                    with contextlib.suppress(Exception):
+                    try:
                         ent_map[eid] = MonitoringEntity(**ie)
+                    except Exception as exc:
+                        logger.warning(
+                            "Failed to construct MonitoringEntity from incoming telemetry",
+                            entity_id=eid,
+                            error=str(exc),
+                        )
             config.entities = list(ent_map.values())
             await repo.save_config(config)
 

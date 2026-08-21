@@ -18,14 +18,14 @@ export const SparklineWidget: React.FC<SparklineWidgetProps> = ({
 
     const [history, setHistory] = useState<number[]>(() => {
         if (entity?.history && Array.isArray(entity.history) && entity.history.length > 0) {
-            return [...entity.history]
+            return entity.history.length === 1 ? [entity.history[0], entity.history[0]] : [...entity.history]
         }
         return [40, 42, 38, 45, 48, 52, 50, 55, 53, validVal]
     })
 
     useEffect(() => {
         if (entity?.history && Array.isArray(entity.history) && entity.history.length > 0) {
-            setHistory([...entity.history])
+            setHistory(entity.history.length === 1 ? [entity.history[0], entity.history[0]] : [...entity.history])
         } else if (!isNaN(numericVal)) {
             setHistory((prev) => [...prev.slice(-14), validVal])
         }
@@ -34,10 +34,11 @@ export const SparklineWidget: React.FC<SparklineWidgetProps> = ({
     const minHist = Math.min(...history)
     const maxHist = Math.max(...history)
     const range = maxHist - minHist || 1
+    const divisor = Math.max(1, history.length - 1)
 
     // Build SVG path
     const points = history.map((val, idx) => {
-        const x = (idx / (history.length - 1)) * 260
+        const x = (idx / divisor) * 260
         const y = 50 - ((val - minHist) / range) * 40
         return `${x.toFixed(1)},${y.toFixed(1)}`
     }).join(' ')
