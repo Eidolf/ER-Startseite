@@ -39,7 +39,7 @@ export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenIm
             {/* Cards Grid */}
             {zoneCards.length === 0 ? (
                 <div className="w-full py-16 glass-panel rounded-2xl border border-dashed border-neon-cyan/30 flex flex-col items-center justify-center text-center gap-3">
-                    <p className="text-sm font-mono text-gray-300">Keine Monitoring-Karten in dieser Kategorie vorhanden.</p>
+                    <p className="text-sm font-mono text-gray-300">No monitoring cards configured in this category.</p>
                     <div className="flex items-center gap-3">
                         {onOpenPool && (
                             <button
@@ -47,7 +47,7 @@ export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenIm
                                 className="px-4 py-2 rounded-xl bg-neon-cyan/20 border border-neon-cyan text-neon-cyan text-xs font-bold uppercase tracking-wider hover:bg-neon-cyan hover:text-black transition flex items-center gap-2 shadow-[0_0_15px_rgba(0,243,255,0.2)]"
                             >
                                 <Box className="w-4 h-4" />
-                                Aus Lager hinzufügen
+                                Add from Inventory
                             </button>
                         )}
                         <button

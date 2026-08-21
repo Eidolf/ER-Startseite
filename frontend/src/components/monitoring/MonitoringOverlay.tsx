@@ -220,10 +220,10 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                                 handleAdminAction(() => setIsPoolModalOpen(true))
                                             }}
                                             className="h-8 px-3 rounded-xl bg-neon-cyan/10 border border-neon-cyan/40 text-neon-cyan hover:bg-neon-cyan hover:text-black transition text-xs font-mono font-bold flex items-center gap-2 shadow-[0_0_10px_rgba(0,243,255,0.15)]"
-                                            title="Entitäten-Lager / Gelöschte Karten wiederherstellen"
+                                            title="Entity Inventory / Restore Deleted Cards"
                                         >
                                             <Box className="w-4 h-4" />
-                                            <span>Lager</span>
+                                            <span>Inventory</span>
                                         </button>
 
                                         {config?.providers?.find((p) => p.type === 'varco')?.enabled === true && (
