@@ -137,8 +137,17 @@ export const EntityPoolModal: React.FC<EntityPoolModalProps> = ({ isOpen, onClos
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-            <div className="relative w-full max-w-4xl max-h-[85vh] bg-[#0c1017] border border-neon-cyan/40 rounded-2xl shadow-[0_0_50px_rgba(0,243,255,0.15)] flex flex-col overflow-hidden">
+        <div
+            onClick={(e) => {
+                e.stopPropagation()
+                onClose()
+            }}
+            className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md pointer-events-auto cursor-pointer animate-fade-in"
+        >
+            <div
+                onClick={(e) => e.stopPropagation()}
+                className="relative w-full max-w-4xl max-h-[85vh] bg-[#0c1017] border border-neon-cyan/40 rounded-2xl shadow-[0_0_50px_rgba(0,243,255,0.25)] flex flex-col overflow-hidden pointer-events-auto cursor-default"
+            >
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-white/[0.02]">
                     <div className="flex items-center gap-3">
