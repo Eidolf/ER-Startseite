@@ -173,6 +173,7 @@ async def update_monitoring_telemetry(payload: dict[str, Any]) -> dict[str, Any]
                             "Failed to construct MonitoringEntity from incoming telemetry",
                             entity_id=eid,
                             error=str(exc),
+                            exc_info=True,
                         )
             config.entities = list(ent_map.values())
             await repo.save_config(config)

@@ -567,67 +567,19 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
                 const liveStates = await client.getStates(entityIds).catch(() => null)
                 if (isMounted && liveStates && typeof liveStates === 'object') {
-                    const updatedEntities: Record<string, MonitoringEntity> = {}
-                    Object.entries(liveStates).forEach(([eid, entData]: [string, unknown]) => {
-                        if (entData) {
-                            const entRecord = entData as Record<string, unknown>
-                            const val = typeof entData === 'object' ? entRecord.state : entData
-                            const attrs = (typeof entData === 'object' && entRecord.attributes) as Record<string, unknown> | undefined
-                            const unit = attrs?.unit_of_measurement as string | undefined
-                            const name = (attrs?.friendly_name as string | undefined) || eid.split('.').pop()?.replace(/_/g, ' ') || eid
-                            
-                            const prevEntity = entities[eid]
-                            const existingHist = prevEntity?.history ? [...prevEntity.history] : []
-                            if (typeof val === 'number' && Number.isFinite(val)) {
-                                if (existingHist.length === 0 || existingHist[existingHist.length - 1] !== val) {
-                                    existingHist.push(val)
-                                }
-                            } else if (typeof val === 'string' && val.trim() !== '' && val !== 'N/A' && val !== 'NaN') {
-                                const num = Number(val)
-                                if (typeof num === 'number' && Number.isFinite(num)) {
-                                    if (existingHist.length === 0 || existingHist[existingHist.length - 1] !== num) {
-                                        existingHist.push(num)
-                                    }
-                                }
-                            }
-
-                            updatedEntities[eid] = {
-                                id: eid,
-                                provider_id: 'varco-live',
-                                name: name,
-                                domain: eid.startsWith('binary_sensor.') ? 'binary_sensor' : 'sensor',
-                                value_type: typeof val === 'number' ? 'numeric' : 'string',
-                                state: (val as number | string | boolean) ?? 'N/A',
-                                unit_of_measurement: unit,
-                                history: existingHist.slice(-histLimit),
-                                last_updated: new Date().toISOString(),
-                            }
-                        }
-                    })
-                    if (Object.keys(updatedEntities).length > 0) {
-                        setEntities((prev) => ({ ...prev, ...updatedEntities }))
-                        setPairingCode(null)
-                        fetch('/api/v1/monitoring/telemetry', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ entities: Object.values(updatedEntities) }),
-                        }).catch(() => {})
-                    }
-                }
-
-                if (typeof client.subscribeEntities === 'function') {
-                    const subRes = await client.subscribeEntities(entityIds, (event: { states?: Record<string, unknown> }) => {
-                        if (!isMounted || !event?.states) return
-                        const streamEntities: Record<string, MonitoringEntity> = {}
-                        Object.entries(event.states).forEach(([eid, entData]: [string, unknown]) => {
+                    let freshlyUpdated: Record<string, MonitoringEntity> = {}
+                    setEntities((prev) => {
+                        const next = { ...prev }
+                        const updated: Record<string, MonitoringEntity> = {}
+                        Object.entries(liveStates).forEach(([eid, entData]: [string, unknown]) => {
                             if (entData) {
                                 const entRecord = entData as Record<string, unknown>
                                 const val = typeof entData === 'object' ? entRecord.state : entData
                                 const attrs = (typeof entData === 'object' && entRecord.attributes) as Record<string, unknown> | undefined
                                 const unit = attrs?.unit_of_measurement as string | undefined
                                 const name = (attrs?.friendly_name as string | undefined) || eid.split('.').pop()?.replace(/_/g, ' ') || eid
-                                
-                                const prevEntity = entities[eid]
+
+                                const prevEntity = prev[eid]
                                 const existingHist = prevEntity?.history ? [...prevEntity.history] : []
                                 if (typeof val === 'number' && Number.isFinite(val)) {
                                     if (existingHist.length === 0 || existingHist[existingHist.length - 1] !== val) {
@@ -642,7 +594,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                                     }
                                 }
 
-                                streamEntities[eid] = {
+                                const entityObj: MonitoringEntity = {
                                     id: eid,
                                     provider_id: 'varco-live',
                                     name: name,
@@ -653,15 +605,79 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                                     history: existingHist.slice(-histLimit),
                                     last_updated: new Date().toISOString(),
                                 }
+                                updated[eid] = entityObj
+                                next[eid] = entityObj
                             }
                         })
-                        if (Object.keys(streamEntities).length > 0) {
-                            setEntities((prev) => ({ ...prev, ...streamEntities }))
+                        freshlyUpdated = updated
+                        return next
+                    })
+
+                    if (Object.keys(freshlyUpdated).length > 0) {
+                        setPairingCode(null)
+                        fetch('/api/v1/monitoring/telemetry', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ entities: Object.values(freshlyUpdated) }),
+                        }).catch(() => {})
+                    }
+                }
+
+                if (typeof client.subscribeEntities === 'function') {
+                    const subRes = await client.subscribeEntities(entityIds, (event: { states?: Record<string, unknown> }) => {
+                        if (!isMounted || !event?.states) return
+                        let streamedUpdated: Record<string, MonitoringEntity> = {}
+                        setEntities((prev) => {
+                            const next = { ...prev }
+                            const updated: Record<string, MonitoringEntity> = {}
+                            Object.entries(event.states!).forEach(([eid, entData]: [string, unknown]) => {
+                                if (entData) {
+                                    const entRecord = entData as Record<string, unknown>
+                                    const val = typeof entData === 'object' ? entRecord.state : entData
+                                    const attrs = (typeof entData === 'object' && entRecord.attributes) as Record<string, unknown> | undefined
+                                    const unit = attrs?.unit_of_measurement as string | undefined
+                                    const name = (attrs?.friendly_name as string | undefined) || eid.split('.').pop()?.replace(/_/g, ' ') || eid
+
+                                    const prevEntity = prev[eid]
+                                    const existingHist = prevEntity?.history ? [...prevEntity.history] : []
+                                    if (typeof val === 'number' && Number.isFinite(val)) {
+                                        if (existingHist.length === 0 || existingHist[existingHist.length - 1] !== val) {
+                                            existingHist.push(val)
+                                        }
+                                    } else if (typeof val === 'string' && val.trim() !== '' && val !== 'N/A' && val !== 'NaN') {
+                                        const num = Number(val)
+                                        if (typeof num === 'number' && Number.isFinite(num)) {
+                                            if (existingHist.length === 0 || existingHist[existingHist.length - 1] !== num) {
+                                                existingHist.push(num)
+                                            }
+                                        }
+                                    }
+
+                                    const entityObj: MonitoringEntity = {
+                                        id: eid,
+                                        provider_id: 'varco-live',
+                                        name: name,
+                                        domain: eid.startsWith('binary_sensor.') ? 'binary_sensor' : 'sensor',
+                                        value_type: typeof val === 'number' ? 'numeric' : 'string',
+                                        state: (val as number | string | boolean) ?? 'N/A',
+                                        unit_of_measurement: unit,
+                                        history: existingHist.slice(-histLimit),
+                                        last_updated: new Date().toISOString(),
+                                    }
+                                    updated[eid] = entityObj
+                                    next[eid] = entityObj
+                                }
+                            })
+                            streamedUpdated = updated
+                            return next
+                        })
+
+                        if (Object.keys(streamedUpdated).length > 0) {
                             setPairingCode(null)
                             fetch('/api/v1/monitoring/telemetry', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ entities: Object.values(streamEntities) }),
+                                body: JSON.stringify({ entities: Object.values(streamedUpdated) }),
                             }).catch(() => {})
                         }
                     })
@@ -780,12 +796,13 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const interval = setInterval(() => {
             setEntities((prev) => {
                 const next = { ...prev }
+                const histLimit = config?.history_limit || config?.historyLimit || 20
 
                 if (next['sensor.speedtest_download']) {
                     const jitter = (Math.random() - 0.5) * 8
                     const newSpeed = Math.max(100, Math.min(1000, Number(next['sensor.speedtest_download'].state) + jitter))
                     const st = parseFloat(newSpeed.toFixed(1))
-                    const hist = [...(next['sensor.speedtest_download'].history || []), st].slice(-(config?.history_limit || 20))
+                    const hist = [...(next['sensor.speedtest_download'].history || []), st].slice(-histLimit)
                     next['sensor.speedtest_download'] = {
                         ...next['sensor.speedtest_download'],
                         state: st,
@@ -798,7 +815,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     const jitter = (Math.random() - 0.5) * 2
                     const newUp = Math.max(10, Math.min(200, Number(next['sensor.speedtest_upload'].state) + jitter))
                     const st = parseFloat(newUp.toFixed(1))
-                    const hist = [...(next['sensor.speedtest_upload'].history || []), st].slice(-(config?.history_limit || 20))
+                    const hist = [...(next['sensor.speedtest_upload'].history || []), st].slice(-histLimit)
                     next['sensor.speedtest_upload'] = {
                         ...next['sensor.speedtest_upload'],
                         state: st,
@@ -811,7 +828,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
                     const jitter = (Math.random() - 0.5) * 1.5
                     const newPing = Math.max(4, Math.min(120, Number(next['sensor.speedtest_ping'].state) + jitter))
                     const st = parseFloat(newPing.toFixed(1))
-                    const hist = [...(next['sensor.speedtest_ping'].history || []), st].slice(-(config?.history_limit || 20))
+                    const hist = [...(next['sensor.speedtest_ping'].history || []), st].slice(-histLimit)
                     next['sensor.speedtest_ping'] = {
                         ...next['sensor.speedtest_ping'],
                         state: st,
@@ -825,7 +842,7 @@ export const MonitoringProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         }, 2000)
 
         return () => clearInterval(interval)
-    }, [config?.demoMode, config?.history_limit])
+    }, [config?.demoMode, config?.history_limit, config?.historyLimit])
 
     return (
         <MonitoringContext.Provider

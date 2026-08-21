@@ -112,6 +112,10 @@ export const translations = {
         history_retention_desc: 'Number of recent data points stored per sensor (Max: 100). Enables instant graphs upon opening.',
         custom_limit: 'Custom Limit (5 - 100):',
         history_values_unit: 'values',
+        history_preset_minimal: 'Minimal',
+        history_preset_default: 'Default',
+        history_preset_detailed: 'Detailed',
+        history_preset_maximum: 'Maximum',
 
         // Pairing modal
         pairing_title: 'Home Assistant Varco Pairing Code',
@@ -230,6 +234,10 @@ export const translations = {
         history_retention_desc: 'Anzahl gespeicherter Messwerte pro Sensor (Max: 100). Ermöglicht sofortige Graphen beim Öffnen.',
         custom_limit: 'Eigenes Limit (5 - 100):',
         history_values_unit: 'Werte',
+        history_preset_minimal: 'Minimal',
+        history_preset_default: 'Standard',
+        history_preset_detailed: 'Detailliert',
+        history_preset_maximum: 'Maximal',
 
         // Pairing modal
         pairing_title: 'Home Assistant Varco Pairing Code',

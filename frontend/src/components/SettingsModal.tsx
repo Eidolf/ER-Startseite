@@ -1099,10 +1099,10 @@ export function SettingsModal({
                                     </div>
                                     <div className="grid grid-cols-4 gap-2">
                                         {[
-                                            { count: 10, label: '10 (Minimal)' },
-                                            { count: 20, label: '20 (Default)' },
-                                            { count: 50, label: '50 (Detailed)' },
-                                            { count: 100, label: '100 (Maximum)' },
+                                            { count: 10, label: `10 (${t('history_preset_minimal')})` },
+                                            { count: 20, label: `20 (${t('history_preset_default')})` },
+                                            { count: 50, label: `50 (${t('history_preset_detailed')})` },
+                                            { count: 100, label: `100 (${t('history_preset_maximum')})` },
                                         ].map((opt) => {
                                             const currentLimit = monitoringConfig?.history_limit || monitoringConfig?.historyLimit || 20
                                             const isSelected = currentLimit === opt.count

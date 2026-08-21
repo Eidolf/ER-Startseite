@@ -487,23 +487,23 @@ function AppContent() {
             })
             .then(data => {
                 if (data && typeof data === 'object' && !Array.isArray(data)) {
-                    if (data.pageTitle !== undefined) setPageTitle(data.pageTitle)
-                    if (data.openInNewTab !== undefined) setOpenInNewTab(data.openInNewTab)
-                    if (data.bgConfig) setBgConfig(data.bgConfig)
-                    if (data.logoConfig) setLogoConfig(data.logoConfig)
-                    if (data.iconConfig) setIconConfig(data.iconConfig)
-                    if (data.layoutConfig) {
+                    if (typeof data.pageTitle === 'string') setPageTitle(data.pageTitle)
+                    if (typeof data.openInNewTab === 'boolean') setOpenInNewTab(data.openInNewTab)
+                    if (data.bgConfig && typeof data.bgConfig === 'object') setBgConfig(data.bgConfig)
+                    if (data.logoConfig && typeof data.logoConfig === 'object') setLogoConfig(data.logoConfig)
+                    if (data.iconConfig && typeof data.iconConfig === 'object') setIconConfig(data.iconConfig)
+                    if (data.layoutConfig && typeof data.layoutConfig === 'object') {
                         setLayoutConfig({
                             ...DEFAULT_LAYOUT_CONFIG,
                             ...data.layoutConfig,
-                            categories: data.layoutConfig.categories || [],
-                            hiddenAppIds: data.layoutConfig.hiddenAppIds || [],
-                            widgets: data.layoutConfig.widgets || [],
-                            customOrder: data.layoutConfig.customOrder || []
+                            categories: Array.isArray(data.layoutConfig.categories) ? data.layoutConfig.categories : [],
+                            hiddenAppIds: Array.isArray(data.layoutConfig.hiddenAppIds) ? data.layoutConfig.hiddenAppIds : [],
+                            widgets: Array.isArray(data.layoutConfig.widgets) ? data.layoutConfig.widgets : [],
+                            customOrder: Array.isArray(data.layoutConfig.customOrder) ? data.layoutConfig.customOrder : []
                         })
                     }
-                    if (data.titleConfig) setTitleConfig(data.titleConfig)
-                    if (data.registry_urls) setRegistryUrls(data.registry_urls)
+                    if (data.titleConfig && typeof data.titleConfig === 'object') setTitleConfig(data.titleConfig)
+                    if (Array.isArray(data.registry_urls)) setRegistryUrls(data.registry_urls)
                     setConfigLoaded(true)
                 }
             })
