@@ -28,6 +28,7 @@ import {
     Box,
 } from 'lucide-react'
 import { OverlayWidthPercent, SYSTEM_ZONE_IDS } from '../../types/monitoring'
+import { useTranslation } from '../../i18n'
 
 interface MonitoringOverlayProps {
     isAuthenticated?: boolean
@@ -38,6 +39,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
     isAuthenticated = true,
     onRequireAuth,
 }) => {
+    const { t } = useTranslation()
     const {
         isOpen,
         setIsOpen,
@@ -180,9 +182,9 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                 </div>
                                 <div>
                                     <h2 className="text-xl font-black tracking-widest text-white uppercase" style={{ textShadow: '0 0 10px rgba(0, 243, 255, 0.5)' }}>
-                                        MONITORING COMMAND BRIDGE
+                                        {t('monitoring_title')}
                                     </h2>
-                                    <p className="text-[10px] font-mono text-neon-cyan/80">VARCO / HOMELAB NOC OVERLAY v2.0</p>
+                                    <p className="text-[10px] font-mono text-neon-cyan/80">{t('monitoring_subtitle')}</p>
                                 </div>
                             </div>
 
@@ -193,7 +195,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                         : 'bg-red-500/10 border-red-500/40 text-red-400 shadow-[0_0_10px_rgba(239,68,68,0.2)]'
                                 }`}>
                                     <div className={`w-2 h-2 rounded-full ${isSystemOnline ? 'bg-emerald-400 animate-pulse' : 'bg-red-500 animate-ping'}`} />
-                                    <span>{isSystemOnline ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE'}</span>
+                                    <span>{isSystemOnline ? t('system_online') : t('system_offline')}</span>
                                 </div>
 
                                 {isAuthenticated && (
@@ -201,7 +203,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation()
-                                                handleAdminAction(toggleDemoMode)
+                                                handleAdminAction(() => toggleDemoMode())
                                             }}
                                             className={`h-8 px-3 rounded-xl border text-xs font-mono font-bold flex items-center gap-2 transition ${
                                                 config?.demoMode !== false
@@ -211,7 +213,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                             title="Toggle Live Demo Jitter Simulation"
                                         >
                                             <Sparkles className="w-4 h-4" />
-                                            <span>{config?.demoMode !== false ? 'Demo ON' : 'Demo OFF'}</span>
+                                            <span>{config?.demoMode !== false ? t('demo_on') : t('demo_off')}</span>
                                         </button>
 
                                         <button
@@ -223,7 +225,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                             title="Entity Inventory / Restore Deleted Cards"
                                         >
                                             <Box className="w-4 h-4" />
-                                            <span>Inventory</span>
+                                            <span>{t('inventory')}</span>
                                         </button>
 
                                         {config?.providers?.find((p) => p.type === 'varco')?.enabled === true && (
@@ -233,10 +235,10 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                                     handleAdminAction(() => setIsImportModalOpen(true))
                                                 }}
                                                 className="h-8 px-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white transition text-xs font-mono font-bold flex items-center gap-2"
-                                                title="Import Varco Manifest or Brief"
+                                                title="Varco Manifest / Token Import"
                                             >
                                                 <FileUp className="w-4 h-4" />
-                                                <span>Import</span>
+                                                <span>{t('import')}</span>
                                             </button>
                                         )}
 
@@ -252,7 +254,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                             }`}
                                         >
                                             {effectiveEditMode ? <Check className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
-                                            <span>{effectiveEditMode ? 'Done' : 'Edit Layout'}</span>
+                                            <span>{effectiveEditMode ? t('done') : t('edit_layout')}</span>
                                         </button>
                                     </>
                                 )}
@@ -261,7 +263,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation()
-                                            if (window.confirm('Möchtest du wirklich alle hinterlegten Varco-Tokens und Monitoring-Karten zurücksetzen, um ganz frisch anzufangen?')) {
+                                            if (window.confirm(t('reset_confirm'))) {
                                                 resetMonitoringConfig()
                                             }
                                         }}
@@ -269,7 +271,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                         title="Tokens & Integrationen zurücksetzen"
                                     >
                                         <RotateCcw className="w-3.5 h-3.5" />
-                                        <span>Reset</span>
+                                        <span>{t('reset')}</span>
                                     </button>
                                 )}
                             </div>
@@ -360,7 +362,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                                 autoFocus
                                                 value={newZoneName}
                                                 onChange={(e) => setNewZoneName(e.target.value)}
-                                                placeholder="Category Name..."
+                                                placeholder={t('add_category_placeholder')}
                                                 className="px-2 py-0.5 bg-transparent text-white text-xs font-mono focus:outline-none w-28"
                                             />
                                             <button
@@ -389,7 +391,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                             title="Add Custom Monitoring Category"
                                         >
                                             <Plus className="w-3.5 h-3.5" />
-                                            <span>Category</span>
+                                            <span>{t('add_category')}</span>
                                         </button>
                                     )}
                                 </div>
@@ -479,16 +481,16 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                 <Shield className="w-8 h-8 text-neon-cyan" />
                             </div>
                             <h3 className="text-lg font-black tracking-wider text-white uppercase">
-                                Home Assistant Varco Pairing Code
+                                {t('pairing_title')}
                             </h3>
                             <p className="text-xs text-gray-300 leading-relaxed">
-                                Bitte vergleiche und bestätige diesen Pairing-Code in deiner Home Assistant Varco Integration:
+                                {t('pairing_desc')}
                             </p>
                             <div className="px-6 py-3 rounded-xl bg-black/90 border border-neon-cyan/60 text-4xl font-mono font-bold tracking-[0.3em] text-neon-cyan shadow-inner">
                                 {pairingCode}
                             </div>
                             <p className="text-[11px] text-gray-400 font-mono">
-                                Warte auf Freigabe in Home Assistant...
+                                {t('pairing_waiting')}
                             </p>
                             <button
                                 type="button"
@@ -499,7 +501,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                 }}
                                 className="mt-2 px-5 py-2 rounded-xl bg-neon-cyan/20 hover:bg-neon-cyan hover:text-black border border-neon-cyan/50 text-neon-cyan font-mono text-xs font-bold transition"
                             >
-                                Code bestätigt / Schließen
+                                {t('pairing_confirm_btn')}
                             </button>
                         </div>
                     </div>

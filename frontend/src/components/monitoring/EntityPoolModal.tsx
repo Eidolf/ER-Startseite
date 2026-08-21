@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { X, Plus, Check, Search, Box, Activity, Wifi, Server, Shield } from 'lucide-react'
 import { useMonitoring } from './useMonitoring'
 import { CardType, MonitoringCard } from '../../types/monitoring'
+import { useTranslation } from '../../i18n'
 
 interface EntityPoolModalProps {
     isOpen: boolean
@@ -9,6 +10,7 @@ interface EntityPoolModalProps {
 }
 
 export const EntityPoolModal: React.FC<EntityPoolModalProps> = ({ isOpen, onClose }) => {
+    const { t } = useTranslation()
     const { config, entities, activeZoneId, addCard, saveConfig } = useMonitoring()
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedDomain, setSelectedDomain] = useState<string>('all')
@@ -156,12 +158,12 @@ export const EntityPoolModal: React.FC<EntityPoolModalProps> = ({ isOpen, onClos
                         </div>
                         <div>
                             <h2 className="text-lg font-mono font-bold text-white flex items-center gap-2">
-                                Entity Inventory & Card Pool
+                                {t('inventory_title')}
                                 <span className="text-xs px-2 py-0.5 rounded-full bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30">
-                                    {allEntities.length} entities available
+                                    {allEntities.length} {t('entities_available')}
                                 </span>
                             </h2>
-                            <p className="text-xs text-gray-400">Manage all discovered sensors and restore or add new cards to your dashboard</p>
+                            <p className="text-xs text-gray-400">{t('inventory_subtitle')}</p>
                         </div>
                     </div>
                     <button
@@ -179,7 +181,7 @@ export const EntityPoolModal: React.FC<EntityPoolModalProps> = ({ isOpen, onClos
                             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                             <input
                                 type="text"
-                                placeholder="Search entity or sensor..."
+                                placeholder={t('search_entities')}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full pl-9 pr-3 py-1.5 bg-black/50 border border-white/10 rounded-xl text-sm text-white placeholder-gray-500 focus:outline-none focus:border-neon-cyan"
@@ -190,14 +192,14 @@ export const EntityPoolModal: React.FC<EntityPoolModalProps> = ({ isOpen, onClos
                             onChange={(e) => setSelectedDomain(e.target.value)}
                             className="px-3 py-1.5 bg-black/50 border border-white/10 rounded-xl text-xs font-mono text-gray-300 focus:outline-none focus:border-neon-cyan"
                         >
-                            <option value="all">All Types</option>
-                            <option value="sensor">Sensors (sensor.*)</option>
-                            <option value="binary_sensor">Binary Sensors (binary_sensor.*)</option>
+                            <option value="all">{t('all_types')}</option>
+                            <option value="sensor">{t('sensors')}</option>
+                            <option value="binary_sensor">{t('binary_sensors')}</option>
                         </select>
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono text-gray-400">Target Category:</span>
+                        <span className="text-xs font-mono text-gray-400">{t('target_category')}</span>
                         <select
                             value={targetZone}
                             onChange={(e) => setTargetZone(e.target.value)}
@@ -215,7 +217,7 @@ export const EntityPoolModal: React.FC<EntityPoolModalProps> = ({ isOpen, onClos
                             title="Add all missing entities to the dashboard as cards"
                         >
                             <Plus className="w-3.5 h-3.5" />
-                            <span>Add All Missing</span>
+                            <span>{t('add_all_missing')}</span>
                         </button>
                     </div>
                 </div>
@@ -224,7 +226,7 @@ export const EntityPoolModal: React.FC<EntityPoolModalProps> = ({ isOpen, onClos
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
                     {filteredEntities.length === 0 ? (
                         <div className="py-12 text-center text-gray-500 font-mono text-sm">
-                            No matching entities found in inventory.
+                            {t('no_entities_found')}
                         </div>
                     ) : (
                         filteredEntities.map((ent) => {
@@ -268,11 +270,11 @@ export const EntityPoolModal: React.FC<EntityPoolModalProps> = ({ isOpen, onClos
                                             </div>
                                             <div className="flex items-center gap-2 mt-0.5">
                                                 <span className="text-xs font-mono text-neon-cyan">
-                                                    Current State: {String(currentVal ?? 'N/A')} {currentUnit}
+                                                    {t('current_state')} {String(currentVal ?? 'N/A')} {currentUnit}
                                                 </span>
                                                 {ent.history && ent.history.length > 0 && (
                                                     <span className="text-[10px] font-mono text-gray-400">
-                                                        ({ent.history.length} history values)
+                                                        ({ent.history.length} {t('history_values')})
                                                     </span>
                                                 )}
                                             </div>
@@ -283,7 +285,7 @@ export const EntityPoolModal: React.FC<EntityPoolModalProps> = ({ isOpen, onClos
                                         {hasCard ? (
                                             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono">
                                                 <Check className="w-3.5 h-3.5" />
-                                                <span>Active in: {assignedCards.map((c) => c.zone_id || c.zoneId || 'network').join(', ')}</span>
+                                                <span>{t('active_in')} {assignedCards.map((c) => c.zone_id || c.zoneId || 'network').join(', ')}</span>
                                             </div>
                                         ) : null}
 
@@ -298,13 +300,13 @@ export const EntityPoolModal: React.FC<EntityPoolModalProps> = ({ isOpen, onClos
                                             }
                                             className="px-2.5 py-1.5 bg-black/60 border border-white/10 rounded-xl text-xs font-mono text-gray-300 focus:outline-none focus:border-neon-cyan"
                                         >
-                                            <option value="sparkline_card">Trend (Sparkline)</option>
-                                            <option value="gauge">Radial Gauge</option>
-                                            <option value="live_traffic">Live Traffic Graph</option>
-                                            <option value="metric_card">Standard Metric</option>
-                                            <option value="simple_value">Simple Value</option>
-                                            <option value="linear_bar">Linear Bar</option>
-                                            <option value="status_beacon">Status Beacon</option>
+                                            <option value="sparkline_card">{t('type_sparkline_card')}</option>
+                                            <option value="gauge">{t('type_gauge')}</option>
+                                            <option value="live_traffic">{t('type_live_traffic')}</option>
+                                            <option value="metric_card">{t('type_metric_card')}</option>
+                                            <option value="simple_value">{t('type_simple_value')}</option>
+                                            <option value="linear_bar">{t('type_linear_bar')}</option>
+                                            <option value="status_beacon">{t('type_status_beacon')}</option>
                                         </select>
 
                                         <button
@@ -316,7 +318,7 @@ export const EntityPoolModal: React.FC<EntityPoolModalProps> = ({ isOpen, onClos
                                             }`}
                                         >
                                             <Plus className="w-3.5 h-3.5" />
-                                            <span>{hasCard ? 'Add Again' : 'Add as Card'}</span>
+                                            <span>{hasCard ? t('add_again') : t('add_as_card')}</span>
                                         </button>
                                     </div>
                                 </div>
@@ -327,12 +329,12 @@ export const EntityPoolModal: React.FC<EntityPoolModalProps> = ({ isOpen, onClos
 
                 {/* Footer */}
                 <div className="px-6 py-3 border-t border-white/10 bg-white/[0.01] flex items-center justify-between text-xs text-gray-400 font-mono">
-                    <span>💡 Tip: If you delete a card from your dashboard, the sensor entity remains here in the inventory and can be restored at any time.</span>
+                    <span>{t('inventory_tip')}</span>
                     <button
                         onClick={onClose}
                         className="px-4 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl transition"
                     >
-                        Close
+                        {t('close')}
                     </button>
                 </div>
             </div>

@@ -21,6 +21,7 @@ import { VacationWidget } from './components/widgets/VacationWidget'
 import { WidgetContextModal } from './components/WidgetContextModal'
 import { FreeCanvasBoard } from './components/FreeCanvasBoard'
 import { MonitoringProvider } from './components/monitoring/MonitoringContext'
+import { I18nProvider } from './i18n'
 import { useMonitoring } from './components/monitoring/useMonitoring'
 import { MonitoringOverlay } from './components/monitoring/MonitoringOverlay'
 
@@ -2167,8 +2168,10 @@ function FolderModal({ folder, isOpen, onClose, onRequestAdd, isEditMode, onDele
 
 export default function App() {
     return (
-        <MonitoringProvider>
-            <AppContent />
-        </MonitoringProvider>
+        <I18nProvider>
+            <MonitoringProvider>
+                <AppContent />
+            </MonitoringProvider>
+        </I18nProvider>
     )
 }
