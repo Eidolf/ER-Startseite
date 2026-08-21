@@ -718,6 +718,10 @@
         "file": "frontend/src/components/WidgetTile.tsx",
         "description": "UI Component WidgetTile for dashboard view or modal dialog"
       },
+      "EntityPoolModal": {
+        "file": "frontend/src/components/monitoring/EntityPoolModal.tsx",
+        "description": "UI Component EntityPoolModal for dashboard view or modal dialog"
+      },
       "ImportModal": {
         "file": "frontend/src/components/monitoring/ImportModal.tsx",
         "description": "UI Component ImportModal for dashboard view or modal dialog"

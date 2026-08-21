@@ -7,13 +7,14 @@ import { MetricCardWidget } from '../widgets/MetricCardWidget'
 import { SimpleValueWidget } from '../widgets/SimpleValueWidget'
 import { LinearBarWidget } from '../widgets/LinearBarWidget'
 import { SparklineWidget } from '../widgets/SparklineWidget'
-import { Trash, Plus, ChevronUp, ChevronDown, FolderInput, Eye, EyeOff, Layout } from 'lucide-react'
+import { Trash, Plus, ChevronUp, ChevronDown, FolderInput, Eye, EyeOff, Layout, Box } from 'lucide-react'
 
 interface MonitoringZoneGridProps {
     onOpenImport: () => void
+    onOpenPool?: () => void
 }
 
-export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenImport }) => {
+export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenImport, onOpenPool }) => {
     const { config, activeZoneId, entities, isEditMode, deleteCard, updateCardZone, updateCardType, moveCardOrder, toggleCardVisibility } = useMonitoring()
 
     if (!config) return null
@@ -38,14 +39,25 @@ export const MonitoringZoneGrid: React.FC<MonitoringZoneGridProps> = ({ onOpenIm
             {/* Cards Grid */}
             {zoneCards.length === 0 ? (
                 <div className="w-full py-16 glass-panel rounded-2xl border border-dashed border-neon-cyan/30 flex flex-col items-center justify-center text-center gap-3">
-                    <p className="text-sm font-mono text-gray-300">No monitoring cards configured in this zone.</p>
-                    <button
-                        onClick={onOpenImport}
-                        className="px-4 py-2 rounded-xl bg-neon-cyan/20 border border-neon-cyan text-neon-cyan text-xs font-bold uppercase tracking-wider hover:bg-neon-cyan hover:text-black transition flex items-center gap-2"
-                    >
-                        <Plus className="w-4 h-4" />
-                        Import Varco / Add Sensors
-                    </button>
+                    <p className="text-sm font-mono text-gray-300">Keine Monitoring-Karten in dieser Kategorie vorhanden.</p>
+                    <div className="flex items-center gap-3">
+                        {onOpenPool && (
+                            <button
+                                onClick={onOpenPool}
+                                className="px-4 py-2 rounded-xl bg-neon-cyan/20 border border-neon-cyan text-neon-cyan text-xs font-bold uppercase tracking-wider hover:bg-neon-cyan hover:text-black transition flex items-center gap-2 shadow-[0_0_15px_rgba(0,243,255,0.2)]"
+                            >
+                                <Box className="w-4 h-4" />
+                                Aus Lager hinzufügen
+                            </button>
+                        )}
+                        <button
+                            onClick={onOpenImport}
+                            className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-gray-300 text-xs font-bold uppercase tracking-wider hover:bg-white/10 hover:text-white transition flex items-center gap-2"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Varco Import
+                        </button>
+                    </div>
                 </div>
             ) : (
                 <div className={`grid ${gridColsClass} gap-4 auto-rows-[220px]`}>

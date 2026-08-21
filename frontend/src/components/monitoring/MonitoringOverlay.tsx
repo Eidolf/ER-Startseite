@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useMonitoring } from './useMonitoring'
 import { MonitoringZoneGrid } from './layout/MonitoringZoneGrid'
 import { ImportModal } from './ImportModal'
+import { EntityPoolModal } from './EntityPoolModal'
 import {
     Activity,
     Wifi,
@@ -24,6 +25,7 @@ import {
     Plus,
     Trash2,
     X,
+    Box,
 } from 'lucide-react'
 import { OverlayWidthPercent, SYSTEM_ZONE_IDS } from '../../types/monitoring'
 
@@ -58,6 +60,7 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
     } = useMonitoring()
 
     const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+    const [isPoolModalOpen, setIsPoolModalOpen] = useState(false)
     const [isAddingZone, setIsAddingZone] = useState(false)
     const [newZoneName, setNewZoneName] = useState('')
     const [dragWidth, setDragWidth] = useState<number | null>(null)
@@ -211,13 +214,25 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                                             <span>{config?.demoMode !== false ? 'Demo ON' : 'Demo OFF'}</span>
                                         </button>
 
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleAdminAction(() => setIsPoolModalOpen(true))
+                                            }}
+                                            className="h-8 px-3 rounded-xl bg-neon-cyan/10 border border-neon-cyan/40 text-neon-cyan hover:bg-neon-cyan hover:text-black transition text-xs font-mono font-bold flex items-center gap-2 shadow-[0_0_10px_rgba(0,243,255,0.15)]"
+                                            title="Entitäten-Lager / Gelöschte Karten wiederherstellen"
+                                        >
+                                            <Box className="w-4 h-4" />
+                                            <span>Lager</span>
+                                        </button>
+
                                         {config?.providers?.find((p) => p.type === 'varco')?.enabled === true && (
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation()
                                                     handleAdminAction(() => setIsImportModalOpen(true))
                                                 }}
-                                                className="h-8 px-3 rounded-xl bg-neon-cyan/10 border border-neon-cyan/40 text-neon-cyan hover:bg-neon-cyan hover:text-black transition text-xs font-mono font-bold flex items-center gap-2 shadow-[0_0_10px_rgba(0,243,255,0.15)]"
+                                                className="h-8 px-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10 hover:text-white transition text-xs font-mono font-bold flex items-center gap-2"
                                                 title="Import Varco Manifest or Brief"
                                             >
                                                 <FileUp className="w-4 h-4" />
@@ -383,7 +398,10 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                     </div>
 
                     <div className="relative flex-1 p-6 overflow-y-auto z-10 scrollbar-thin scrollbar-thumb-neon-cyan/20">
-                        <MonitoringZoneGrid onOpenImport={() => handleAdminAction(() => setIsImportModalOpen(true))} />
+                        <MonitoringZoneGrid
+                            onOpenImport={() => handleAdminAction(() => setIsImportModalOpen(true))}
+                            onOpenPool={() => handleAdminAction(() => setIsPoolModalOpen(true))}
+                        />
                     </div>
 
                     <div className="relative p-4 border-t border-white/10 bg-black/50 flex items-center justify-between z-10">
@@ -425,6 +443,11 @@ export const MonitoringOverlay: React.FC<MonitoringOverlayProps> = ({
                     isOpen={isImportModalOpen}
                     onClose={() => setIsImportModalOpen(false)}
                     onImportSuccess={() => refreshConfig()}
+                />
+
+                <EntityPoolModal
+                    isOpen={isPoolModalOpen}
+                    onClose={() => setIsPoolModalOpen(false)}
                 />
 
                 {/* Pairing Code Verification Overlay */}
