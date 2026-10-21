@@ -312,9 +312,9 @@ async function syncVarcoClient() {
                     const parsed = JSON.parse(v);
                     if (parsed && parsed.privateKey) {
                         storedPrivateKey = parsed.privateKey;
-                        setTimeout(() => {
-                            savePrivateKey(parsed.privateKey, v);
-                        }, 0);
+                        savePrivateKey(parsed.privateKey, v).catch(e => {
+                            console.error('[Varco Worker] Async savePrivateKey error in setItem:', e?.message || e);
+                        });
                     }
                 } catch {}
             }
@@ -345,9 +345,11 @@ async function syncVarcoClient() {
             }
         }
 
+        let isConnected = false;
         try {
             if (client) {
                 await client.connect();
+                isConnected = true;
                 console.log('[Varco Worker] Varco Client connected successfully!');
             }
         } catch (err) {
@@ -355,9 +357,12 @@ async function syncVarcoClient() {
             const errMsg = String(rawErr);
             console.warn('[Varco Worker] Connection attempt info:', errMsg);
 
-            const isGrantIssue = errMsg.includes('No active grant') || errMsg.includes('Grant revoked') || errMsg.includes('Grant denied');
-            if (isGrantIssue && storedPrivateKey) {
-                console.warn('[Varco Worker] Stored key is invalid or revoked. Clearing key to re-establish pairing...');
+            // Only treat as explicitly revoked/denied if already had a stored key and received explicit revocation
+            const isExplicitRevocation = errMsg.includes('Grant revoked') || errMsg.includes('Grant denied');
+            const isNoActiveGrant = errMsg.includes('No active grant');
+
+            if (isExplicitRevocation && storedPrivateKey) {
+                console.warn('[Varco Worker] Stored key was revoked or denied by Home Assistant. Clearing key for fresh pairing...');
                 await savePrivateKey(null);
                 storedPrivateKey = null;
                 storedIdentityData = null;
@@ -365,7 +370,7 @@ async function syncVarcoClient() {
                 delete settings.identityData;
             }
 
-            if ((!storedPrivateKey || isGrantIssue) && typeof client?.requestAccess === 'function') {
+            if ((!storedPrivateKey || isExplicitRevocation || isNoActiveGrant) && typeof client?.requestAccess === 'function') {
                 try {
                     console.log(`[Varco Worker] Requesting access permissions from Varco / Home Assistant as '${settings.consumerName}'...`);
                     const access = await client.requestAccess({
@@ -376,20 +381,38 @@ async function syncVarcoClient() {
                     });
                     const pairingCode = access?.pairing_code || access?.pairingCode || access?.code || access?.pin || 'Check Home Assistant Notifications';
                     console.log(`[Varco Worker] PAIRING REQUEST SENT TO VARCO / HOME ASSISTANT! Code: ${pairingCode}`);
+
+                    // Attempt connection once after requestAccess
                     if (client) {
                         try {
                             await client.connect();
+                            isConnected = true;
+                            console.log('[Varco Worker] Connected immediately after requestAccess!');
                         } catch (reconnectErr) {
                             console.warn('[Varco Worker] Awaiting user authorization in Home Assistant for code:', pairingCode);
+                            // User authorization is pending. Client is not connected yet.
+                            // Do NOT fall through to subscribeEntities and do NOT wipe the pending key!
+                            // Keep currentSettings so we don't spam new pairing requests on every 10s tick.
+                            currentSettings = settings;
+                            return;
                         }
                     }
                 } catch (pErr) {
                     console.warn('[Varco Worker] Request access info:', pErr.message || pErr);
-                    throw pErr;
+                    currentSettings = settings;
+                    return;
                 }
             } else {
-                throw err;
+                // If storedPrivateKey exists and user authorization might still be pending, do NOT wipe the key!
+                console.warn('[Varco Worker] Connection not established; awaiting grant authorization or retry with existing credentials.');
+                currentSettings = settings;
+                return;
             }
+        }
+
+        if (!isConnected || !client) {
+            currentSettings = settings;
+            return;
         }
 
         let activeEntities = Array.from(new Set([...settings.requestedEntities]));
@@ -449,7 +472,8 @@ async function syncVarcoClient() {
         const rawErr = initErr?.message != null ? initErr.message : initErr;
         const errMsg = String(rawErr);
         console.warn('[Varco Worker] Initialization/Subscription attempt failed:', errMsg);
-        if (errMsg.includes('No active grant') || errMsg.includes('Grant revoked') || errMsg.includes('Grant denied')) {
+        // Only wipe key if explicitly revoked or denied, NOT on pending/missing grant
+        if (errMsg.includes('Grant revoked') || errMsg.includes('Grant denied')) {
             await savePrivateKey(null);
         }
         if (client) {
