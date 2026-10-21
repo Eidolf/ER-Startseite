@@ -419,11 +419,18 @@ async def _ensure_sidecar_running(enabled: bool, has_share_link: bool) -> None:
             node_binary = shutil.which("node") or "/usr/bin/node"
             if os.path.exists(script_path):
                 try:
+                    from app.core.config import settings as app_settings
+
+                    sub_env = os.environ.copy()
+                    sub_env["VARCO_CONFIG_PATH"] = os.path.abspath(
+                        os.path.join(app_settings.DATA_DIR, "monitoring.json")
+                    )
                     _sidecar_process = await asyncio.create_subprocess_exec(
                         node_binary,
                         script_path,
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.PIPE,
+                        env=sub_env,
                     )
                     add_system_log(
                         "INFO",
@@ -650,6 +657,34 @@ async def _run_collector_loop() -> None:
 
                         if has_changed or len(ent_map) != len(fresh_config.entities):
                             fresh_config.entities = list(ent_map.values())
+
+                            # Ensure any credentials saved to disk by sidecar worker are preserved in fresh_config
+                            fresh_varco = next(
+                                (
+                                    p
+                                    for p in fresh_config.providers
+                                    if p.type == "varco"
+                                ),
+                                None,
+                            )
+                            if fresh_varco and varco_provider:
+                                curr_settings = varco_provider.settings or {}
+                                fresh_settings = fresh_varco.settings or {}
+                                for cred_key in (
+                                    "privateKey",
+                                    "private_key",
+                                    "identityData",
+                                    "identity_data",
+                                ):
+                                    if (
+                                        cred_key in curr_settings
+                                        and cred_key not in fresh_settings
+                                    ):
+                                        fresh_settings[cred_key] = curr_settings[
+                                            cred_key
+                                        ]
+                                fresh_varco.settings = fresh_settings
+
                             await repo.save_config(fresh_config)
 
                             add_system_log(
@@ -669,7 +704,19 @@ async def _run_collector_loop() -> None:
                             global _first_sync_reported
                             if not _first_sync_reported:
                                 _first_sync_reported = True
-                                sett = varco_provider.settings or {}
+                                fresh_varco = next(
+                                    (
+                                        p
+                                        for p in fresh_config.providers
+                                        if p.type == "varco"
+                                    ),
+                                    None,
+                                )
+                                sett = (
+                                    (fresh_varco.settings if fresh_varco else None)
+                                    or varco_provider.settings
+                                    or {}
+                                )
                                 pk = sett.get("privateKey") or sett.get("private_key")
                                 auth_id = sett.get("authorityId") or sett.get(
                                     "authority_id"

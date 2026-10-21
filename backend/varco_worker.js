@@ -240,9 +240,16 @@ async function syncVarcoClient() {
         activeEntities = [];
     }
 
-    // Check if settings changed or if client is not subscribed
-    const keyChanged = JSON.stringify(settings) !== JSON.stringify(currentSettings);
-    if (!keyChanged && client && isSubscribed) {
+    // Compare only connection identity settings so dynamic entity discovery or state mutations don't trigger reconnect loops
+    const coreSettingsChanged = !currentSettings ||
+        currentSettings.shareCode !== settings.shareCode ||
+        currentSettings.authorityId !== settings.authorityId ||
+        currentSettings.bridgeUrl !== settings.bridgeUrl ||
+        currentSettings.consumerName !== settings.consumerName ||
+        currentSettings.privateKey !== settings.privateKey ||
+        currentSettings.identityData !== settings.identityData;
+
+    if (!coreSettingsChanged && client && isSubscribed) {
         return;
     }
 
@@ -370,7 +377,7 @@ async function syncVarcoClient() {
                 delete settings.identityData;
             }
 
-            if ((!storedPrivateKey || isExplicitRevocation || isNoActiveGrant) && typeof client?.requestAccess === 'function') {
+            if ((!storedPrivateKey || isExplicitRevocation) && typeof client?.requestAccess === 'function') {
                 try {
                     console.log(`[Varco Worker] Requesting access permissions from Varco / Home Assistant as '${settings.consumerName}'...`);
                     const access = await client.requestAccess({
@@ -391,7 +398,6 @@ async function syncVarcoClient() {
                         } catch (reconnectErr) {
                             console.warn('[Varco Worker] Awaiting user authorization in Home Assistant for code:', pairingCode);
                             // User authorization is pending. Client is not connected yet.
-                            // Do NOT fall through to subscribeEntities and do NOT wipe the pending key!
                             // Keep currentSettings so we don't spam new pairing requests on every 10s tick.
                             currentSettings = settings;
                             return;
@@ -403,8 +409,8 @@ async function syncVarcoClient() {
                     return;
                 }
             } else {
-                // If storedPrivateKey exists and user authorization might still be pending, do NOT wipe the key!
-                console.warn('[Varco Worker] Connection not established; awaiting grant authorization or retry with existing credentials.');
+                // If storedPrivateKey exists and user authorization or bridge handshake is pending, do NOT wipe the key or spam requestAccess
+                console.warn('[Varco Worker] Connection not established; awaiting grant authorization or bridge grant propagation with existing credentials.');
                 currentSettings = settings;
                 return;
             }
@@ -540,12 +546,6 @@ async function fetchLatestStates() {
                     };
                 }
             });
-            if (currentSettings) {
-                currentSettings.activeEntities = Array.from(new Set([
-                    ...(currentSettings.activeEntities || []),
-                    ...Object.keys(currentEntities)
-                ]));
-            }
             return true;
         }
         return false;
