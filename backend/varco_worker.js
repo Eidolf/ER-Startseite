@@ -351,8 +351,21 @@ async function syncVarcoClient() {
                 console.log('[Varco Worker] Varco Client connected successfully!');
             }
         } catch (err) {
-            console.warn('[Varco Worker] Connection attempt info:', err.message || err);
-            if (!storedPrivateKey && typeof client?.requestAccess === 'function') {
+            const rawErr = err?.message != null ? err.message : err;
+            const errMsg = String(rawErr);
+            console.warn('[Varco Worker] Connection attempt info:', errMsg);
+
+            const isGrantIssue = errMsg.includes('No active grant') || errMsg.includes('Grant revoked') || errMsg.includes('Grant denied');
+            if (isGrantIssue && storedPrivateKey) {
+                console.warn('[Varco Worker] Stored key is invalid or revoked. Clearing key to re-establish pairing...');
+                await savePrivateKey(null);
+                storedPrivateKey = null;
+                storedIdentityData = null;
+                delete settings.privateKey;
+                delete settings.identityData;
+            }
+
+            if ((!storedPrivateKey || isGrantIssue) && typeof client?.requestAccess === 'function') {
                 try {
                     console.log(`[Varco Worker] Requesting access permissions from Varco / Home Assistant as '${settings.consumerName}'...`);
                     const access = await client.requestAccess({
@@ -361,8 +374,15 @@ async function syncVarcoClient() {
                         read_entities: settings.requestedEntities,
                         subscriptions: settings.requestedEntities
                     });
-                    console.log(`[Varco Worker] PAIRING REQUEST SENT TO VARCO / HOME ASSISTANT! Code: ${access?.pairing_code || access?.code || 'Check Home Assistant Notifications'}`);
-                    if (client) await client.connect();
+                    const pairingCode = access?.pairing_code || access?.pairingCode || access?.code || access?.pin || 'Check Home Assistant Notifications';
+                    console.log(`[Varco Worker] PAIRING REQUEST SENT TO VARCO / HOME ASSISTANT! Code: ${pairingCode}`);
+                    if (client) {
+                        try {
+                            await client.connect();
+                        } catch (reconnectErr) {
+                            console.warn('[Varco Worker] Awaiting user authorization in Home Assistant for code:', pairingCode);
+                        }
+                    }
                 } catch (pErr) {
                     console.warn('[Varco Worker] Request access info:', pErr.message || pErr);
                     throw pErr;
@@ -426,7 +446,12 @@ async function syncVarcoClient() {
             console.log(`[Varco Worker] Subscribed to ${activeEntities.length} entities successfully.`);
         }
     } catch (initErr) {
-        console.warn('[Varco Worker] Initialization/Subscription attempt failed:', initErr.message || initErr);
+        const rawErr = initErr?.message != null ? initErr.message : initErr;
+        const errMsg = String(rawErr);
+        console.warn('[Varco Worker] Initialization/Subscription attempt failed:', errMsg);
+        if (errMsg.includes('No active grant') || errMsg.includes('Grant revoked') || errMsg.includes('Grant denied')) {
+            await savePrivateKey(null);
+        }
         if (client) {
             try { client.disconnect(); } catch {}
             client = null;
