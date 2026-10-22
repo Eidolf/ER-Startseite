@@ -124,27 +124,28 @@ function readServerSettings() {
     }
 }
 
-const LOCK_PATH = CONFIG_PATH + '.lock';
+const LOCK_PATH = CONFIG_PATH + '.worker.lock';
 
 async function acquireConfigFileLock() {
     const startTime = Date.now();
     while (true) {
         try {
             const fd = fs.openSync(LOCK_PATH, 'wx');
+            fs.writeSync(fd, String(process.pid));
             fs.closeSync(fd);
             return true;
         } catch (err) {
             if (err.code === 'EEXIST') {
                 try {
                     const stat = fs.statSync(LOCK_PATH);
-                    if (Date.now() - stat.mtimeMs > 10000) {
+                    if (Date.now() - stat.mtimeMs > 5000) {
                         try { fs.unlinkSync(LOCK_PATH); } catch {}
                     }
                 } catch {}
-                if (Date.now() - startTime > 5000) {
+                if (Date.now() - startTime > 4000) {
                     return false;
                 }
-                await new Promise(resolve => setTimeout(resolve, 20));
+                await new Promise(resolve => setTimeout(resolve, 50));
             } else {
                 return false;
             }
@@ -242,18 +243,18 @@ async function syncVarcoClient() {
         activeEntities = [];
     }
 
-    // Compare only connection identity settings so dynamic entity discovery or state mutations don't trigger reconnect loops
+    // If already connected and subscribed, NEVER tear down client unless shareCode or authorityId changed
+    if (client && isSubscribed) {
+        currentSettings = settings;
+        return;
+    }
+
+    // Compare connection endpoint and credentials to see if client needs re-instantiation
     const coreSettingsChanged = !currentSettings ||
         currentSettings.shareCode !== settings.shareCode ||
         currentSettings.authorityId !== settings.authorityId ||
         currentSettings.bridgeUrl !== settings.bridgeUrl ||
-        currentSettings.consumerName !== settings.consumerName ||
-        currentSettings.privateKey !== settings.privateKey ||
-        currentSettings.identityData !== settings.identityData;
-
-    if (!coreSettingsChanged && client && isSubscribed) {
-        return;
-    }
+        currentSettings.consumerName !== settings.consumerName;
 
     // If client is already created and currently waiting for user grant in Home Assistant,
     // do NOT destroy client every 10 seconds. Try to connect/reconnect on the existing client.
@@ -270,19 +271,6 @@ async function syncVarcoClient() {
             if (pMsg.includes('No active grant')) {
                 consecutiveNoGrantFailures++;
                 console.warn(`[Varco Worker] Awaiting grant approval in Home Assistant (check #${consecutiveNoGrantFailures})...`);
-                if (consecutiveNoGrantFailures >= 6) {
-                    console.warn('[Varco Worker] Stored credentials repeatedly rejected (no active grant after multiple attempts). Clearing stale credentials for fresh pairing...');
-                    await savePrivateKey(null);
-                    delete settings.privateKey;
-                    delete settings.identityData;
-                    if (client) {
-                        try { if (typeof client.close === 'function') await client.close(); } catch {}
-                        client = null;
-                    }
-                    isAuthorizing = false;
-                    consecutiveNoGrantFailures = 0;
-                    currentSettings = null;
-                }
                 return;
             } else {
                 console.warn('[Varco Worker] Connection check error while awaiting grant:', pMsg);
@@ -425,15 +413,7 @@ async function syncVarcoClient() {
 
                 if (isNoActiveGrant && storedPrivateKey) {
                     consecutiveNoGrantFailures++;
-                    if (consecutiveNoGrantFailures >= 3) {
-                        console.warn('[Varco Worker] Stored key has no active grant in Home Assistant after multiple connection attempts. Clearing stale credentials to prompt new pairing...');
-                        await savePrivateKey(null);
-                        storedPrivateKey = null;
-                        storedIdentityData = null;
-                        delete settings.privateKey;
-                        delete settings.identityData;
-                        consecutiveNoGrantFailures = 0;
-                    }
+                    console.warn(`[Varco Worker] Awaiting grant authorization in Home Assistant with existing credentials (attempt #${consecutiveNoGrantFailures}).`);
                 }
 
                 if ((!storedPrivateKey || isExplicitRevocation) && typeof client?.requestAccess === 'function') {
