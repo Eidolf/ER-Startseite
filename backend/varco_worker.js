@@ -500,7 +500,7 @@ async function syncVarcoClient() {
         }
     }
 
-    let activeEntities = Array.from(new Set([...settings.requestedEntities]));
+    activeEntities = Array.from(new Set([...settings.requestedEntities]));
     try {
         if (typeof client?.getGrantInfo === 'function') {
             const grant = await client.getGrantInfo(true);
