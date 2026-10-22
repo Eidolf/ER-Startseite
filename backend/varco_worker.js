@@ -273,16 +273,26 @@ async function syncVarcoClient() {
         activeEntities = [];
     }
 
-    // If already connected and subscribed, NEVER tear down client unless shareCode or authorityId changed
+    // Check if requested entities changed
+    const currReq = currentSettings?.requestedEntities || [];
+    const newReq = settings.requestedEntities || [];
+    const requestedEntitiesChanged = currReq.length !== newReq.length ||
+        currReq.some(e => !newReq.includes(e));
+
+    // If already connected and subscribed, only return early if shareCode, authorityId, and requestedEntities are unchanged
     if (client && isSubscribed) {
-        currentSettings = settings;
-        return;
+        if (!shareCodeChanged && !requestedEntitiesChanged) {
+            currentSettings = settings;
+            return;
+        }
+        // One of the core attributes changed; clear isSubscribed so the rebuild path reconnects with updated subscriptions
+        isSubscribed = false;
     }
 
     // Compare connection endpoint and credentials to see if client needs re-instantiation
     const coreSettingsChanged = !currentSettings ||
-        currentSettings.shareCode !== settings.shareCode ||
-        currentSettings.authorityId !== settings.authorityId ||
+        shareCodeChanged ||
+        requestedEntitiesChanged ||
         currentSettings.bridgeUrl !== settings.bridgeUrl ||
         currentSettings.consumerName !== settings.consumerName;
 
