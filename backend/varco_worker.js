@@ -5,6 +5,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import WebSocket from 'ws';
 import crypto from 'node:crypto';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+
+const execFileAsync = promisify(execFile);
 
 class VarcoWebSocket extends WebSocket {
     constructor(url, protocols, options = {}) {
@@ -124,41 +128,25 @@ function readServerSettings() {
     }
 }
 
-const LOCK_PATH = CONFIG_PATH + '.worker.lock';
+const LOCK_PATH = CONFIG_PATH + '.lock';
 
 async function acquireConfigFileLock() {
-    const startTime = Date.now();
-    while (true) {
-        try {
-            const fd = fs.openSync(LOCK_PATH, 'wx');
-            fs.writeSync(fd, String(process.pid));
-            fs.closeSync(fd);
-            return true;
-        } catch (err) {
-            if (err.code === 'EEXIST') {
-                try {
-                    const stat = fs.statSync(LOCK_PATH);
-                    if (Date.now() - stat.mtimeMs > 5000) {
-                        try { fs.unlinkSync(LOCK_PATH); } catch {}
-                    }
-                } catch {}
-                if (Date.now() - startTime > 4000) {
-                    return false;
-                }
-                await new Promise(resolve => setTimeout(resolve, 50));
-            } else {
-                return false;
-            }
+    try {
+        const parentDir = path.dirname(LOCK_PATH);
+        if (!fs.existsSync(parentDir)) {
+            fs.mkdirSync(parentDir, { recursive: true });
         }
+        // Acquire advisory lock using system flock matching Python's fcntl.flock on LOCK_PATH
+        await execFileAsync('flock', ['-w', '5', LOCK_PATH, 'true']);
+        return true;
+    } catch (err) {
+        console.warn('[Varco Worker] Failed to acquire config file lock via flock:', err.message || err);
+        return false;
     }
 }
 
 function releaseConfigFileLock() {
-    try {
-        if (fs.existsSync(LOCK_PATH)) {
-            fs.unlinkSync(LOCK_PATH);
-        }
-    } catch {}
+    // Advisory flock is automatically released when flock process finishes, no lock removal needed
 }
 
 async function savePrivateKey(privateKey, identityData = null) {
@@ -268,7 +256,23 @@ async function syncVarcoClient() {
             // Fall through to grant info & subscription below
         } catch (pollErr) {
             const pMsg = String(pollErr?.message || pollErr);
-            if (pMsg.includes('No active grant')) {
+            if (pMsg.includes('Grant denied') || pMsg.includes('Grant revoked')) {
+                console.warn('[Varco Worker] Grant was denied or revoked by Home Assistant. Resetting credentials and state for fresh pairing:', pMsg);
+                await savePrivateKey(null);
+                delete settings.privateKey;
+                delete settings.identityData;
+                if (client) {
+                    try {
+                        if (typeof client.close === 'function') await client.close();
+                        else if (typeof client.disconnect === 'function') client.disconnect();
+                    } catch {}
+                    client = null;
+                }
+                isAuthorizing = false;
+                consecutiveNoGrantFailures = 0;
+                currentSettings = null;
+                return;
+            } else if (pMsg.includes('No active grant')) {
                 consecutiveNoGrantFailures++;
                 console.warn(`[Varco Worker] Awaiting grant approval in Home Assistant (check #${consecutiveNoGrantFailures})...`);
                 return;
