@@ -657,42 +657,6 @@ async def _run_collector_loop() -> None:
 
                         if has_changed or len(ent_map) != len(fresh_config.entities):
                             fresh_config.entities = list(ent_map.values())
-
-                            # Ensure credentials from disk are respected; only preserve in-memory credentials if the provider identity hasn't changed and credentials weren't explicitly removed on disk
-                            fresh_varco = next(
-                                (
-                                    p
-                                    for p in fresh_config.providers
-                                    if p.type == "varco"
-                                ),
-                                None,
-                            )
-                            if fresh_varco and varco_provider:
-                                curr_settings = varco_provider.settings or {}
-                                fresh_settings = fresh_varco.settings or {}
-                                curr_sc = curr_settings.get("shareCode") or curr_settings.get("share_code")
-                                fresh_sc = fresh_settings.get("shareCode") or fresh_settings.get("share_code")
-                                curr_auth = curr_settings.get("authorityId") or curr_settings.get("authority_id")
-                                fresh_auth = fresh_settings.get("authorityId") or fresh_settings.get("authority_id")
-
-                                # Only consider merging missing keys if authority and share code match exactly
-                                if curr_sc == fresh_sc and curr_auth == fresh_auth:
-                                    # If the fresh config on disk omitted privateKey/identityData, treat it as intentional removal if marked with removal sentinel or if freshly configured
-                                    for cred_key in (
-                                        "privateKey",
-                                        "private_key",
-                                        "identityData",
-                                        "identity_data",
-                                    ):
-                                        if (
-                                            cred_key in curr_settings
-                                            and cred_key not in fresh_settings
-                                            and not fresh_settings.get(f"{cred_key}_removed")
-                                        ):
-                                            # Preserve credentials only if neither variant was explicitly removed or cleared
-                                            pass
-                                fresh_varco.settings = fresh_settings
-
                             await repo.save_config(fresh_config)
 
                             add_system_log(

@@ -5,10 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import WebSocket from 'ws';
 import crypto from 'node:crypto';
-import { execFile } from 'child_process';
-import { promisify } from 'util';
-
-const execFileAsync = promisify(execFile);
+import { spawn } from 'child_process';
 
 class VarcoWebSocket extends WebSocket {
     constructor(url, protocols, options = {}) {
@@ -129,6 +126,7 @@ function readServerSettings() {
 }
 
 const LOCK_PATH = CONFIG_PATH + '.lock';
+let activeLockChild = null;
 
 async function acquireConfigFileLock() {
     try {
@@ -136,9 +134,45 @@ async function acquireConfigFileLock() {
         if (!fs.existsSync(parentDir)) {
             fs.mkdirSync(parentDir, { recursive: true });
         }
-        // Acquire advisory lock using system flock matching Python's fcntl.flock on LOCK_PATH
-        await execFileAsync('flock', ['-w', '5', LOCK_PATH, 'true']);
-        return true;
+        // Spawn flock process and hold lock until child exits or stdin closes
+        return await new Promise((resolve) => {
+            const child = spawn(
+                'flock',
+                ['-w', '5', LOCK_PATH, 'node', '-e', 'console.log("LOCKED"); process.stdin.resume();'],
+                { stdio: ['pipe', 'pipe', 'pipe'] }
+            );
+
+            let acquired = false;
+            let timer = null;
+
+            const cleanupAndFail = () => {
+                if (timer) clearTimeout(timer);
+                if (!acquired) {
+                    try { child.kill('SIGKILL'); } catch {}
+                    resolve(false);
+                }
+            };
+
+            timer = setTimeout(cleanupAndFail, 6000);
+
+            child.stdout.on('data', (data) => {
+                if (data.toString().includes('LOCKED')) {
+                    acquired = true;
+                    if (timer) clearTimeout(timer);
+                    activeLockChild = child;
+                    resolve(true);
+                }
+            });
+
+            child.on('error', (err) => {
+                console.warn('[Varco Worker] Lock process error:', err.message || err);
+                cleanupAndFail();
+            });
+
+            child.on('exit', () => {
+                cleanupAndFail();
+            });
+        });
     } catch (err) {
         console.warn('[Varco Worker] Failed to acquire config file lock via flock:', err.message || err);
         return false;
@@ -146,7 +180,15 @@ async function acquireConfigFileLock() {
 }
 
 function releaseConfigFileLock() {
-    // Advisory flock is automatically released when flock process finishes, no lock removal needed
+    if (activeLockChild) {
+        try {
+            if (activeLockChild.stdin && !activeLockChild.stdin.destroyed) {
+                activeLockChild.stdin.end();
+            }
+            activeLockChild.kill('SIGTERM');
+        } catch {}
+        activeLockChild = null;
+    }
 }
 
 async function savePrivateKey(privateKey, identityData = null) {
