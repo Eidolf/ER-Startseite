@@ -138,6 +138,9 @@ jobs:
              REPO_DH="$DOCKER_USERNAME/$REPO_NAME"
           fi
 
+          # Compute clean version without leading v
+          PLAIN_VERSION="${VERSION#v}"
+
           for SERVICE in backend frontend; do
             # Construct tag arguments array
             TAG_ARGS=()
@@ -156,11 +159,17 @@ jobs:
                fi
             fi
             
+            BUILD_ARGS=()
+            if [[ "$SERVICE" == "backend" ]]; then
+              BUILD_ARGS+=("--build-arg" "APP_VERSION=$PLAIN_VERSION")
+            fi
+
             echo "Building $SERVICE with tags: ${TAG_ARGS[*]}"
             
             docker buildx build \
               --push \
               --platform linux/amd64,linux/arm64 \
+              "${BUILD_ARGS[@]}" \
               "${TAG_ARGS[@]}" \
               ./$SERVICE
           done
