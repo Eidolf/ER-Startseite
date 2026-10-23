@@ -335,6 +335,8 @@ async function syncVarcoClient() {
                     await savePrivateKey(null);
                     delete settings.privateKey;
                     delete settings.identityData;
+                    delete settings.private_key;
+                    delete settings.identity_data;
                     if (client) {
                         try {
                             if (typeof client.close === 'function') await client.close();
@@ -409,6 +411,7 @@ async function syncVarcoClient() {
             }
         }
 
+        const hadStoredPrivateKeyBeforeInit = Boolean(storedPrivateKey);
         const isNewShare = shareCodeChanged || !storedPrivateKey;
 
         const customStorage = {
@@ -486,7 +489,7 @@ async function syncVarcoClient() {
                     consecutiveNoGrantFailures = 0;
                 }
 
-                if (isNoActiveGrant && storedPrivateKey) {
+                if (isNoActiveGrant && hadStoredPrivateKeyBeforeInit) {
                     consecutiveNoGrantFailures++;
                     console.warn(`[Varco Worker] Awaiting grant authorization in Home Assistant with existing credentials (attempt #${consecutiveNoGrantFailures}).`);
                     if (consecutiveNoGrantFailures >= 3) {
@@ -500,7 +503,9 @@ async function syncVarcoClient() {
                     }
                 }
 
-                if ((!storedPrivateKey || isExplicitRevocation) && typeof client?.requestAccess === 'function') {
+                const shouldRequestAccess = !hadStoredPrivateKeyBeforeInit || !storedPrivateKey || isExplicitRevocation;
+
+                if (shouldRequestAccess && typeof client?.requestAccess === 'function') {
                     try {
                         console.log(`[Varco Worker] Requesting access permissions from Varco / Home Assistant as '${settings.consumerName}'...`);
                         const access = await client.requestAccess({
