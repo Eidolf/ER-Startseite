@@ -330,6 +330,22 @@ async function syncVarcoClient() {
             } else if (pMsg.includes('No active grant')) {
                 consecutiveNoGrantFailures++;
                 console.warn(`[Varco Worker] Awaiting grant approval in Home Assistant (check #${consecutiveNoGrantFailures})...`);
+                if (consecutiveNoGrantFailures >= 6) {
+                    console.warn('[Varco Worker] Awaiting grant timed out (no active grant after 6 checks / ~60s). Resetting credentials and client to request fresh authorization...');
+                    await savePrivateKey(null);
+                    delete settings.privateKey;
+                    delete settings.identityData;
+                    if (client) {
+                        try {
+                            if (typeof client.close === 'function') await client.close();
+                            else if (typeof client.disconnect === 'function') client.disconnect();
+                        } catch {}
+                        client = null;
+                    }
+                    isAuthorizing = false;
+                    consecutiveNoGrantFailures = 0;
+                    currentSettings = null;
+                }
                 return;
             } else {
                 console.warn('[Varco Worker] Connection check error while awaiting grant:', pMsg);
@@ -473,6 +489,15 @@ async function syncVarcoClient() {
                 if (isNoActiveGrant && storedPrivateKey) {
                     consecutiveNoGrantFailures++;
                     console.warn(`[Varco Worker] Awaiting grant authorization in Home Assistant with existing credentials (attempt #${consecutiveNoGrantFailures}).`);
+                    if (consecutiveNoGrantFailures >= 3) {
+                        console.warn('[Varco Worker] Stored key has no active grant in Home Assistant after 3 connection attempts. Clearing stale credentials to prompt new pairing...');
+                        await savePrivateKey(null);
+                        storedPrivateKey = null;
+                        storedIdentityData = null;
+                        delete settings.privateKey;
+                        delete settings.identityData;
+                        consecutiveNoGrantFailures = 0;
+                    }
                 }
 
                 if ((!storedPrivateKey || isExplicitRevocation) && typeof client?.requestAccess === 'function') {
