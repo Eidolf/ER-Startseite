@@ -43,7 +43,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
 
       - name: Install & Lint Backend
         if: matrix.service == 'backend'
@@ -84,7 +83,6 @@ jobs:
         working-directory: ./frontend
         run: |
           npm ci
-          npm audit fix --force || true # Attempt to fix vulnerabilities, don't fail if some remain
           npm audit --audit-level=critical || true # Log critical issues but don't fail build yet
 
       - name: Lint Frontend
