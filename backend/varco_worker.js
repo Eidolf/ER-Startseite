@@ -279,13 +279,16 @@ async function syncVarcoClient() {
     const requestedEntitiesChanged = currReq.length !== newReq.length ||
         currReq.some(e => !newReq.includes(e));
 
-    // If already connected and subscribed, only return early if shareCode, authorityId, and requestedEntities are unchanged
+    const bridgeUrlChanged = currentSettings && currentSettings.bridgeUrl !== settings.bridgeUrl;
+    const consumerNameChanged = currentSettings && currentSettings.consumerName !== settings.consumerName;
+
+    // If already connected and subscribed, only return early if all connection and subscription settings are unchanged
     if (client && isSubscribed) {
-        if (!shareCodeChanged && !requestedEntitiesChanged) {
+        if (!shareCodeChanged && !requestedEntitiesChanged && !bridgeUrlChanged && !consumerNameChanged) {
             currentSettings = settings;
             return;
         }
-        // One of the core attributes changed; clear isSubscribed so the rebuild path reconnects with updated subscriptions
+        // One of the core attributes changed; clear isSubscribed so the rebuild path reconnects with updated settings
         isSubscribed = false;
     }
 
@@ -293,8 +296,8 @@ async function syncVarcoClient() {
     const coreSettingsChanged = !currentSettings ||
         shareCodeChanged ||
         requestedEntitiesChanged ||
-        currentSettings.bridgeUrl !== settings.bridgeUrl ||
-        currentSettings.consumerName !== settings.consumerName;
+        bridgeUrlChanged ||
+        consumerNameChanged;
 
     // If client is already created and currently waiting for user grant in Home Assistant,
     // do NOT destroy client every 10 seconds. Try to connect/reconnect on the existing client.
