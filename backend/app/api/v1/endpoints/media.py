@@ -23,7 +23,11 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
     # Validate file extension
-    filename = file.filename or "unknown"
+    raw_filename = file.filename or "unknown"
+    filename = os.path.basename(raw_filename.replace("\\", "/"))
+    if not filename or filename in (".", "..") or ".." in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
     ext = os.path.splitext(filename)[1].lower()
     file_type = None
 
@@ -50,6 +54,8 @@ async def upload_file(file: UploadFile = File(...)):
             os.remove(file_path)
             raise HTTPException(status_code=400, detail="File too large (max 10MB)")
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 

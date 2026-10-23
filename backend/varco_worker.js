@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import WebSocket from 'ws';
 import crypto from 'node:crypto';
+import { spawn } from 'child_process';
 
 class VarcoWebSocket extends WebSocket {
     constructor(url, protocols, options = {}) {
@@ -59,6 +60,8 @@ let currentEntities = {};
 let activeEntities = [];
 let syncGeneration = 0;
 let syncPromise = null;
+let consecutiveNoGrantFailures = 0;
+let isAuthorizing = false;
 
 console.log(`[Varco Worker] Starting Varco Consumer Sidecar on port ${PORT}...`);
 
@@ -123,39 +126,69 @@ function readServerSettings() {
 }
 
 const LOCK_PATH = CONFIG_PATH + '.lock';
+let activeLockChild = null;
 
 async function acquireConfigFileLock() {
-    const startTime = Date.now();
-    while (true) {
-        try {
-            const fd = fs.openSync(LOCK_PATH, 'wx');
-            fs.closeSync(fd);
-            return true;
-        } catch (err) {
-            if (err.code === 'EEXIST') {
-                try {
-                    const stat = fs.statSync(LOCK_PATH);
-                    if (Date.now() - stat.mtimeMs > 10000) {
-                        try { fs.unlinkSync(LOCK_PATH); } catch {}
-                    }
-                } catch {}
-                if (Date.now() - startTime > 5000) {
-                    return false;
-                }
-                await new Promise(resolve => setTimeout(resolve, 20));
-            } else {
-                return false;
-            }
+    try {
+        const parentDir = path.dirname(LOCK_PATH);
+        if (!fs.existsSync(parentDir)) {
+            fs.mkdirSync(parentDir, { recursive: true });
         }
+        // Spawn flock process and hold lock until child exits or stdin closes
+        return await new Promise((resolve) => {
+            const child = spawn(
+                'flock',
+                ['-w', '5', LOCK_PATH, 'node', '-e', 'console.log("LOCKED"); process.stdin.resume();'],
+                { stdio: ['pipe', 'pipe', 'pipe'] }
+            );
+
+            let acquired = false;
+            let timer = null;
+
+            const cleanupAndFail = () => {
+                if (timer) clearTimeout(timer);
+                if (!acquired) {
+                    try { child.kill('SIGKILL'); } catch {}
+                    resolve(false);
+                }
+            };
+
+            timer = setTimeout(cleanupAndFail, 6000);
+
+            child.stdout.on('data', (data) => {
+                if (data.toString().includes('LOCKED')) {
+                    acquired = true;
+                    if (timer) clearTimeout(timer);
+                    activeLockChild = child;
+                    resolve(true);
+                }
+            });
+
+            child.on('error', (err) => {
+                console.warn('[Varco Worker] Lock process error:', err.message || err);
+                cleanupAndFail();
+            });
+
+            child.on('exit', () => {
+                cleanupAndFail();
+            });
+        });
+    } catch (err) {
+        console.warn('[Varco Worker] Failed to acquire config file lock via flock:', err.message || err);
+        return false;
     }
 }
 
 function releaseConfigFileLock() {
-    try {
-        if (fs.existsSync(LOCK_PATH)) {
-            fs.unlinkSync(LOCK_PATH);
-        }
-    } catch {}
+    if (activeLockChild) {
+        try {
+            if (activeLockChild.stdin && !activeLockChild.stdin.destroyed) {
+                activeLockChild.stdin.end();
+            }
+            activeLockChild.kill('SIGTERM');
+        } catch {}
+        activeLockChild = null;
+    }
 }
 
 async function savePrivateKey(privateKey, identityData = null) {
@@ -240,161 +273,296 @@ async function syncVarcoClient() {
         activeEntities = [];
     }
 
-    // Check if settings changed or if client is not subscribed
-    const keyChanged = JSON.stringify(settings) !== JSON.stringify(currentSettings);
-    if (!keyChanged && client && isSubscribed) {
-        return;
-    }
+    // Check if requested entities changed
+    const currReq = currentSettings?.requestedEntities || [];
+    const newReq = settings.requestedEntities || [];
+    const requestedEntitiesChanged = currReq.length !== newReq.length ||
+        currReq.some(e => !newReq.includes(e));
 
-    syncGeneration++;
-    currentEntities = {};
-    activeEntities = [];
-    if (client) {
-        try { client.disconnect(); } catch {}
-        client = null;
-    }
+    const bridgeUrlChanged = currentSettings && currentSettings.bridgeUrl !== settings.bridgeUrl;
+    const consumerNameChanged = currentSettings && currentSettings.consumerName !== settings.consumerName;
 
-    isSubscribed = false;
-    currentSettings = settings;
-    console.log(`[Varco Worker] Initializing Varco Client for Authority '${settings.authorityId}' as '${settings.consumerName}'...`);
-
-    let storedPrivateKey = settings.privateKey || null;
-    let storedIdentityData = settings.identityData || null;
-
-    if (!storedIdentityData && storedPrivateKey) {
-        let derived = null;
-        if (typeof consumerIdentityFromPrivateKey === 'function') {
-            try {
-                derived = consumerIdentityFromPrivateKey(storedPrivateKey);
-            } catch {}
+    // If already connected and subscribed, only return early if all connection and subscription settings are unchanged
+    if (client && isSubscribed) {
+        if (!shareCodeChanged && !requestedEntitiesChanged && !bridgeUrlChanged && !consumerNameChanged) {
+            currentSettings = settings;
+            return;
         }
-        if (derived) {
-            const pk = typeof derived === 'object' ? (derived.privateKey || storedPrivateKey) : storedPrivateKey;
-            const pubKey = typeof derived === 'object' ? (derived.publicKey || derived.consumer_pk || pk) : pk;
-            storedIdentityData = JSON.stringify({
-                privateKey: pk,
-                publicKey: pubKey,
-                consumer_pk: pubKey
-            });
-        } else {
+        // One of the core attributes changed; clear isSubscribed so the rebuild path reconnects with updated settings
+        isSubscribed = false;
+    }
+
+    // Compare connection endpoint and credentials to see if client needs re-instantiation
+    const coreSettingsChanged = !currentSettings ||
+        shareCodeChanged ||
+        requestedEntitiesChanged ||
+        bridgeUrlChanged ||
+        consumerNameChanged;
+
+    // If client is already created and currently waiting for user grant in Home Assistant,
+    // do NOT destroy client every 10 seconds. Try to connect/reconnect on the existing client.
+    if (!coreSettingsChanged && client && isAuthorizing && !isSubscribed) {
+        try {
+            console.log('[Varco Worker] Re-checking connection for pending grant approval...');
+            await client.connect();
+            console.log('[Varco Worker] Grant approved in Home Assistant! Varco Client connected.');
+            isAuthorizing = false;
+            consecutiveNoGrantFailures = 0;
+            // Fall through to grant info & subscription below
+        } catch (pollErr) {
+            const pMsg = String(pollErr?.message || pollErr);
+            if (pMsg.includes('Grant denied') || pMsg.includes('Grant revoked')) {
+                console.warn('[Varco Worker] Grant was denied or revoked by Home Assistant. Resetting credentials and state for fresh pairing:', pMsg);
+                await savePrivateKey(null);
+                delete settings.privateKey;
+                delete settings.identityData;
+                if (client) {
+                    try {
+                        if (typeof client.close === 'function') await client.close();
+                        else if (typeof client.disconnect === 'function') client.disconnect();
+                    } catch {}
+                    client = null;
+                }
+                isAuthorizing = false;
+                consecutiveNoGrantFailures = 0;
+                currentSettings = null;
+                return;
+            } else if (pMsg.includes('No active grant')) {
+                consecutiveNoGrantFailures++;
+                console.warn(`[Varco Worker] Awaiting grant approval in Home Assistant (check #${consecutiveNoGrantFailures})...`);
+                return;
+            } else {
+                console.warn('[Varco Worker] Connection check error while awaiting grant:', pMsg);
+                return;
+            }
+        }
+    } else {
+        syncGeneration++;
+        currentEntities = {};
+        activeEntities = [];
+        if (client) {
             try {
-                const parsed = typeof storedPrivateKey === 'string' && storedPrivateKey.startsWith('{') ? JSON.parse(storedPrivateKey) : null;
-                const pk = parsed?.privateKey || storedPrivateKey;
-                const pubKey = parsed?.publicKey || parsed?.consumer_pk || pk;
+                if (typeof client.close === 'function') {
+                    client.close().catch(() => {});
+                } else if (typeof client.disconnect === 'function') {
+                    client.disconnect();
+                }
+            } catch {}
+            client = null;
+        }
+
+        isSubscribed = false;
+        currentSettings = settings;
+        console.log(`[Varco Worker] Initializing Varco Client for Authority '${settings.authorityId}' as '${settings.consumerName}'...`);
+
+        let storedPrivateKey = settings.privateKey || null;
+        let storedIdentityData = settings.identityData || null;
+
+        if (!storedIdentityData && storedPrivateKey) {
+            let derived = null;
+            if (typeof consumerIdentityFromPrivateKey === 'function') {
+                try {
+                    derived = consumerIdentityFromPrivateKey(storedPrivateKey);
+                } catch {}
+            }
+            if (derived) {
+                const pk = typeof derived === 'object' ? (derived.privateKey || storedPrivateKey) : storedPrivateKey;
+                const pubKey = typeof derived === 'object' ? (derived.publicKey || derived.consumer_pk || pk) : pk;
                 storedIdentityData = JSON.stringify({
                     privateKey: pk,
                     publicKey: pubKey,
                     consumer_pk: pubKey
                 });
-            } catch {
-                storedIdentityData = JSON.stringify({
-                    privateKey: storedPrivateKey,
-                    publicKey: storedPrivateKey,
-                    consumer_pk: storedPrivateKey
-                });
+            } else {
+                try {
+                    const parsed = typeof storedPrivateKey === 'string' && storedPrivateKey.startsWith('{') ? JSON.parse(storedPrivateKey) : null;
+                    const pk = parsed?.privateKey || storedPrivateKey;
+                    const pubKey = parsed?.publicKey || parsed?.consumer_pk || pk;
+                    storedIdentityData = JSON.stringify({
+                        privateKey: pk,
+                        publicKey: pubKey,
+                        consumer_pk: pubKey
+                    });
+                } catch {
+                    storedIdentityData = JSON.stringify({
+                        privateKey: storedPrivateKey,
+                        publicKey: storedPrivateKey,
+                        consumer_pk: storedPrivateKey
+                    });
+                }
             }
+        }
+
+        const isNewShare = shareCodeChanged || !storedPrivateKey;
+
+        const customStorage = {
+            getItem: (k) => {
+                if (k.includes('consumerIdentity') && storedIdentityData) {
+                    return storedIdentityData;
+                }
+                return null;
+            },
+            setItem: (k, v) => {
+                if (k.includes('consumerIdentity')) {
+                    try {
+                        storedIdentityData = v;
+                        const parsed = JSON.parse(v);
+                        if (parsed && parsed.privateKey) {
+                            storedPrivateKey = parsed.privateKey;
+                            savePrivateKey(parsed.privateKey, v).catch(e => {
+                                console.error('[Varco Worker] Async savePrivateKey error in setItem:', e?.message || e);
+                            });
+                        }
+                    } catch {}
+                }
+            },
+            removeItem: () => {}
+        };
+
+        try {
+            client = createVarcoClient({
+                authorityId: settings.authorityId,
+                bridgeUrl: settings.bridgeUrl,
+                storage: customStorage,
+                reconnect: true,
+                manifest: {
+                    name: settings.consumerName,
+                    version: '1.0.0',
+                    read_entities: settings.requestedEntities,
+                    subscriptions: settings.requestedEntities
+                }
+            });
+
+            // Attempt claimShare if this is a new share link or if we don't have a privateKey yet
+            if (isNewShare && settings.claimSecret && typeof client?.claimShare === 'function') {
+                try {
+                    await client.claimShare(settings.shareCode, settings.claimSecret);
+                    console.log('[Varco Worker] Claim share executed successfully.');
+                } catch (e) {
+                    console.warn('[Varco Worker] Claim share info:', e.message || e);
+                }
+            }
+
+            let isConnected = false;
+            try {
+                if (client) {
+                    await client.connect();
+                    isConnected = true;
+                    consecutiveNoGrantFailures = 0;
+                    isAuthorizing = false;
+                    console.log('[Varco Worker] Varco Client connected successfully!');
+                }
+            } catch (err) {
+                const rawErr = err?.message != null ? err.message : err;
+                const errMsg = String(rawErr);
+                console.warn('[Varco Worker] Connection attempt info:', errMsg);
+
+                const isExplicitRevocation = errMsg.includes('Grant revoked') || errMsg.includes('Grant denied');
+                const isNoActiveGrant = errMsg.includes('No active grant');
+
+                if (isExplicitRevocation && storedPrivateKey) {
+                    console.warn('[Varco Worker] Stored key was revoked or denied by Home Assistant. Clearing key for fresh pairing...');
+                    await savePrivateKey(null);
+                    storedPrivateKey = null;
+                    storedIdentityData = null;
+                    delete settings.privateKey;
+                    delete settings.identityData;
+                    consecutiveNoGrantFailures = 0;
+                }
+
+                if (isNoActiveGrant && storedPrivateKey) {
+                    consecutiveNoGrantFailures++;
+                    console.warn(`[Varco Worker] Awaiting grant authorization in Home Assistant with existing credentials (attempt #${consecutiveNoGrantFailures}).`);
+                }
+
+                if ((!storedPrivateKey || isExplicitRevocation) && typeof client?.requestAccess === 'function') {
+                    try {
+                        console.log(`[Varco Worker] Requesting access permissions from Varco / Home Assistant as '${settings.consumerName}'...`);
+                        const access = await client.requestAccess({
+                            name: settings.consumerName,
+                            version: '1.0.0',
+                            read_entities: settings.requestedEntities,
+                            subscriptions: settings.requestedEntities
+                        });
+                        const pairingCode = access?.pairing_code || access?.pairingCode || access?.code || access?.pin || 'Check Home Assistant Notifications';
+                        console.log(`[Varco Worker] PAIRING REQUEST SENT TO VARCO / HOME ASSISTANT! Code: ${pairingCode}`);
+                        isAuthorizing = true;
+                        consecutiveNoGrantFailures = 0;
+
+                        // Attempt connection once after requestAccess
+                        if (client) {
+                            try {
+                                await client.connect();
+                                isConnected = true;
+                                isAuthorizing = false;
+                                console.log('[Varco Worker] Connected immediately after requestAccess!');
+                            } catch (reconnectErr) {
+                                console.warn('[Varco Worker] Awaiting user authorization in Home Assistant for code:', pairingCode);
+                                currentSettings = settings;
+                                return;
+                            }
+                        }
+                    } catch (pErr) {
+                        console.warn('[Varco Worker] Request access info:', pErr.message || pErr);
+                        currentSettings = settings;
+                        return;
+                    }
+                } else {
+                    isAuthorizing = true;
+                    console.warn(`[Varco Worker] Connection not established; awaiting grant authorization in Home Assistant with existing credentials (attempt #${consecutiveNoGrantFailures}).`);
+                    currentSettings = settings;
+                    return;
+                }
+            }
+
+            if (!isConnected || !client) {
+                currentSettings = settings;
+                return;
+            }
+        } catch (initErr) {
+            const rawErr = initErr?.message != null ? initErr.message : initErr;
+            const errMsg = String(rawErr);
+            console.warn('[Varco Worker] Initialization/Subscription attempt failed:', errMsg);
+            if (errMsg.includes('Grant revoked') || errMsg.includes('Grant denied')) {
+                await savePrivateKey(null);
+            }
+            if (client) {
+                try {
+                    if (typeof client.close === 'function') await client.close();
+                    else if (typeof client.disconnect === 'function') client.disconnect();
+                } catch {}
+                client = null;
+            }
+            isSubscribed = false;
+            currentSettings = null;
+            return;
         }
     }
 
-    const isNewShare = shareCodeChanged || !storedPrivateKey;
-
-    const customStorage = {
-        getItem: (k) => {
-            if (k.includes('consumerIdentity') && storedIdentityData) {
-                return storedIdentityData;
-            }
-            return null;
-        },
-        setItem: (k, v) => {
-            if (k.includes('consumerIdentity')) {
-                try {
-                    storedIdentityData = v;
-                    const parsed = JSON.parse(v);
-                    if (parsed && parsed.privateKey) {
-                        storedPrivateKey = parsed.privateKey;
-                        setTimeout(() => {
-                            savePrivateKey(parsed.privateKey, v);
-                        }, 0);
-                    }
-                } catch {}
-            }
-        },
-        removeItem: () => {}
-    };
-
+    activeEntities = Array.from(new Set([...settings.requestedEntities]));
     try {
-        client = createVarcoClient({
-            authorityId: settings.authorityId,
-            bridgeUrl: settings.bridgeUrl,
-            storage: customStorage,
-            manifest: {
-                name: settings.consumerName,
-                version: '1.0.0',
-                read_entities: settings.requestedEntities,
-                subscriptions: settings.requestedEntities
-            }
-        });
-
-        // Attempt claimShare if this is a new share link or if we don't have a privateKey yet
-        if (isNewShare && settings.claimSecret && typeof client?.claimShare === 'function') {
-            try {
-                await client.claimShare(settings.shareCode, settings.claimSecret);
-                console.log('[Varco Worker] Claim share executed successfully.');
-            } catch (e) {
-                console.warn('[Varco Worker] Claim share info:', e.message || e);
-            }
-        }
-
-        try {
-            if (client) {
-                await client.connect();
-                console.log('[Varco Worker] Varco Client connected successfully!');
-            }
-        } catch (err) {
-            console.warn('[Varco Worker] Connection attempt info:', err.message || err);
-            if (!storedPrivateKey && typeof client?.requestAccess === 'function') {
-                try {
-                    console.log(`[Varco Worker] Requesting access permissions from Varco / Home Assistant as '${settings.consumerName}'...`);
-                    const access = await client.requestAccess({
-                        name: settings.consumerName,
-                        version: '1.0.0',
-                        read_entities: settings.requestedEntities,
-                        subscriptions: settings.requestedEntities
-                    });
-                    console.log(`[Varco Worker] PAIRING REQUEST SENT TO VARCO / HOME ASSISTANT! Code: ${access?.pairing_code || access?.code || 'Check Home Assistant Notifications'}`);
-                    if (client) await client.connect();
-                } catch (pErr) {
-                    console.warn('[Varco Worker] Request access info:', pErr.message || pErr);
-                    throw pErr;
-                }
-            } else {
-                throw err;
-            }
-        }
-
-        let activeEntities = Array.from(new Set([...settings.requestedEntities]));
-        try {
-            if (typeof client?.getGrantInfo === 'function') {
-                const grant = await client.getGrantInfo(true);
-                const m = grant?.manifest;
-                if (m) {
-                    const granted = Array.from(new Set([
-                        ...(m.read_entities || []),
-                        ...(m.subscriptions || []),
-                        ...(m.entities || []),
-                        ...(m.readEntities || [])
-                    ].filter(Boolean)));
-                    if (granted.length > 0) {
-                        activeEntities = Array.from(new Set([...activeEntities, ...granted]));
-                        console.log(`[Varco Worker] Dynamically discovered ${granted.length} unique entities from Varco share grant manifest: ${granted.join(', ')}`);
-                    }
+        if (typeof client?.getGrantInfo === 'function') {
+            const grant = await client.getGrantInfo(true);
+            const m = grant?.manifest;
+            if (m) {
+                const granted = Array.from(new Set([
+                    ...(m.read_entities || []),
+                    ...(m.subscriptions || []),
+                    ...(m.entities || []),
+                    ...(m.readEntities || [])
+                ].filter(Boolean)));
+                if (granted.length > 0) {
+                    activeEntities = Array.from(new Set([...activeEntities, ...granted]));
+                    console.log(`[Varco Worker] Dynamically discovered ${granted.length} unique entities from Varco share grant manifest: ${granted.join(', ')}`);
                 }
             }
-        } catch (gErr) {
-            console.warn('[Varco Worker] Dynamic grant discovery info:', gErr.message || gErr);
         }
+    } catch (gErr) {
+        console.warn('[Varco Worker] Dynamic grant discovery info:', gErr.message || gErr);
+    }
 
-        if (typeof client?.subscribeEntities === 'function') {
+    if (typeof client?.subscribeEntities === 'function') {
+        try {
             await client.subscribeEntities(activeEntities, (event) => {
                 if (event && event.states) {
                     Object.entries(event.states).forEach(([eid, entData]) => {
@@ -417,22 +585,19 @@ async function syncVarcoClient() {
 
                     if (!loggedFirstSync && Object.keys(currentEntities).length > 0) {
                         loggedFirstSync = true;
-                        const hasKey = Boolean(settings.privateKey || storedPrivateKey);
+                        const hasKey = Boolean(settings.privateKey);
                         console.log(`[Varco Worker] FIRST SUCCESSFUL SYNC COMPLETED! Received ${Object.keys(currentEntities).length} entities. Credentials status: privateKey=${hasKey ? 'SAVED' : 'SAVING'}, authorityId=${settings.authorityId}. Continuous background sync ready.`);
                     }
                 }
             });
             isSubscribed = true;
+            isAuthorizing = false;
+            consecutiveNoGrantFailures = 0;
             console.log(`[Varco Worker] Subscribed to ${activeEntities.length} entities successfully.`);
+        } catch (subErr) {
+            console.warn('[Varco Worker] Subscribe entities failed:', subErr?.message || subErr);
+            isSubscribed = false;
         }
-    } catch (initErr) {
-        console.warn('[Varco Worker] Initialization/Subscription attempt failed:', initErr.message || initErr);
-        if (client) {
-            try { client.disconnect(); } catch {}
-            client = null;
-        }
-        isSubscribed = false;
-        currentSettings = null;
     }
 }
 
@@ -491,12 +656,6 @@ async function fetchLatestStates() {
                     };
                 }
             });
-            if (currentSettings) {
-                currentSettings.activeEntities = Array.from(new Set([
-                    ...(currentSettings.activeEntities || []),
-                    ...Object.keys(currentEntities)
-                ]));
-            }
             return true;
         }
         return false;
@@ -510,7 +669,13 @@ async function fetchLatestStates() {
                 isSubscribed = false;
                 currentSettings = null;
                 if (activeClient) {
-                    try { activeClient.disconnect(); } catch {}
+                    try {
+                        if (typeof activeClient.close === 'function') {
+                            activeClient.close().catch(() => {});
+                        } else if (typeof activeClient.disconnect === 'function') {
+                            activeClient.disconnect();
+                        }
+                    } catch {}
                 }
                 if (client === activeClient) {
                     client = null;
