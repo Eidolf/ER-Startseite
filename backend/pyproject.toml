@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "er-startseite-backend"
-version = "2026.10.1"
+version = "2026.10.2"
 description = "Backend for ER-Startseite Dashboard"
 authors = ["ER-Startseite Team"]
 package-mode = false
