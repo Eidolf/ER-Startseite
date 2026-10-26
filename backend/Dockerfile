@@ -44,6 +44,9 @@ ENV PYTHONUNBUFFERED=1 \
 COPY --from=builder /app/.venv ./.venv
 COPY . .
 
+ARG APP_VERSION=""
+ENV APP_VERSION=${APP_VERSION}
+
 # Create non-root user
 RUN addgroup --gid 1001 appuser && \
     adduser --uid 1001 --gid 1001 --disabled-password --gecos "" appuser
