@@ -5,6 +5,12 @@
 
 > A modern, highly customizable dashboard with a neon aesthetic, video backgrounds, and robust app integration.
 
+## Project ecosystem
+
+- [Agent instructions](AGENTS.md)
+- [Project profile](https://github.com/Eidolf/ER-KnowledgeBase/blob/main/Projects/ER-Startseite/README.md) (private)
+- [Knowledge-Platform](https://github.com/Eidolf/Knowledge-Platform)
+
 ## 🚀 Features
 
 - **Neon/Dark Theme**: Stunning visual design with glassmorphism and neon accents.

@@ -2,6 +2,12 @@
 
 This document serves as the primary technical reference manual and guidelines for AI agents working on the **ER-Startseite** codebase.
 
+## Project context
+
+- [Project profile](https://github.com/Eidolf/ER-KnowledgeBase/blob/main/Projects/ER-Startseite/README.md) (private; AI use requires explicit approval).
+- [Knowledge-Platform](https://github.com/Eidolf/Knowledge-Platform) and, for UI work, [ER-DesignSystem](https://github.com/Eidolf/ER-DesignSystem).
+- Update the profile and affected views when access and approval permit; otherwise report the pending update.
+
 ---
 
 ## 1. Token Efficiency Rules
