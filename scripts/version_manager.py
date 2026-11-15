@@ -1,187 +1,181 @@
 #!/usr/bin/env python3
-import datetime
+"""Calculate ER-Startseite release versions from stable Git tags."""
+
 import argparse
-import sys
 import os
 import re
+import subprocess
+import sys
+from collections.abc import Iterable
+from datetime import datetime, timezone
+from pathlib import Path
 
-VERSION_FILE = 'VERSION'
+VERSION_FILE = Path("VERSION")
+STABLE_TAG_PATTERN = re.compile(
+    r"^v?(?P<year>\d{4})\.(?P<month>\d{1,2})\.(?P<patch>\d+)$"
+)
+RUN_ID_PATTERN = re.compile(r"^\d+(?:\.\d+)*$")
+FILE_CONFIGS = (
+    (VERSION_FILE, None),
+    (Path("backend/pyproject.toml"), r'version = "[^"]+"'),
+    (Path("frontend/package.json"), r'"version": "[^"]+"'),
+)
 
-def get_current_date():
-    return datetime.datetime.now(datetime.timezone.utc)
 
-def read_version():
-    if not os.path.exists(VERSION_FILE):
-        print(f"Error: {VERSION_FILE} not found.", file=sys.stderr)
-        sys.exit(1)
-    with open(VERSION_FILE, 'r') as f:
-        return f.read().strip()
+def parse_stable_tag(tag: str) -> tuple[int, int, int] | None:
+    """Parse stable CalVer tags, including historical unprefixed tags."""
+    match = STABLE_TAG_PATTERN.fullmatch(tag)
+    if match is None:
+        return None
 
-def write_version(version):
-    if not isinstance(version, str) or not re.match(r'^\d{4}\.\d{1,2}\.\d+(?:-[a-zA-Z0-9.\-+]+)?$', version.strip()):
-        print(f"Error: Invalid version format: {version!r}. Version must match release format (e.g. 2026.7.1 or 2026.7.1-beta).", file=sys.stderr)
-        sys.exit(1)
+    version = (
+        int(match.group("year")),
+        int(match.group("month")),
+        int(match.group("patch")),
+    )
+    if version[0] < 1 or not 1 <= version[1] <= 12 or version[2] < 1:
+        return None
+    return version
 
-    version = version.strip()
 
-    file_configs = [
-        (VERSION_FILE, None, f"{version}\n"),
-        ('backend/pyproject.toml', r'version = "[^"]+"', f'version = "{version}"'),
-        ('frontend/package.json', r'"version": "[^"]+"', f'"version": "{version}"'),
+def get_git_tags() -> list[str]:
+    """Return repository tags, failing rather than silently using VERSION."""
+    try:
+        result = subprocess.run(
+            ["git", "tag", "--list"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError as error:
+        raise RuntimeError("Git is required to determine the stable version.") from error
+    except subprocess.CalledProcessError as error:
+        detail = error.stderr.strip() or str(error)
+        raise RuntimeError(f"Unable to read Git tags: {detail}") from error
+    return result.stdout.splitlines()
+
+
+def calculate_next_version(
+    release_type: str,
+    tags: Iterable[str],
+    now: datetime | None = None,
+    run_id: str | None = None,
+) -> str:
+    """Return a stable candidate or unique nightly candidate based on stable tags."""
+    if release_type not in {"stable", "nightly"}:
+        raise ValueError(f"Unsupported release type: {release_type}")
+
+    current_time = datetime.now(timezone.utc) if now is None else now
+    if current_time.tzinfo is None:
+        raise ValueError("The supplied time must include a timezone.")
+    current_time = current_time.astimezone(timezone.utc)
+    current_period = (current_time.year, current_time.month)
+
+    stable_versions = [
+        version for tag in tags if (version := parse_stable_tag(tag)) is not None
     ]
+    latest_stable = max(stable_versions, default=None)
+    if latest_stable is not None and latest_stable[:2] > current_period:
+        raise ValueError(
+            "The latest stable tag is in a future UTC month; refusing to create "
+            "a version that would move backwards."
+        )
 
-    staged_updates = []
-    backups = {}
+    patch = (
+        latest_stable[2] + 1
+        if latest_stable is not None and latest_stable[:2] == current_period
+        else 1
+    )
+    base_version = f"{current_time.year}.{current_time.month}.{patch}"
+    if release_type == "stable":
+        return base_version
 
-    for path, pattern, replacement in file_configs:
-        if not os.path.exists(path):
+    if run_id is None or RUN_ID_PATTERN.fullmatch(run_id) is None:
+        raise ValueError("Nightly releases require a numeric unique run ID.")
+    timestamp = current_time.strftime("%Y%m%d.%H%M")
+    return f"{base_version}-nightly.{timestamp}.{run_id}"
+
+
+def read_version() -> str:
+    if not VERSION_FILE.exists():
+        raise FileNotFoundError(f"{VERSION_FILE} not found.")
+    return VERSION_FILE.read_text(encoding="utf-8").strip()
+
+
+def write_version(version: str) -> None:
+    """Update VERSION and the product's Python and frontend version mirrors."""
+    if parse_stable_tag(version) is None or version.startswith("v"):
+        raise ValueError(f"VERSION must be a stable CalVer version, got {version!r}.")
+
+    staged_updates: list[tuple[Path, str, str]] = []
+    for path, pattern in FILE_CONFIGS:
+        if not path.exists():
             continue
-        try:
-            with open(path, 'r', encoding='utf-8') as f:
-                content = f.read()
-        except OSError as e:
-            print(f"Error reading {path}: {e}", file=sys.stderr)
-            sys.exit(1)
-
+        content = path.read_text(encoding="utf-8")
         if pattern is None:
-            new_content = replacement
+            updated = f"{version}\n"
         else:
-            if not re.search(pattern, content):
-                print(f"Error: Pattern {pattern!r} not found in {path}", file=sys.stderr)
-                sys.exit(1)
-            new_content = re.sub(pattern, replacement, content, count=1)
+            if re.search(pattern, content) is None:
+                raise ValueError(f"Pattern {pattern!r} not found in {path}.")
+            updated = re.sub(
+                pattern,
+                lambda _: (
+                    f'version = "{version}"'
+                    if path.name == "pyproject.toml"
+                    else f'"version": "{version}"'
+                ),
+                content,
+                count=1,
+            )
+        staged_updates.append((path, content, updated))
 
-        staged_updates.append((path, content, new_content))
-
-    applied_files = []
+    backups: dict[Path, str] = {}
+    applied: list[Path] = []
     try:
-        for path, old_content, new_content in staged_updates:
-            dir_name = os.path.dirname(path) or '.'
-            tmp_path = os.path.join(dir_name, f".tmp_{os.path.basename(path)}")
-
-            with open(tmp_path, 'w', encoding='utf-8') as f:
-                f.write(new_content)
-
+        for path, old_content, updated in staged_updates:
+            temporary_path = path.with_name(f".tmp_{path.name}")
+            temporary_path.write_text(updated, encoding="utf-8")
             backups[path] = old_content
-            os.replace(tmp_path, path)
-            applied_files.append(path)
-            print(f"Updated {path} version to {version}")
+            os.replace(temporary_path, path)
+            applied.append(path)
+    except OSError as error:
+        for path in applied:
+            path.write_text(backups[path], encoding="utf-8")
+        raise OSError(f"Unable to update version files: {error}") from error
 
-    except Exception as e:
-        print(f"Error during version update: {e}. Rolling back...", file=sys.stderr)
-        for path in applied_files:
-            try:
-                with open(path, 'w', encoding='utf-8') as f:
-                    f.write(backups[path])
-            except Exception as rollback_err:
-                print(f"Critical error rolling back {path}: {rollback_err}", file=sys.stderr)
-        sys.exit(1)
 
-def parse_version(version_str):
-    # Regex for YYYY.MM.Patch(-Suffix)?
-    match = re.match(r'^(\d{4})\.(\d{1,2})\.(\d+)(?:-(.+))?$', version_str)
-    if not match:
-        raise ValueError(f"Invalid version format: {version_str}")
-    
-    year = int(match.group(1))
-    month = int(match.group(2))
-    patch = int(match.group(3))
-    suffix = match.group(4)
-    
-    return year, month, patch, suffix
-
-def calculate_next_version(release_type):
-    current_version_str = read_version()
-    now = get_current_date()
-    current_year, current_month = now.year, now.month
-    
-    try:
-        v_year, v_month, v_patch, v_suffix = parse_version(current_version_str)
-    except ValueError:
-        v_year, v_month, v_patch, v_suffix = 0, 0, 0, None
-
-    # Determine "Base" patch level
-    if v_year == current_year and v_month == current_month:
-        if v_suffix and 'dev' in v_suffix:
-            # If we are on a dev version (e.g. 2025.12.0-dev), it means we are working towards 2025.12.0.
-            # So for the release, we keep the patch.
-            new_patch = v_patch
-        else:
-            # If we are on a stable version (2025.12.0) or beta (2025.12.0-beta),
-            # and we want a NEW release, typically we increment.
-            # However, if 2025.12.0-beta exists, and we want 2025.12.0 (Stable),
-            # we should reuse the patch.
-            
-            # Simple logic:
-            # If we are bumping dev AFTER release, v_suffix will be 'dev'.
-            # If v_suffix is 'beta', we usually want to move to stable (same patch) or next beta.
-            # Strategy: If suffix is present (dev/beta), keep patch.
-            # If suffix is empty (stable), increment patch.
-            if v_suffix:
-                new_patch = v_patch
-            else:
-                new_patch = v_patch + 1
-    else:
-        new_patch = 1 # Reset on new month
-        
-    base = f"{current_year}.{current_month}.{new_patch}"
-    
-    if release_type == 'stable':
-        return base
-    elif release_type == 'beta':
-        return f"{base}-beta"
-    elif release_type == 'nightly':
-        timestamp = now.strftime('%Y%m%d.%H%M')
-        return f"{base}-nightly.{timestamp}"
-    else:
-        raise ValueError("Unknown release type")
-
-def bump_dev_version():
-    current_version_str = read_version()
-    now = get_current_date()
-    
-    try:
-        year, month, patch, suffix = parse_version(current_version_str)
-    except ValueError:
-        # If invalid (e.g. nightly), rely on date
-        return f"{now.year}.{now.month}.1-dev"
-
-    # Always increment patch for next dev cycle
-    new_patch = patch + 1
-    
-    # Handle Year/Month rollover just in case script runs across month boundary
-    if year != now.year or month != now.month:
-        return f"{now.year}.{now.month}.1-dev"
-        
-    return f"{year}.{month}.{new_patch}-dev"
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--action', required=True, choices=['get-current', 'calculate', 'bump-dev', 'write'])
-    parser.add_argument('--type', choices=['stable', 'beta', 'nightly'], help='Release type for calculation')
-    parser.add_argument('--version', help='Version to write')
-    
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--action",
+        required=True,
+        choices=("get-current", "calculate", "write"),
+    )
+    parser.add_argument("--type", choices=("stable", "nightly"))
+    parser.add_argument("--run-id")
+    parser.add_argument("--version")
     args = parser.parse_args()
-    
-    if args.action == 'get-current':
-        print(read_version())
-            
-    elif args.action == 'calculate':
-        if not args.type:
-            print("Error: --type required for calculate", file=sys.stderr)
-            sys.exit(1)
-        new_v = calculate_next_version(args.type)
-        print(new_v)
-        
-    elif args.action == 'bump-dev':
-        new_v = bump_dev_version()
-        print(new_v)
-        
-    elif args.action == 'write':
-        if not args.version:
-             print("Error: --version required for write", file=sys.stderr)
-             sys.exit(1)
-        write_version(args.version)
 
-if __name__ == '__main__':
+    try:
+        if args.action == "get-current":
+            print(read_version())
+        elif args.action == "calculate":
+            if args.type is None:
+                parser.error("--type is required for calculate.")
+            version = calculate_next_version(
+                args.type,
+                get_git_tags(),
+                run_id=args.run_id,
+            )
+            print(version)
+        else:
+            if args.version is None:
+                parser.error("--version is required for write.")
+            write_version(args.version)
+    except (FileNotFoundError, OSError, RuntimeError, ValueError) as error:
+        print(f"Error: {error}", file=sys.stderr)
+        raise SystemExit(1) from error
+
+
+if __name__ == "__main__":
     main()

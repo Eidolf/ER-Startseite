@@ -1,50 +1,104 @@
-name: Rollback
+name: Rollback Stable Alias
 
 on:
   workflow_dispatch:
     inputs:
-      target_tag:
-        description: 'Target Tag to cleanup/rollback to (e.g. v1.0.0)'
+      stable_version:
+        description: Stable CalVer version to restore as latest (with or without v)
         required: true
+        type: string
 
 permissions:
+  contents: read
   packages: write
-  contents: write # Needed to delete tags/releases if we go that far, or just packages.
+
+concurrency:
+  group: er-startseite-release
+  cancel-in-progress: false
 
 jobs:
   rollback:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Log in to GHCR
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Rollback Images
+      - name: Check Docker Hub Credentials
+        id: check_dockerhub
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
-          REPO="ghcr.io/${{ github.repository }}"
-          # Convert to lowercase
-          REPO=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')
-          TARGET="${{ inputs.target_tag }}"
-          
-          if [[ -z "$TARGET" ]]; then
-            echo "Error: Target tag is empty."
+          if [[ -n "$DOCKER_USERNAME" && -n "$DOCKER_PASSWORD" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Login to Docker Hub
+        if: steps.check_dockerhub.outputs.available == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Validate stable release and images
+        env:
+          VERSION_INPUT: ${{ inputs.stable_version }}
+          REPOSITORY: ${{ github.repository }}
+          HAS_DOCKERHUB: ${{ steps.check_dockerhub.outputs.available }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        run: |
+          VERSION="${VERSION_INPUT#v}"
+          if [[ ! "$VERSION" =~ ^[0-9]{4}\.(0?[1-9]|1[0-2])\.[1-9][0-9]*$ ]]; then
+            echo "Expected a stable version in YYYY.M.PATCH format." >&2
             exit 1
           fi
-          
-          for SERVICE in backend frontend; do
-            echo "Restoring $SERVICE:latest to $TARGET"
-            # Pull the target version
-            docker pull "$REPO/$SERVICE:$TARGET"
-            # Tag it as latest
-            docker tag "$REPO/$SERVICE:$TARGET" "$REPO/$SERVICE:latest"
-            # Push latest
-            docker push "$REPO/$SERVICE:latest"
-          done
-          
-          echo "Rollback of 'latest' tag complete. The 'latest' tag now points to $TARGET."
 
+          if ! git ls-remote --exit-code --tags origin "refs/tags/v${VERSION}" >/dev/null &&
+             ! git ls-remote --exit-code --tags origin "refs/tags/${VERSION}" >/dev/null; then
+            echo "Stable Git tag does not exist: ${VERSION}" >&2
+            exit 1
+          fi
+
+          REPOSITORY_LOWER=$(printf '%s' "$REPOSITORY" | tr '[:upper:]' '[:lower:]')
+          REPO_NAME="$(printf '%s' "${REPOSITORY#*/}" | tr '[:upper:]' '[:lower:]')"
+          for SERVICE in backend frontend; do
+            IMAGE="ghcr.io/${REPOSITORY_LOWER}/${SERVICE}:${VERSION}"
+            if ! docker buildx imagetools inspect "$IMAGE" >/dev/null; then
+              echo "Stable container image does not exist: ${IMAGE}" >&2
+              exit 1
+            fi
+            if [[ "$HAS_DOCKERHUB" == "true" ]] &&
+               ! docker buildx imagetools inspect "${DOCKER_USERNAME}/${REPO_NAME}/${SERVICE}:${VERSION}" >/dev/null; then
+              echo "Stable Docker Hub image does not exist: ${DOCKER_USERNAME}/${REPO_NAME}/${SERVICE}:${VERSION}" >&2
+              exit 1
+            fi
+          done
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "REPOSITORY_LOWER=$REPOSITORY_LOWER" >> "$GITHUB_ENV"
+          echo "REPO_NAME=$REPO_NAME" >> "$GITHUB_ENV"
+          echo "HAS_DOCKERHUB=$HAS_DOCKERHUB" >> "$GITHUB_ENV"
+          echo "DOCKER_USERNAME=$DOCKER_USERNAME" >> "$GITHUB_ENV"
+
+      - name: Restore latest aliases
+        run: |
+          for SERVICE in backend frontend; do
+            GH_IMAGE="ghcr.io/${REPOSITORY_LOWER}/${SERVICE}"
+            docker buildx imagetools create --tag "${GH_IMAGE}:latest" "${GH_IMAGE}:${VERSION}"
+            if [[ "$HAS_DOCKERHUB" == "true" ]]; then
+              DH_IMAGE="${DOCKER_USERNAME}/${REPO_NAME}/${SERVICE}"
+              docker buildx imagetools create --tag "${DH_IMAGE}:latest" "${DH_IMAGE}:${VERSION}"
+            fi
+          done
